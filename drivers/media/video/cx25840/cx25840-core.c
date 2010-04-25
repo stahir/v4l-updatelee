@@ -863,20 +863,23 @@ static void input_change(struct i2c_client *client)
 	/* Follow step 8c and 8d of section 3.16 in the cx25840 datasheet */
 	if (std & V4L2_STD_SECAM) {
 		cx25840_write(client, 0x402, 0);
-	}
-	else {
+	} else {
 		cx25840_write(client, 0x402, 0x04);
 		cx25840_write(client, 0x49f, (std & V4L2_STD_NTSC) ? 0x14 : 0x11);
 	}
 	cx25840_and_or(client, 0x401, ~0x60, 0);
 	cx25840_and_or(client, 0x401, ~0x60, 0x60);
+
+	/* Don't write into audio registers on cx2583x chips */
+	if (is_cx2583x(state))
+		return;
+
 	cx25840_and_or(client, 0x810, ~0x01, 1);
 
 	if (state->radio) {
 		cx25840_write(client, 0x808, 0xf9);
 		cx25840_write(client, 0x80b, 0x00);
-	}
-	else if (std & V4L2_STD_525_60) {
+	} else if (std & V4L2_STD_525_60) {
 		/* Certain Hauppauge PVR150 models have a hardware bug
 		   that causes audio to drop out. For these models the
 		   audio standard must be set explicitly.
@@ -921,7 +924,6 @@ static void input_change(struct i2c_client *client)
 			cx25840_write(client, 0x80b, 0x10);
 	       }
 	}
-
 	cx25840_and_or(client, 0x810, ~0x01, 0);
 }
 
@@ -1028,10 +1030,8 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 
 	state->vid_input = vid_input;
 	state->aud_input = aud_input;
-	if (!is_cx2583x(state)) {
-		cx25840_audio_set_path(client);
-		input_change(client);
-	}
+	cx25840_audio_set_path(client);
+	input_change(client);
 
 	if (is_cx2388x(state)) {
 		/* Audio channel 1 src : Parallel 1 */
@@ -1552,8 +1552,6 @@ static int cx25840_s_audio_routing(struct v4l2_subdev *sd,
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (is_cx2583x(state))
-		return -EINVAL;
 	return set_input(client, state->vid_input, input);
 }
 
@@ -1562,8 +1560,7 @@ static int cx25840_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *fr
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (!is_cx2583x(state))
-		input_change(client);
+	input_change(client);
 	return 0;
 }
 
