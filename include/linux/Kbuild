@@ -167,7 +167,6 @@ header-y += ultrasound.h
 header-y += un.h
 header-y += utime.h
 header-y += veth.h
-header-y += videotext.h
 header-y += x25.h
 
 unifdef-y += acct.h
