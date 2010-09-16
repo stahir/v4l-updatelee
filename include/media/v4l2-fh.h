@@ -33,6 +33,8 @@ struct v4l2_events;
 
 struct v4l2_fh {
 	struct list_head	list;
+	struct file		*filp;	/* Used to identify the file handler */
+
 	struct video_device	*vdev;
 	struct v4l2_events      *events; /* events, pending and subscribed */
 };
@@ -43,7 +45,7 @@ struct v4l2_fh {
  * from driver's v4l2_file_operations->open() handler if the driver
  * uses v4l2_fh.
  */
-int v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev);
+struct v4l2_fh *v4l2_fh_init(struct video_device *vdev, struct file *fp);
 /*
  * Add the fh to the list of file handles on a video_device. The file
  * handle must be initialised first.
@@ -61,5 +63,18 @@ void v4l2_fh_del(struct v4l2_fh *fh);
  * driver uses v4l2_fh.
  */
 void v4l2_fh_exit(struct v4l2_fh *fh);
+
+/* Gets v4l2_fh per/file handler struct */
+struct v4l2_fh *get_v4l2_fh(struct video_device *vdev, struct file *fp);
+
+/*
+ * By default, v4l2-dev will allocate a v4l2_fh for the device. If the driver
+ * is not happy with it and need to use a different logic, it should call it
+ * during the open() callback, to replace the core-allocated one by its own
+ * private way.
+ */
+struct v4l2_fh *reinit_v4l2_fh(struct video_device *vdev,
+			       struct file *filp,
+			       struct v4l2_fh *fh);
 
 #endif /* V4L2_EVENT_H */

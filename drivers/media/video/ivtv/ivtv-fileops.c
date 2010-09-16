@@ -857,8 +857,6 @@ int ivtv_v4l2_close(struct file *filp)
 	IVTV_DEBUG_FILE("close %s\n", s->name);
 
 	v4l2_prio_close(&itv->prio, id->prio);
-	v4l2_fh_del(fh);
-	v4l2_fh_exit(fh);
 
 	/* Easy case first: this stream was never claimed by us */
 	if (s->id != id->open_id) {
@@ -961,7 +959,8 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 		IVTV_DEBUG_WARN("nomem on v4l2 open\n");
 		return -ENOMEM;
 	}
-	v4l2_fh_init(&item->fh, s->vdev);
+	reinit_v4l2_fh(vdev, filp, &item->fh);
+
 	if (s->type == IVTV_DEC_STREAM_TYPE_YUV ||
 	    s->type == IVTV_DEC_STREAM_TYPE_MPG) {
 		res = v4l2_event_alloc(&item->fh, 60);
@@ -1022,7 +1021,6 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 				1080 * ((itv->yuv_info.v4l2_src_h + 31) & ~31);
 		itv->yuv_info.stream_size = 0;
 	}
-	v4l2_fh_add(&item->fh);
 	return 0;
 }
 

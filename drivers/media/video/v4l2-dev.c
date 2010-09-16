@@ -32,6 +32,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-fh.h>
 
 #define VIDEO_NUM_DEVICES	256
 #define VIDEO_NAME              "video4linux"
@@ -266,6 +267,7 @@ static int v4l2_mmap(struct file *filp, struct vm_area_struct *vm)
 static int v4l2_open(struct inode *inode, struct file *filp)
 {
 	struct video_device *vdev;
+	struct v4l2_fh *fh;
 	int ret = 0;
 
 	/* Check if the video device is available */
@@ -279,13 +281,22 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 	}
 	/* and increase the device refcount */
 	video_get(vdev);
+	fh = v4l2_fh_init(vdev, filp);
 	mutex_unlock(&videodev_lock);
-	if (vdev->fops->open)
+
+	if (unlikely(!fh))
+		return -ENOMEM;
+
+	if (likely(vdev->fops->open))
 		ret = vdev->fops->open(filp);
 
 	/* decrease the refcount in case of an error */
-	if (ret)
+	if (unlikely(ret)) {
 		video_put(vdev);
+		v4l2_fh_exit(fh);
+	} else
+		v4l2_fh_add(fh);
+
 	return ret;
 }
 
@@ -293,10 +304,16 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 static int v4l2_release(struct inode *inode, struct file *filp)
 {
 	struct video_device *vdev = video_devdata(filp);
+	struct v4l2_fh *fh = get_v4l2_fh(vdev, filp);
 	int ret = 0;
 
-	if (vdev->fops->release)
+	if (likely(vdev->fops->release))
 		vdev->fops->release(filp);
+
+	if (likely (!fh)) {
+		v4l2_fh_del(fh);
+		v4l2_fh_exit(fh);
+	}
 
 	/* decrease the refcount unconditionally since the release()
 	   return value is ignored. */

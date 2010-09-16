@@ -28,12 +28,13 @@ struct v4l2_ioctl_callbacks;
 struct video_device;
 struct v4l2_device;
 struct v4l2_ctrl_handler;
+struct v4l2_fh;
 
 /* Flag to mark the video_device struct as registered.
    Drivers can clear this flag if they want to block all future
    device access. It is cleared by video_unregister_device. */
-#define V4L2_FL_REGISTERED	(0)
-#define V4L2_FL_USES_V4L2_FH	(1)
+#define V4L2_FL_REGISTERED		(0)
+#define V4L2_FL_USES_PRIV_V4L2_FH	(1)
 
 struct v4l2_file_operations {
 	struct module *owner;
