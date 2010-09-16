@@ -188,39 +188,72 @@ static ssize_t v4l2_read(struct file *filp, char __user *buf,
 		size_t sz, loff_t *off)
 {
 	struct video_device *vdev = video_devdata(filp);
+	struct v4l2_fh *fh = get_v4l2_fh(vdev, filp);
+	int rc;
 
 	if (!vdev->fops->read)
 		return -EINVAL;
 	if (!video_is_registered(vdev))
 		return -EIO;
-	return vdev->fops->read(filp, buf, sz, off);
+
+	if (fh->lock)
+		mutex_lock(fh->lock);
+	rc = vdev->fops->read(filp, buf, sz, off);
+	if (fh->lock)
+		mutex_unlock(fh->lock);
+
+	return rc;
 }
 
 static ssize_t v4l2_write(struct file *filp, const char __user *buf,
 		size_t sz, loff_t *off)
 {
 	struct video_device *vdev = video_devdata(filp);
+	struct v4l2_fh *fh = get_v4l2_fh(vdev, filp);
+	int rc;
 
 	if (!vdev->fops->write)
 		return -EINVAL;
 	if (!video_is_registered(vdev))
 		return -EIO;
-	return vdev->fops->write(filp, buf, sz, off);
+
+	if (fh->lock)
+		mutex_lock(fh->lock);
+	rc = vdev->fops->write(filp, buf, sz, off);
+	if (fh->lock)
+		mutex_unlock(fh->lock);
+
+	return rc;
 }
 
 static unsigned int v4l2_poll(struct file *filp, struct poll_table_struct *poll)
 {
 	struct video_device *vdev = video_devdata(filp);
+	struct v4l2_fh *fh = get_v4l2_fh(vdev, filp);
+	int rc;
 
 	if (!vdev->fops->poll || !video_is_registered(vdev))
 		return DEFAULT_POLLMASK;
-	return vdev->fops->poll(filp, poll);
+
+	if (fh->lock)
+		mutex_lock(fh->lock);
+
+	rc = vdev->fops->poll(filp, poll);
+
+	if (fh->lock)
+		mutex_unlock(fh->lock);
+
+	return rc;
 }
 
 static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct video_device *vdev = video_devdata(filp);
+	struct v4l2_fh *fh = get_v4l2_fh(vdev, filp);
 	int ret;
+
+	if (fh->lock)
+		mutex_lock(fh->lock);
 
 	/* Allow ioctl to continue even if the device was unregistered.
 	   Things like dequeueing buffers might still be useful. */
@@ -233,6 +266,9 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		unlock_kernel();
 	} else
 		ret = -ENOTTY;
+
+	if (fh->lock)
+		mutex_unlock(fh->lock);
 
 	return ret;
 }
@@ -257,10 +293,18 @@ static unsigned long v4l2_get_unmapped_area(struct file *filp,
 static int v4l2_mmap(struct file *filp, struct vm_area_struct *vm)
 {
 	struct video_device *vdev = video_devdata(filp);
+	struct v4l2_fh *fh = get_v4l2_fh(vdev, filp);
+	int rc;
 
 	if (!vdev->fops->mmap || !video_is_registered(vdev))
 		return -ENODEV;
-	return vdev->fops->mmap(filp, vm);
+	if (fh->lock)
+		mutex_lock(fh->lock);
+	rc = vdev->fops->mmap(filp, vm);
+	if (fh->lock)
+		mutex_unlock(fh->lock);
+
+	return rc;
 }
 
 /* Override for the open function */
@@ -297,6 +341,9 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 	} else
 		v4l2_fh_add(fh);
 
+	if (fh->lock)
+		mutex_unlock(fh->lock);
+
 	return ret;
 }
 
@@ -307,8 +354,14 @@ static int v4l2_release(struct inode *inode, struct file *filp)
 	struct v4l2_fh *fh = get_v4l2_fh(vdev, filp);
 	int ret = 0;
 
+	if (fh->lock)
+		mutex_lock(fh->lock);
+
 	if (likely(vdev->fops->release))
 		vdev->fops->release(filp);
+
+	if (fh->lock)
+		mutex_unlock(fh->lock);
 
 	if (likely (!fh)) {
 		v4l2_fh_del(fh);

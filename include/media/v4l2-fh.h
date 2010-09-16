@@ -27,6 +27,7 @@
 #define V4L2_FH_H
 
 #include <linux/list.h>
+#include <linux/mutex.h>
 
 struct video_device;
 struct v4l2_events;
@@ -37,6 +38,7 @@ struct v4l2_fh {
 
 	struct video_device	*vdev;
 	struct v4l2_events      *events; /* events, pending and subscribed */
+	struct mutex		*lock;	/* add a per-fh lock */
 };
 
 /*
@@ -76,5 +78,18 @@ struct v4l2_fh *get_v4l2_fh(struct video_device *vdev, struct file *fp);
 struct v4l2_fh *reinit_v4l2_fh(struct video_device *vdev,
 			       struct file *filp,
 			       struct v4l2_fh *fh);
+
+
+static inline int set_and_lock_v4l2_fh_mutex(struct video_device *vdev,
+				  struct file *filp,
+				  struct mutex *lock)
+{
+	struct v4l2_fh *fh = get_v4l2_fh(vdev, filp);
+	if (unlikely(!fh))
+		return -EINVAL;
+	fh->lock = lock;
+
+	mutex_lock(fh->lock);
+};
 
 #endif /* V4L2_EVENT_H */
