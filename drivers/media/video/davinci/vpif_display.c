@@ -81,6 +81,7 @@ static struct vpif_config_params config_params = {
 	.channel_bufsize[1]	= 720 * 576 * 2,
 };
 
+static DEFINE_MUTEX(vb_lock);
 static struct vpif_device vpif_obj = { {NULL} };
 static struct device *vpif_dev;
 
@@ -853,7 +854,8 @@ static int vpif_reqbufs(struct file *file, void *priv,
 					    &video_qops, NULL,
 					    &common->irqlock,
 					    reqbuf->type, field,
-					    sizeof(struct videobuf_buffer), fh);
+					    sizeof(struct videobuf_buffer), fh,
+					    &vb_lock);
 
 	/* Set io allowed member of file handle to TRUE */
 	fh->io_allowed[index] = 1;

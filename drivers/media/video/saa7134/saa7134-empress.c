@@ -45,6 +45,8 @@ static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug,"enable debug messages");
 
+static DEFINE_MUTEX(vb_lock);
+
 #define dprintk(fmt, arg...)	if (debug)			\
 	printk(KERN_DEBUG "%s/empress: " fmt, dev->name , ## arg)
 
@@ -542,7 +544,7 @@ static int empress_init(struct saa7134_dev *dev)
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_ALTERNATE,
 			    sizeof(struct saa7134_buf),
-			    dev);
+			    dev, &vb_lock);
 
 	empress_signal_update(&dev->empress_workqueue);
 	return 0;

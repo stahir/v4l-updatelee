@@ -646,13 +646,6 @@ void *videobuf_sg_alloc(size_t size)
 }
 EXPORT_SYMBOL_GPL(videobuf_sg_alloc);
 
-/*
- * Temporary global mutex, to be replaced by an userspace call at the
- * next patch. This allows us to break core changes and the trivial
- * change that needs to happen on all files.
- */
-static DEFINE_MUTEX(vb_lock);
-
 void videobuf_queue_sg_init(struct videobuf_queue *q,
 			 const struct videobuf_queue_ops *ops,
 			 struct device *dev,
@@ -660,11 +653,11 @@ void videobuf_queue_sg_init(struct videobuf_queue *q,
 			 enum v4l2_buf_type type,
 			 enum v4l2_field field,
 			 unsigned int msize,
-			 void *priv)
-
+			 void *priv,
+			 struct mutex *vb_lock)
 {
 	videobuf_queue_core_init(q, ops, dev, irqlock, type, field, msize,
-				 priv, &sg_ops, &vb_lock);
+				 priv, &sg_ops, vb_lock);
 }
 EXPORT_SYMBOL_GPL(videobuf_queue_sg_init);
 

@@ -57,6 +57,8 @@
 #include <linux/vmalloc.h>
 #include <linux/usb.h>
 
+static DEFINE_MUTEX(vb_lock);
+
 #define S2255_MAJOR_VERSION	1
 #define S2255_MINOR_VERSION	20
 #define S2255_RELEASE		0
@@ -1817,7 +1819,7 @@ static int s2255_open(struct file *file)
 				    NULL, &dev->slock,
 				    fh->type,
 				    V4L2_FIELD_INTERLACED,
-				    sizeof(struct s2255_buffer), fh);
+				    sizeof(struct s2255_buffer), fh, &vb_lock);
 	return 0;
 }
 

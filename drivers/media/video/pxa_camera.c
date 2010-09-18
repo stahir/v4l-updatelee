@@ -40,6 +40,8 @@
 #include <mach/dma.h>
 #include <mach/camera.h>
 
+static DEFINE_MUTEX(vb_lock);
+
 #define PXA_CAM_VERSION_CODE KERNEL_VERSION(0, 0, 5)
 #define PXA_CAM_DRV_NAME "pxa27x-camera"
 
@@ -852,7 +854,7 @@ static void pxa_camera_init_videobuf(struct videobuf_queue *q,
 	 */
 	videobuf_queue_sg_init(q, &pxa_videobuf_ops, NULL, &pcdev->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-				sizeof(struct pxa_buffer), icd);
+				sizeof(struct pxa_buffer), icd, &vb_lock);
 }
 
 static u32 mclk_get_divisor(struct platform_device *pdev,

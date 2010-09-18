@@ -92,6 +92,8 @@ MODULE_DESCRIPTION("VPFE Video for Linux Capture Driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Texas Instruments");
 
+static DEFINE_MUTEX(vb_lock);
+
 /* standard information */
 struct vpfe_standard {
 	v4l2_std_id std_id;
@@ -1366,7 +1368,7 @@ static int vpfe_reqbufs(struct file *file, void *priv,
 				req_buf->type,
 				vpfe_dev->fmt.fmt.pix.field,
 				sizeof(struct videobuf_buffer),
-				fh);
+				fh, &vb_lock);
 
 	fh->io_allowed = 1;
 	vpfe_dev->io_usrs = 1;

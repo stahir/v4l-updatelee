@@ -55,6 +55,7 @@ MODULE_PARM_DESC(debug,"enable debug messages [blackbird]");
 #define dprintk(level,fmt, arg...)	if (debug >= level) \
 	printk(KERN_DEBUG "%s/2-bb: " fmt, dev->core->name , ## arg)
 
+static DEFINE_MUTEX(vb_lock);
 
 /* ------------------------------------------------------------------ */
 
@@ -1094,7 +1095,7 @@ static int mpeg_open(struct file *file)
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx88_buffer),
-			    fh);
+			    fh, &vb_lock);
 
 	/* FIXME: locking against other video device */
 	cx88_set_scale(dev->core, dev->width, dev->height,

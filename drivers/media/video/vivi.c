@@ -67,6 +67,8 @@ static unsigned int vid_limit = 16;
 module_param(vid_limit, uint, 0644);
 MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
 
+static DEFINE_MUTEX(vb_lock);
+
 /* Global font descriptor */
 static const u8 *font8x16;
 
@@ -1176,7 +1178,7 @@ static int __init vivi_create_instance(int inst)
 	videobuf_queue_vmalloc_init(&dev->vb_vidq, &vivi_video_qops,
 			NULL, &dev->slock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			V4L2_FIELD_INTERLACED,
-			sizeof(struct vivi_buffer), dev);
+			sizeof(struct vivi_buffer), dev, &vb_lock);
 
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);

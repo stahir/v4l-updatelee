@@ -79,6 +79,7 @@ static struct vpif_config_params config_params = {
 /* global variables */
 static struct vpif_device vpif_obj = { {NULL} };
 static struct device *vpif_dev;
+static DEFINE_MUTEX(vb_lock);
 
 /**
  * ch_params: video standard configuration parameters for vpif
@@ -929,7 +930,8 @@ static int vpif_reqbufs(struct file *file, void *priv,
 					    &common->irqlock,
 					    reqbuf->type,
 					    common->fmt.fmt.pix.field,
-					    sizeof(struct videobuf_buffer), fh);
+					    sizeof(struct videobuf_buffer), fh,
+					    &vb_lock);
 
 	/* Set io allowed member of file handle to TRUE */
 	fh->io_allowed[index] = 1;

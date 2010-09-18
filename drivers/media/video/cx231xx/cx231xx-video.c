@@ -90,6 +90,9 @@ static unsigned int video_debug;
 module_param(video_debug, int, 0644);
 MODULE_PARM_DESC(video_debug, "enable debug messages [video]");
 
+static DEFINE_MUTEX(vb_lock);
+static DEFINE_MUTEX(vb_lock_vbi);
+
 /* supported video standards */
 static struct cx231xx_fmt format[] = {
 	{
@@ -2008,7 +2011,8 @@ static int cx231xx_v4l2_open(struct file *filp)
 		videobuf_queue_vmalloc_init(&fh->vb_vidq, &cx231xx_video_qops,
 					    NULL, &dev->video_mode.slock,
 					    fh->type, V4L2_FIELD_INTERLACED,
-					    sizeof(struct cx231xx_buffer), fh);
+					    sizeof(struct cx231xx_buffer), fh,
+					    &vb_lock);
 	if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
 		/* Set the required alternate setting  VBI interface works in
 		   Bulk mode only */
@@ -2017,7 +2021,8 @@ static int cx231xx_v4l2_open(struct file *filp)
 		videobuf_queue_vmalloc_init(&fh->vb_vidq, &cx231xx_vbi_qops,
 					    NULL, &dev->vbi_mode.slock,
 					    fh->type, V4L2_FIELD_SEQ_TB,
-					    sizeof(struct cx231xx_buffer), fh);
+					    sizeof(struct cx231xx_buffer), fh,
+					    &vb_lock_vbi);
 	}
 
 	mutex_unlock(&dev->lock);

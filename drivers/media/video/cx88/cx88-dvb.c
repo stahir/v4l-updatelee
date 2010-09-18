@@ -67,6 +67,7 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug,"enable debug messages [dvb]");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+static DEFINE_MUTEX(vb_lock);
 
 #define dprintk(level,fmt, arg...)	if (debug >= level) \
 	printk(KERN_DEBUG "%s/2-dvb: " fmt, core->name, ## arg)
@@ -1576,7 +1577,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 				    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				    V4L2_FIELD_TOP,
 				    sizeof(struct cx88_buffer),
-				    dev);
+				    dev, &vb_lock);
 		/* init struct videobuf_dvb */
 		fe->dvb.name = dev->core->name;
 	}

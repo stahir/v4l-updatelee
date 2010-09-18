@@ -88,6 +88,9 @@ static unsigned int video_debug;
 module_param(video_debug, int, 0644);
 MODULE_PARM_DESC(video_debug, "enable debug messages [video]");
 
+static DEFINE_MUTEX(vb_lock);
+static DEFINE_MUTEX(vb_lock_vbi);
+
 /* supported video standards */
 static struct em28xx_fmt format[] = {
 	{
@@ -2181,13 +2184,15 @@ static int em28xx_v4l2_open(struct file *filp)
 	videobuf_queue_vmalloc_init(&fh->vb_vidq, &em28xx_video_qops,
 				    NULL, &dev->slock,
 				    V4L2_BUF_TYPE_VIDEO_CAPTURE, field,
-				    sizeof(struct em28xx_buffer), fh);
+				    sizeof(struct em28xx_buffer), fh,
+				    &vb_lock);
 
 	videobuf_queue_vmalloc_init(&fh->vb_vbiq, &em28xx_vbi_qops,
 				    NULL, &dev->slock,
 				    V4L2_BUF_TYPE_VBI_CAPTURE,
 				    V4L2_FIELD_SEQ_TB,
-				    sizeof(struct em28xx_buffer), fh);
+				    sizeof(struct em28xx_buffer), fh,
+				    &vb_lock_vbi);
 
 	mutex_unlock(&dev->lock);
 

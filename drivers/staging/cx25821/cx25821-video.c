@@ -56,6 +56,12 @@ static void cx25821_init_controls(struct cx25821_dev *dev, int chan_num);
 static const struct v4l2_file_operations video_fops;
 static const struct v4l2_ioctl_ops video_ioctl_ops;
 
+/*
+ * FIXME: We should be defining one mutex for each videobuf streaming, and not a
+ *	  global one, like this, to avoid performance issues.
+ */
+static DEFINE_MUTEX(vb_lock);
+
 #define FORMAT_FLAGS_PACKED       0x01
 
 struct cx25821_fmt formats[] = {
@@ -856,7 +862,7 @@ static int video_open(struct file *file)
 			      &dev->pci->dev, &dev->slock,
 			      V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			      V4L2_FIELD_INTERLACED,
-			      sizeof(struct cx25821_buffer), fh);
+			      sizeof(struct cx25821_buffer), fh, &vb_lock);
 
        dprintk(1, "post videobuf_queue_init()\n");
        unlock_kernel();

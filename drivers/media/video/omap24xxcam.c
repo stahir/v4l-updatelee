@@ -46,6 +46,7 @@
 
 #define RESET_TIMEOUT_NS 10000
 
+static DEFINE_MUTEX(vb_lock);
 static void omap24xxcam_reset(struct omap24xxcam_device *cam);
 static int omap24xxcam_sensor_if_enable(struct omap24xxcam_device *cam);
 static void omap24xxcam_device_unregister(struct v4l2_int_device *s);
@@ -1491,7 +1492,7 @@ static int omap24xxcam_open(struct file *file)
 	videobuf_queue_sg_init(&fh->vbq, &omap24xxcam_vbq_ops, NULL,
 				&fh->vbq_lock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				V4L2_FIELD_NONE,
-				sizeof(struct videobuf_buffer), fh);
+				sizeof(struct videobuf_buffer), fh, &vb_lock);
 
 	return 0;
 

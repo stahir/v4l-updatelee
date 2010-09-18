@@ -344,13 +344,6 @@ static struct videobuf_qtype_ops qops = {
 	.vaddr        = __videobuf_to_vaddr,
 };
 
-/*
- * Temporary global mutex, to be replaced by an userspace call at the
- * next patch. This allows us to break core changes and the trivial
- * change that needs to happen on all files.
- */
-static DEFINE_MUTEX(vb_lock);
-
 void videobuf_queue_dma_contig_init(struct videobuf_queue *q,
 				    const struct videobuf_queue_ops *ops,
 				    struct device *dev,
@@ -358,10 +351,11 @@ void videobuf_queue_dma_contig_init(struct videobuf_queue *q,
 				    enum v4l2_buf_type type,
 				    enum v4l2_field field,
 				    unsigned int msize,
-				    void *priv)
+				    void *priv,
+				    struct mutex *vb_lock);
 {
 	videobuf_queue_core_init(q, ops, dev, irqlock, type, field, msize,
-				 priv, &qops, &vb_lock);
+				 priv, &qops, vb_lock);
 }
 EXPORT_SYMBOL_GPL(videobuf_queue_dma_contig_init);
 

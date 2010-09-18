@@ -28,6 +28,8 @@
 
 #include "dt3155v4l.h"
 
+static DEFINE_MUTEX(vb_lock);
+
 #define DT3155_VENDOR_ID 0x8086
 #define DT3155_DEVICE_ID 0x1223
 
@@ -440,7 +442,7 @@ dt3155_open(struct file *filp)
 		videobuf_queue_dma_contig_init(pd->vidq, &vbq_ops,
 				&pd->pdev->dev, &pd->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-				sizeof(struct videobuf_buffer), pd);
+				sizeof(struct videobuf_buffer), pd, &vb_lock);
 		/* disable all irqs, clear all irq flags */
 		iowrite32(FLD_START | FLD_END_EVEN | FLD_END_ODD,
 						pd->regs + INT_CSR);

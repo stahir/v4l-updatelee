@@ -42,6 +42,8 @@
 #include <media/v4l2-mediabus.h>
 #include <media/soc_mediabus.h>
 
+static DEFINE_MUTEX(vb_lock);
+
 /* register offsets for sh7722 / sh7723 */
 
 #define CAPSR  0x00 /* Capture start register */
@@ -1786,7 +1788,7 @@ static void sh_mobile_ceu_init_videobuf(struct videobuf_queue *q,
 				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				       pcdev->field,
 				       sizeof(struct sh_mobile_ceu_buffer),
-				       icd);
+				       icd, &vb_lock);
 }
 
 static int sh_mobile_ceu_get_parm(struct soc_camera_device *icd,

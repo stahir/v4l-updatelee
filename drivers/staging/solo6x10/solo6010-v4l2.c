@@ -29,6 +29,8 @@
 #include "solo6010.h"
 #include "solo6010-tw28.h"
 
+static DEFINE_MUTEX(vb_lock);
+
 #define SOLO_HW_BPL		2048
 #define SOLO_DISP_PIX_FIELD	V4L2_FIELD_INTERLACED
 #define SOLO_DISP_BUF_SIZE	(64 * 1024) // 64k
@@ -437,7 +439,7 @@ static int solo_v4l2_open(struct file *file)
 				    &solo_dev->pdev->dev, &fh->slock,
 				    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				    SOLO_DISP_PIX_FIELD,
-				    sizeof(struct videobuf_buffer), fh);
+				    sizeof(struct videobuf_buffer), fh, &vb_lock);
 
 	return 0;
 }

@@ -92,6 +92,7 @@ MODULE_PARM_DESC(debug, "Debug level");
 module_param(mode, int, 0644);
 MODULE_PARM_DESC(mode, "0 = 320x240, 1 = 160x120, 2 = 640x480");
 
+static DEFINE_MUTEX(vb_lock);
 
 /* Devices supported by this driver
  * .driver_info contains the init method used by the camera */
@@ -1304,7 +1305,7 @@ static int zr364xx_open(struct file *file)
 				    NULL, &cam->slock,
 				    cam->type,
 				    V4L2_FIELD_NONE,
-				    sizeof(struct zr364xx_buffer), cam);
+				    sizeof(struct zr364xx_buffer), cam, &vb_lock);
 
 	/* Added some delay here, since opening/closing the camera quickly,
 	 * like Ekiga does during its startup, can crash the webcam

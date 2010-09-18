@@ -144,7 +144,8 @@ videobuf queue.  The function to use depends on the type of buffer used:
 				enum v4l2_buf_type type,
 				enum v4l2_field field,
 				unsigned int msize,
-				void *priv);
+				void *priv,
+				struct mutex *vb_lock);
 
     void videobuf_queue_vmalloc_init(struct videobuf_queue *q,
 				struct videobuf_queue_ops *ops,
@@ -153,7 +154,9 @@ videobuf queue.  The function to use depends on the type of buffer used:
 				enum v4l2_buf_type type,
 				enum v4l2_field field,
 				unsigned int msize,
-				void *priv);
+				void *priv,
+				struct mutex *vb_lock);
+
 
     void videobuf_queue_dma_contig_init(struct videobuf_queue *q,
 				       struct videobuf_queue_ops *ops,
@@ -162,7 +165,9 @@ videobuf queue.  The function to use depends on the type of buffer used:
 				       enum v4l2_buf_type type,
 				       enum v4l2_field field,
 				       unsigned int msize,
-				       void *priv);
+				       void *priv,
+				       struct mutex *vb_lock);
+
 
 In each case, the parameters are the same: q is the queue structure for the
 device, ops is the set of callbacks as described above, dev is the device
@@ -171,8 +176,9 @@ protect access to the data structures, type is the buffer type used by the
 device (cameras will use V4L2_BUF_TYPE_VIDEO_CAPTURE, for example), field
 describes which field is being captured (often V4L2_FIELD_NONE for
 progressive devices), msize is the size of any containing structure used
-around struct videobuf_buffer, and priv is a private data pointer which
-shows up in the priv_data field of struct videobuf_queue.  Note that these
+around struct videobuf_buffer, priv is a private data pointer which
+shows up in the priv_data field of struct videobuf_queue, and vb_lock is a
+mutex lock used to protect videobuf data structs.  Note that these
 are void functions which, evidently, are immune to failure.
 
 V4L2 capture drivers can be written to support either of two APIs: the

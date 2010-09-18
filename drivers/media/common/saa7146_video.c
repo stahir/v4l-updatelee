@@ -84,6 +84,8 @@ static struct saa7146_format formats[] = {
 
 static int NUM_FORMATS = sizeof(formats)/sizeof(struct saa7146_format);
 
+static DEFINE_MUTEX(vb_lock);
+
 struct saa7146_format* format_by_fourcc(struct saa7146_dev *dev, int fourcc)
 {
 	int i, j = NUM_FORMATS;
@@ -1386,7 +1388,7 @@ static int video_open(struct saa7146_dev *dev, struct file *file)
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct saa7146_buf),
-			    file);
+			    file, &vb_lock);
 
 	return 0;
 }

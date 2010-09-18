@@ -58,6 +58,8 @@ static int video_nr = -1;		/* /dev/videoN, -1 for autodetect */
 int tm6000_debug;
 EXPORT_SYMBOL_GPL(tm6000_debug);
 
+static DEFINE_MUTEX(vb_lock);
+
 /* supported controls */
 static struct v4l2_queryctrl tm6000_qctrl[] = {
 	{
@@ -1300,7 +1302,7 @@ static int tm6000_open(struct file *file)
 			NULL, &dev->slock,
 			fh->type,
 			V4L2_FIELD_INTERLACED,
-			sizeof(struct tm6000_buffer),fh);
+			sizeof(struct tm6000_buffer), fh, &vb_lock);
 
 	return 0;
 }

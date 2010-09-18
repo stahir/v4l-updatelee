@@ -76,6 +76,7 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off module debugging (default:off).");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+static DEFINE_MUTEX(vb_lock);
 
 #define dprintk(fmt, arg...)	do { if (debug) \
 	printk(KERN_DEBUG "%s/dvb: " fmt, dev->name , ## arg); } while(0)
@@ -1111,7 +1112,7 @@ static int dvb_init(struct saa7134_dev *dev)
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_ALTERNATE,
 			    sizeof(struct saa7134_buf),
-			    dev);
+			    dev, &vb_lock);
 
 	switch (dev->board) {
 	case SAA7134_BOARD_PINNACLE_300I_DVBT_PAL:

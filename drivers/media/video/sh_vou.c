@@ -29,6 +29,8 @@
 #include <media/v4l2-mediabus.h>
 #include <media/videobuf-dma-contig.h>
 
+static DEFINE_MUTEX(vb_lock);
+
 /* Mirror addresses are not available for all registers */
 #define VOUER	0
 #define VOUCR	4
@@ -1189,7 +1191,8 @@ static int sh_vou_open(struct file *file)
 				       vou_dev->v4l2_dev.dev, &vou_dev->lock,
 				       V4L2_BUF_TYPE_VIDEO_OUTPUT,
 				       V4L2_FIELD_NONE,
-				       sizeof(struct videobuf_buffer), vdev);
+				       sizeof(struct videobuf_buffer), vdev,
+				       &vb_lock);
 
 	return 0;
 }

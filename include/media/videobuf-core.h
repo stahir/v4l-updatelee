@@ -17,6 +17,7 @@
 #define _VIDEOBUF_CORE_H
 
 #include <linux/poll.h>
+#include <linux/mutex.h>
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 #define __MIN_V4L1
 #include <linux/videodev.h>

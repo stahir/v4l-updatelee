@@ -58,6 +58,8 @@ static unsigned int v4l_debug;
 module_param(v4l_debug, int, 0644);
 MODULE_PARM_DESC(v4l_debug, "enable V4L debug messages");
 
+static DEFINE_MUTEX(vb_lock);
+
 #define dprintk(level, fmt, arg...)\
 	do { if (v4l_debug >= level) \
 		printk(KERN_DEBUG "%s: " fmt, \
@@ -1591,7 +1593,7 @@ static int mpeg_open(struct file *file)
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx23885_buffer),
-			    fh);
+			    fh, &vb_lock);
 	unlock_kernel();
 
 	return 0;

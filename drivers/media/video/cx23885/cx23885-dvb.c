@@ -72,6 +72,7 @@ static unsigned int alt_tuner;
 module_param(alt_tuner, int, 0644);
 MODULE_PARM_DESC(alt_tuner, "Enable alternate tuner configuration");
 
+static DEFINE_MUTEX(vb_lock);
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 /* ------------------------------------------------------------------ */
@@ -1074,7 +1075,7 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 		videobuf_queue_sg_init(&fe0->dvb.dvbq, &dvb_qops,
 			    &dev->pci->dev, &port->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_TOP,
-			    sizeof(struct cx23885_buffer), port);
+			    sizeof(struct cx23885_buffer), port, &vb_lock);
 	}
 	err = dvb_register(port);
 	if (err != 0)

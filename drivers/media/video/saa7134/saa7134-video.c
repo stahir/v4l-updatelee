@@ -49,6 +49,8 @@ MODULE_PARM_DESC(noninterlaced,"capture non interlaced video");
 module_param_string(secam, secam, sizeof(secam), 0644);
 MODULE_PARM_DESC(secam, "force SECAM variant, either DK,L or Lc");
 
+static DEFINE_MUTEX(vb_lock);
+static DEFINE_MUTEX(vb_lock_vbi);
 
 #define dprintk(fmt, arg...)	if (video_debug&0x04) \
 	printk(KERN_DEBUG "%s/video: " fmt, dev->name , ## arg)
@@ -1366,13 +1368,13 @@ static int video_open(struct file *file)
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct saa7134_buf),
-			    fh);
+			    fh, &vb_lock);
 	videobuf_queue_sg_init(&fh->vbi, &saa7134_vbi_qops,
 			    &dev->pci->dev, &dev->slock,
 			    V4L2_BUF_TYPE_VBI_CAPTURE,
 			    V4L2_FIELD_SEQ_TB,
 			    sizeof(struct saa7134_buf),
-			    fh);
+			    fh, &vb_lock_vbi);
 	saa7134_pgtable_alloc(dev->pci,&fh->pt_cap);
 	saa7134_pgtable_alloc(dev->pci,&fh->pt_vbi);
 

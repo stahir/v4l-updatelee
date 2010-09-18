@@ -45,6 +45,8 @@
 
 #include <asm/dma.h>
 
+static DEFINE_MUTEX(vb_lock);
+
 #define MX2_CAM_DRV_NAME "mx2-camera"
 #define MX2_CAM_VERSION_CODE KERNEL_VERSION(0, 0, 5)
 #define MX2_CAM_DRIVER_DESCRIPTION "i.MX2x_Camera"
@@ -666,7 +668,7 @@ static void mx2_camera_init_videobuf(struct videobuf_queue *q,
 
 	videobuf_queue_dma_contig_init(q, &mx2_videobuf_ops, pcdev->dev,
 			&pcdev->lock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			V4L2_FIELD_NONE, sizeof(struct mx2_buffer), icd);
+			V4L2_FIELD_NONE, sizeof(struct mx2_buffer), icd, &vb_lock);
 }
 
 #define MX2_BUS_FLAGS	(SOCAM_DATAWIDTH_8 | \

@@ -28,6 +28,8 @@
 #include <mach/ipu.h>
 #include <mach/mx3_camera.h>
 
+static DEFINE_MUTEX(vb_lock);
+
 #define MX3_CAM_DRV_NAME "mx3-camera"
 
 /* CMOS Sensor Interface Registers */
@@ -441,7 +443,8 @@ static void mx3_camera_init_videobuf(struct videobuf_queue *q,
 				       &mx3_cam->lock,
 				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				       V4L2_FIELD_NONE,
-				       sizeof(struct mx3_camera_buffer), icd);
+				       sizeof(struct mx3_camera_buffer), icd,
+				       &vb_lock);
 }
 
 /* First part of ipu_csi_init_interface() */

@@ -42,6 +42,7 @@
 #include "au0828-reg.h"
 
 static DEFINE_MUTEX(au0828_sysfs_lock);
+static DEFINE_MUTEX(vb_lock);
 
 #define AU0828_VERSION_CODE KERNEL_VERSION(0, 0, 1)
 
@@ -965,7 +966,8 @@ static int au0828_v4l2_open(struct file *filp)
 				    NULL, &dev->slock,
 				    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				    V4L2_FIELD_INTERLACED,
-				    sizeof(struct au0828_buffer), fh);
+				    sizeof(struct au0828_buffer), fh,
+				    &vb_lock);
 
 	/* VBI Setup */
 	dev->vbi_width = 720;
@@ -974,7 +976,8 @@ static int au0828_v4l2_open(struct file *filp)
 				    NULL, &dev->slock,
 				    V4L2_BUF_TYPE_VBI_CAPTURE,
 				    V4L2_FIELD_SEQ_TB,
-				    sizeof(struct au0828_buffer), fh);
+				    sizeof(struct au0828_buffer), fh,
+				    &vb_lock);
 
 
 	return ret;

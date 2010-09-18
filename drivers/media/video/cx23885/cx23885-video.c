@@ -76,6 +76,8 @@ MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
 /* ------------------------------------------------------------------- */
 /* static data                                                         */
 
+static DEFINE_MUTEX(vb_lock);
+
 #define FORMAT_FLAGS_PACKED       0x01
 
 static struct cx23885_fmt formats[] = {
@@ -758,7 +760,7 @@ static int video_open(struct file *file)
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx23885_buffer),
-			    fh);
+			    fh, &vb_lock);
 
 	dprintk(1, "post videobuf_queue_init()\n");
 

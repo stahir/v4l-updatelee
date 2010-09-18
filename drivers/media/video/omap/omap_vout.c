@@ -57,6 +57,8 @@ MODULE_DESCRIPTION("OMAP Video for Linux Video out driver");
 MODULE_LICENSE("GPL");
 
 
+static DEFINE_MUTEX(vb_lock);
+
 /* Driver Configuration macros */
 #define VOUT_NAME		"omap_vout"
 
@@ -1341,7 +1343,7 @@ static int omap_vout_open(struct file *file)
 
 	videobuf_queue_dma_contig_init(q, &video_vbq_ops, q->dev,
 			&vout->vbq_lock, vout->type, V4L2_FIELD_NONE,
-			sizeof(struct videobuf_buffer), vout);
+			sizeof(struct videobuf_buffer), vout, &vb_lock);
 
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Exiting %s\n", __func__);
 	return 0;

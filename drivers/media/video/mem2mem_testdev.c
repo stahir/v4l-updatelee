@@ -68,6 +68,8 @@ MODULE_LICENSE("GPL");
 void m2mtest_dev_release(struct device *dev)
 {}
 
+static DEFINE_MUTEX(vb_lock);
+
 static struct platform_device m2mtest_pdev = {
 	.name		= MEM2MEM_NAME,
 	.dev.release	= m2mtest_dev_release,
@@ -848,7 +850,7 @@ static void queue_init(void *priv, struct videobuf_queue *vq,
 
 	videobuf_queue_vmalloc_init(vq, &m2mtest_qops, ctx->dev->v4l2_dev.dev,
 				    &ctx->dev->irqlock, type, V4L2_FIELD_NONE,
-				    sizeof(struct m2mtest_buffer), priv);
+				    sizeof(struct m2mtest_buffer), priv, &vb_lock);
 }
 
 

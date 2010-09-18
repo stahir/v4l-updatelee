@@ -43,6 +43,8 @@
 /* I2C address of video decoder chip is 0x4A */
 #define VIU_VIDEO_DECODER_ADDR	0x25
 
+static DEFINE_MUTEX(vb_lock);
+
 /* supported controls */
 static struct v4l2_queryctrl viu_qctrl[] = {
 	{
@@ -1287,7 +1289,7 @@ static int viu_open(struct file *file)
 	videobuf_queue_dma_contig_init(&fh->vb_vidq, &viu_video_qops,
 				       dev->dev, &fh->vbq_lock,
 				       fh->type, V4L2_FIELD_INTERLACED,
-				       sizeof(struct viu_buf), fh);
+				       sizeof(struct viu_buf), fh, &vb_lock);
 	return 0;
 }
 
