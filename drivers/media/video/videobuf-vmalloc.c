@@ -75,7 +75,8 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 		struct videobuf_vmalloc_memory *mem;
 
 		dprintk(1, "munmap %p q=%p\n", map, q);
-		mutex_lock(&q->vb_lock);
+		if (q->vb_lock)
+			mutex_lock(q->vb_lock);
 
 		/* We need first to cancel streams, before unmapping */
 		if (q->streaming)
@@ -114,7 +115,8 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 
 		kfree(map);
 
-		mutex_unlock(&q->vb_lock);
+		if (q->vb_lock)
+			mutex_unlock(q->vb_lock);
 	}
 
 	return;
@@ -297,6 +299,13 @@ static struct videobuf_qtype_ops qops = {
 	.vaddr        = videobuf_to_vmalloc,
 };
 
+/*
+ * Temporary global mutex, to be replaced by an userspace call at the
+ * next patch. This allows us to break core changes and the trivial
+ * change that needs to happen on all files.
+ */
+static DEFINE_MUTEX(vb_lock);
+
 void videobuf_queue_vmalloc_init(struct videobuf_queue *q,
 			 const struct videobuf_queue_ops *ops,
 			 struct device *dev,
@@ -307,7 +316,7 @@ void videobuf_queue_vmalloc_init(struct videobuf_queue *q,
 			 void *priv)
 {
 	videobuf_queue_core_init(q, ops, dev, irqlock, type, field, msize,
-				 priv, &qops);
+				 priv, &qops, &vb_lock);
 }
 EXPORT_SYMBOL_GPL(videobuf_queue_vmalloc_init);
 

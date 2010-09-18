@@ -795,8 +795,8 @@ static int fimc_m2m_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	src_vq = v4l2_m2m_get_src_vq(ctx->m2m_ctx);
 	dst_vq = v4l2_m2m_get_dst_vq(ctx->m2m_ctx);
 
-	mutex_lock(&src_vq->vb_lock);
-	mutex_lock(&dst_vq->vb_lock);
+	mutex_lock(src_vq->vb_lock);
+	mutex_lock(dst_vq->vb_lock);
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		if (videobuf_queue_is_busy(src_vq)) {
@@ -849,8 +849,8 @@ static int fimc_m2m_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	dbg("f_width= %d, f_height= %d", frame->f_width, frame->f_height);
 
 s_fmt_out:
-	mutex_unlock(&dst_vq->vb_lock);
-	mutex_unlock(&src_vq->vb_lock);
+	mutex_unlock(dst_vq->vb_lock);
+	mutex_unlock(src_vq->vb_lock);
 	mutex_unlock(&ctx->fimc_dev->lock);
 	return ret;
 }

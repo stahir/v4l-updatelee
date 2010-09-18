@@ -353,13 +353,13 @@ int bttv_s_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
 	   because vbi_fmt.end counts field lines times two. */
 	end = max(frt->fmt.vbi.start[0], start1) * 2 + 2;
 
-	mutex_lock(&fh->vbi.vb_lock);
+	mutex_lock(fh->vbi.vb_lock);
 
 	fh->vbi_fmt.fmt    = frt->fmt.vbi;
 	fh->vbi_fmt.tvnorm = tvnorm;
 	fh->vbi_fmt.end    = end;
 
-	mutex_unlock(&fh->vbi.vb_lock);
+	mutex_unlock(fh->vbi.vb_lock);
 
 	rc = 0;
 

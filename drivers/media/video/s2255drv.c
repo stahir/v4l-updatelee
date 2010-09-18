@@ -1005,7 +1005,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	if (fmt == NULL)
 		return -EINVAL;
 
-	mutex_lock(&q->vb_lock);
+	mutex_lock(q->vb_lock);
 
 	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
 		dprintk(1, "queue busy\n");
@@ -1070,7 +1070,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	(void) s2255_set_mode(channel, &mode);
 	ret = 0;
 out_s_fmt:
-	mutex_unlock(&q->vb_lock);
+	mutex_unlock(q->vb_lock);
 	return ret;
 }
 
@@ -1365,7 +1365,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *i)
 	struct s2255_mode mode;
 	struct videobuf_queue *q = &fh->vb_vidq;
 	int ret = 0;
-	mutex_lock(&q->vb_lock);
+	mutex_lock(q->vb_lock);
 	if (videobuf_queue_is_busy(q)) {
 		dprintk(1, "queue busy\n");
 		ret = -EBUSY;
@@ -1398,7 +1398,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *i)
 	if (mode.restart)
 		s2255_set_mode(fh->channel, &mode);
 out_s_std:
-	mutex_unlock(&q->vb_lock);
+	mutex_unlock(q->vb_lock);
 	return ret;
 }
 

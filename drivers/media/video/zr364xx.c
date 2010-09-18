@@ -933,7 +933,7 @@ static int zr364xx_vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&q->vb_lock);
+	mutex_lock(q->vb_lock);
 
 	if (videobuf_queue_is_busy(&cam->vb_vidq)) {
 		DBG("%s queue busy\n", __func__);
@@ -1009,7 +1009,7 @@ static int zr364xx_vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	ret = 0;
 
 out:
-	mutex_unlock(&q->vb_lock);
+	mutex_unlock(q->vb_lock);
 
 	DBG("%s: V4L2_PIX_FMT_%s (%d) ok!\n", __func__,
 	    decode_fourcc(f->fmt.pix.pixelformat, pixelformat_name),

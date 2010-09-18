@@ -91,7 +91,7 @@ static int ts_open(struct file *file)
 
 	dprintk("open dev=%s\n", video_device_node_name(vdev));
 	err = -EBUSY;
-	if (!mutex_trylock(&dev->empress_tsq.vb_lock))
+	if (!mutex_trylock(dev->empress_tsq.vb_lock))
 		return err;
 	if (atomic_read(&dev->empress_users))
 		goto done;
@@ -105,7 +105,7 @@ static int ts_open(struct file *file)
 	err = 0;
 
 done:
-	mutex_unlock(&dev->empress_tsq.vb_lock);
+	mutex_unlock(dev->empress_tsq.vb_lock);
 	return err;
 }
 

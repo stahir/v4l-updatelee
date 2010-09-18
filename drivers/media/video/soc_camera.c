@@ -529,7 +529,7 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 
 	WARN_ON(priv != file->private_data);
 
-	mutex_lock(&icf->vb_vidq.vb_lock);
+	mutex_lock(icf->vb_vidq.vb_lock);
 
 	if (icf->vb_vidq.bufs[0]) {
 		dev_err(&icd->dev, "S_FMT denied: queue initialised\n");
@@ -540,7 +540,7 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 	ret = soc_camera_set_fmt(icf, f);
 
 unlock:
-	mutex_unlock(&icf->vb_vidq.vb_lock);
+	mutex_unlock(icf->vb_vidq.vb_lock);
 
 	return ret;
 }
@@ -744,9 +744,9 @@ static int soc_camera_g_crop(struct file *file, void *fh,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	int ret;
 
-	mutex_lock(&icf->vb_vidq.vb_lock);
+	mutex_lock(icf->vb_vidq.vb_lock);
 	ret = ici->ops->get_crop(icd, a);
-	mutex_unlock(&icf->vb_vidq.vb_lock);
+	mutex_unlock(icf->vb_vidq.vb_lock);
 
 	return ret;
 }
@@ -773,7 +773,7 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 		rect->width, rect->height, rect->left, rect->top);
 
 	/* Cropping is allowed during a running capture, guard consistency */
-	mutex_lock(&icf->vb_vidq.vb_lock);
+	mutex_lock(icf->vb_vidq.vb_lock);
 
 	/* If get_crop fails, we'll let host and / or client drivers decide */
 	ret = ici->ops->get_crop(icd, &current_crop);
@@ -792,7 +792,7 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 		ret = ici->ops->set_crop(icd, a);
 	}
 
-	mutex_unlock(&icf->vb_vidq.vb_lock);
+	mutex_unlock(icf->vb_vidq.vb_lock);
 
 	return ret;
 }

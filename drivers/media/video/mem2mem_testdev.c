@@ -534,7 +534,7 @@ static int vidioc_s_fmt(struct m2mtest_ctx *ctx, struct v4l2_format *f)
 	if (!q_data)
 		return -EINVAL;
 
-	mutex_lock(&vq->vb_lock);
+	mutex_lock(vq->vb_lock);
 
 	if (videobuf_queue_is_busy(vq)) {
 		v4l2_err(&ctx->dev->v4l2_dev, "%s queue busy\n", __func__);
@@ -554,7 +554,7 @@ static int vidioc_s_fmt(struct m2mtest_ctx *ctx, struct v4l2_format *f)
 		f->type, q_data->width, q_data->height, q_data->fmt->fourcc);
 
 out:
-	mutex_unlock(&vq->vb_lock);
+	mutex_unlock(vq->vb_lock);
 	return ret;
 }
 

@@ -802,7 +802,7 @@ static unsigned int video_poll(struct file *file,
 		return videobuf_poll_stream(file, &fh->vbiq, wait);
 	}
 
-	mutex_lock(&fh->vidq.vb_lock);
+	mutex_lock(fh->vidq.vb_lock);
 	if (res_check(fh, RESOURCE_VIDEO)) {
 		/* streaming capture */
 		if (list_empty(&fh->vidq.stream))
@@ -822,7 +822,7 @@ static unsigned int video_poll(struct file *file,
 	else
 		rc = 0;
 done:
-	mutex_unlock(&fh->vidq.vb_lock);
+	mutex_unlock(fh->vidq.vb_lock);
 	return rc;
 }
 

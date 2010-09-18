@@ -1010,7 +1010,7 @@ static int vpif_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		return videobuf_qbuf(&common->buffer_queue, buf);
 
 	/* bufferqueue is empty store buffer address in VPIF registers */
-	mutex_lock(&common->buffer_queue.vb_lock);
+	mutex_lock(common->buffer_queue.vb_lock);
 	buf1 = common->buffer_queue.bufs[tbuf.index];
 
 	if ((buf1->state == VIDEOBUF_QUEUED) ||
@@ -1062,11 +1062,11 @@ static int vpif_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 
 	local_irq_restore(flags);
 	list_add_tail(&buf1->stream, &common->buffer_queue.stream);
-	mutex_unlock(&common->buffer_queue.vb_lock);
+	mutex_unlock(common->buffer_queue.vb_lock);
 	return 0;
 
 qbuf_exit:
-	mutex_unlock(&common->buffer_queue.vb_lock);
+	mutex_unlock(common->buffer_queue.vb_lock);
 	return -EINVAL;
 }
 

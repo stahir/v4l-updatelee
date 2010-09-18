@@ -355,7 +355,8 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 	map->count--;
 	if (0 == map->count) {
 		dprintk(1, "munmap %p q=%p\n", map, q);
-		mutex_lock(&q->vb_lock);
+		if (q->vb_lock)
+			mutex_lock(q->vb_lock);
 		for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 			if (NULL == q->bufs[i])
 				continue;
@@ -371,7 +372,8 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 			q->bufs[i]->baddr = 0;
 			q->ops->buf_release(q, q->bufs[i]);
 		}
-		mutex_unlock(&q->vb_lock);
+		if (q->vb_lock)
+			mutex_unlock(q->vb_lock);
 		kfree(map);
 	}
 	return;
@@ -644,6 +646,13 @@ void *videobuf_sg_alloc(size_t size)
 }
 EXPORT_SYMBOL_GPL(videobuf_sg_alloc);
 
+/*
+ * Temporary global mutex, to be replaced by an userspace call at the
+ * next patch. This allows us to break core changes and the trivial
+ * change that needs to happen on all files.
+ */
+static DEFINE_MUTEX(vb_lock);
+
 void videobuf_queue_sg_init(struct videobuf_queue *q,
 			 const struct videobuf_queue_ops *ops,
 			 struct device *dev,
@@ -652,9 +661,10 @@ void videobuf_queue_sg_init(struct videobuf_queue *q,
 			 enum v4l2_field field,
 			 unsigned int msize,
 			 void *priv)
+
 {
 	videobuf_queue_core_init(q, ops, dev, irqlock, type, field, msize,
-				 priv, &sg_ops);
+				 priv, &sg_ops, &vb_lock);
 }
 EXPORT_SYMBOL_GPL(videobuf_queue_sg_init);
 

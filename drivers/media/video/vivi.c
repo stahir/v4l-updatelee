@@ -826,7 +826,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&q->vb_lock);
+	mutex_lock(q->vb_lock);
 
 	if (vivi_is_generating(dev)) {
 		dprintk(dev, 1, "%s device busy\n", __func__);
@@ -840,7 +840,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	dev->vb_vidq.field = f->fmt.pix.field;
 	ret = 0;
 out:
-	mutex_unlock(&q->vb_lock);
+	mutex_unlock(q->vb_lock);
 	return ret;
 }
 

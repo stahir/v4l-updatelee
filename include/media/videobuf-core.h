@@ -138,7 +138,7 @@ struct videobuf_qtype_ops {
 };
 
 struct videobuf_queue {
-	struct mutex               vb_lock;
+	struct mutex               *vb_lock;
 	spinlock_t                 *irqlock;
 	struct device		   *dev;
 
@@ -185,7 +185,8 @@ void videobuf_queue_core_init(struct videobuf_queue *q,
 			 enum v4l2_field field,
 			 unsigned int msize,
 			 void *priv,
-			 struct videobuf_qtype_ops *int_ops);
+			 struct videobuf_qtype_ops *int_ops,
+			 struct mutex               *vb_lock);
 int  videobuf_queue_is_busy(struct videobuf_queue *q);
 void videobuf_queue_cancel(struct videobuf_queue *q);
 

@@ -2361,7 +2361,7 @@ static int setup_window_lock(struct bttv_fh *fh, struct bttv *btv,
 		}
 	}
 
-	mutex_lock(&fh->cap.vb_lock);
+	mutex_lock(fh->cap.vb_lock);
 	/* clip against screen */
 	if (NULL != btv->fbuf.base)
 		n = btcx_screen_clips(btv->fbuf.fmt.width, btv->fbuf.fmt.height,
@@ -2413,7 +2413,7 @@ static int setup_window_lock(struct bttv_fh *fh, struct bttv *btv,
 		bttv_overlay_risc(btv, &fh->ov, fh->ovfmt, new);
 		retval = bttv_switch_overlay(btv,fh,new);
 	}
-	mutex_unlock(&fh->cap.vb_lock);
+	mutex_unlock(fh->cap.vb_lock);
 	return retval;
 }
 
@@ -2615,7 +2615,7 @@ static int bttv_s_fmt_vid_cap(struct file *file, void *priv,
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 
 	/* update our state informations */
-	mutex_lock(&fh->cap.vb_lock);
+	mutex_lock(fh->cap.vb_lock);
 	fh->fmt              = fmt;
 	fh->cap.field        = f->fmt.pix.field;
 	fh->cap.last         = V4L2_FIELD_NONE;
@@ -2624,7 +2624,7 @@ static int bttv_s_fmt_vid_cap(struct file *file, void *priv,
 	btv->init.fmt        = fmt;
 	btv->init.width      = f->fmt.pix.width;
 	btv->init.height     = f->fmt.pix.height;
-	mutex_unlock(&fh->cap.vb_lock);
+	mutex_unlock(fh->cap.vb_lock);
 
 	return 0;
 }
@@ -2650,11 +2650,11 @@ static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
 	unsigned int i;
 	struct bttv_fh *fh = priv;
 
-	mutex_lock(&fh->cap.vb_lock);
+	mutex_lock(fh->cap.vb_lock);
 	retval = __videobuf_mmap_setup(&fh->cap, gbuffers, gbufsize,
 				     V4L2_MEMORY_MMAP);
 	if (retval < 0) {
-		mutex_unlock(&fh->cap.vb_lock);
+		mutex_unlock(fh->cap.vb_lock);
 		return retval;
 	}
 
@@ -2666,7 +2666,7 @@ static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
 	for (i = 0; i < gbuffers; i++)
 		mbuf->offsets[i] = i * gbufsize;
 
-	mutex_unlock(&fh->cap.vb_lock);
+	mutex_unlock(fh->cap.vb_lock);
 	return 0;
 }
 #endif
@@ -2776,10 +2776,10 @@ static int bttv_overlay(struct file *file, void *f, unsigned int on)
 	int retval = 0;
 
 	if (on) {
-		mutex_lock(&fh->cap.vb_lock);
+		mutex_lock(fh->cap.vb_lock);
 		/* verify args */
 		if (unlikely(!btv->fbuf.base)) {
-			mutex_unlock(&fh->cap.vb_lock);
+			mutex_unlock(fh->cap.vb_lock);
 			return -EINVAL;
 		}
 		if (unlikely(!fh->ov.setup_ok)) {
@@ -2788,13 +2788,13 @@ static int bttv_overlay(struct file *file, void *f, unsigned int on)
 		}
 		if (retval)
 			return retval;
-		mutex_unlock(&fh->cap.vb_lock);
+		mutex_unlock(fh->cap.vb_lock);
 	}
 
 	if (!check_alloc_btres_lock(btv, fh, RESOURCE_OVERLAY))
 		return -EBUSY;
 
-	mutex_lock(&fh->cap.vb_lock);
+	mutex_lock(fh->cap.vb_lock);
 	if (on) {
 		fh->ov.tvnorm = btv->tvnorm;
 		new = videobuf_sg_alloc(sizeof(*new));
@@ -2806,7 +2806,7 @@ static int bttv_overlay(struct file *file, void *f, unsigned int on)
 
 	/* switch over */
 	retval = bttv_switch_overlay(btv, fh, new);
-	mutex_unlock(&fh->cap.vb_lock);
+	mutex_unlock(fh->cap.vb_lock);
 	return retval;
 }
 
@@ -2845,7 +2845,7 @@ static int bttv_s_fbuf(struct file *file, void *f,
 	}
 
 	/* ok, accept it */
-	mutex_lock(&fh->cap.vb_lock);
+	mutex_lock(fh->cap.vb_lock);
 	btv->fbuf.base       = fb->base;
 	btv->fbuf.fmt.width  = fb->fmt.width;
 	btv->fbuf.fmt.height = fb->fmt.height;
@@ -2877,7 +2877,7 @@ static int bttv_s_fbuf(struct file *file, void *f,
 			retval = bttv_switch_overlay(btv, fh, new);
 		}
 	}
-	mutex_unlock(&fh->cap.vb_lock);
+	mutex_unlock(fh->cap.vb_lock);
 	return retval;
 }
 
@@ -3141,7 +3141,7 @@ static int bttv_s_crop(struct file *file, void *f, struct v4l2_crop *crop)
 
 	fh->do_crop = 1;
 
-	mutex_lock(&fh->cap.vb_lock);
+	mutex_lock(fh->cap.vb_lock);
 
 	if (fh->width < c.min_scaled_width) {
 		fh->width = c.min_scaled_width;
@@ -3159,7 +3159,7 @@ static int bttv_s_crop(struct file *file, void *f, struct v4l2_crop *crop)
 		btv->init.height = c.max_scaled_height;
 	}
 
-	mutex_unlock(&fh->cap.vb_lock);
+	mutex_unlock(fh->cap.vb_lock);
 
 	return 0;
 }
@@ -3228,7 +3228,7 @@ static unsigned int bttv_poll(struct file *file, poll_table *wait)
 		return videobuf_poll_stream(file, &fh->vbi, wait);
 	}
 
-	mutex_lock(&fh->cap.vb_lock);
+	mutex_lock(fh->cap.vb_lock);
 	if (check_btres(fh,RESOURCE_VIDEO_STREAM)) {
 		/* streaming capture */
 		if (list_empty(&fh->cap.stream))
@@ -3263,7 +3263,7 @@ static unsigned int bttv_poll(struct file *file, poll_table *wait)
 	else
 		rc = 0;
 err:
-	mutex_unlock(&fh->cap.vb_lock);
+	mutex_unlock(fh->cap.vb_lock);
 	return rc;
 }
 
@@ -3303,9 +3303,9 @@ static int bttv_open(struct file *file)
 	 * Let's first copy btv->init at fh, holding cap.vb_lock, and then work
 	 * with the rest of init, holding btv->lock.
 	 */
-	mutex_lock(&fh->cap.vb_lock);
+	mutex_lock(fh->cap.vb_lock);
 	*fh = btv->init;
-	mutex_unlock(&fh->cap.vb_lock);
+	mutex_unlock(fh->cap.vb_lock);
 
 	fh->type = type;
 	fh->ov.setup_ok = 0;
@@ -3503,9 +3503,9 @@ static int radio_open(struct file *file)
 	if (unlikely(!fh))
 		return -ENOMEM;
 	file->private_data = fh;
-	mutex_lock(&fh->cap.vb_lock);
+	mutex_lock(fh->cap.vb_lock);
 	*fh = btv->init;
-	mutex_unlock(&fh->cap.vb_lock);
+	mutex_unlock(fh->cap.vb_lock);
 
 	mutex_lock(&btv->lock);
 	v4l2_prio_open(&btv->prio, &fh->prio);
