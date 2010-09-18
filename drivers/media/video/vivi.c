@@ -30,6 +30,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-fh.h>
 
 #define VIVI_MODULE_NAME "vivi"
 
@@ -66,8 +67,6 @@ MODULE_PARM_DESC(debug, "activates debug info");
 static unsigned int vid_limit = 16;
 module_param(vid_limit, uint, 0644);
 MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
-
-static DEFINE_MUTEX(vb_lock);
 
 /* Global font descriptor */
 static const u8 *font8x16;
@@ -173,7 +172,7 @@ struct vivi_dev {
 	int 			   volume;
 
 	spinlock_t                 slock;
-	struct mutex		   mutex;
+	struct mutex               mutex;
 
 	/* various device info */
 	struct video_device        *vfd;
@@ -822,13 +821,10 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct vivi_dev *dev = video_drvdata(file);
-	struct videobuf_queue *q = &dev->vb_vidq;
 
 	int ret = vidioc_try_fmt_vid_cap(file, priv, f);
 	if (ret < 0)
 		return ret;
-
-	mutex_lock(q->vb_lock);
 
 	if (vivi_is_generating(dev)) {
 		dprintk(dev, 1, "%s device busy\n", __func__);
@@ -842,7 +838,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	dev->vb_vidq.field = f->fmt.pix.field;
 	ret = 0;
 out:
-	mutex_unlock(q->vb_lock);
 	return ret;
 }
 
@@ -1055,6 +1050,20 @@ vivi_poll(struct file *file, struct poll_table_struct *wait)
 	return videobuf_poll_stream(file, q, wait);
 }
 
+static int vivi_open(struct file *file)
+{
+	struct video_device  *vdev = video_devdata(file);
+	struct vivi_dev *dev = video_drvdata(file);
+
+	dprintk(dev, 1, "open called (dev=%s)\n",
+		video_device_node_name(vdev));
+
+	/* Serialize all file operations: open, release, ioctl, mmap */
+	set_and_lock_v4l2_fh_mutex(vdev, file, &dev->mutex);
+
+	return 0;
+}
+
 static int vivi_close(struct file *file)
 {
 	struct video_device  *vdev = video_devdata(file);
@@ -1085,6 +1094,7 @@ static int vivi_mmap(struct file *file, struct vm_area_struct *vma)
 
 static const struct v4l2_file_operations vivi_fops = {
 	.owner		= THIS_MODULE,
+	.open		= vivi_open,
 	.release        = vivi_close,
 	.read           = vivi_read,
 	.poll		= vivi_poll,
@@ -1178,7 +1188,7 @@ static int __init vivi_create_instance(int inst)
 	videobuf_queue_vmalloc_init(&dev->vb_vidq, &vivi_video_qops,
 			NULL, &dev->slock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			V4L2_FIELD_INTERLACED,
-			sizeof(struct vivi_buffer), dev, &vb_lock);
+			sizeof(struct vivi_buffer), dev, NULL);
 
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);

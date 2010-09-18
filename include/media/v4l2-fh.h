@@ -90,6 +90,8 @@ static inline int set_and_lock_v4l2_fh_mutex(struct video_device *vdev,
 	fh->lock = lock;
 
 	mutex_lock(fh->lock);
+
+	return 0;
 };
 
 #endif /* V4L2_EVENT_H */
