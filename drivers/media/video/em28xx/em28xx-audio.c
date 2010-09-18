@@ -303,7 +303,6 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 	dev->mute = 0;
 	mutex_lock(&dev->lock);
 	ret = em28xx_audio_analog_set(dev);
-	mutex_unlock(&dev->lock);
 	if (ret < 0)
 		goto err;
 
@@ -315,7 +314,6 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 		dprintk("changing alternate number to 7\n");
 	}
 
-	mutex_lock(&dev->lock);
 	dev->adev.users++;
 	mutex_unlock(&dev->lock);
 
@@ -325,6 +323,8 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 
 	return 0;
 err:
+	mutex_unlock(&dev->lock);
+
 	em28xx_err("Error while configuring em28xx mixer\n");
 	return ret;
 }
@@ -335,8 +335,8 @@ static int snd_em28xx_pcm_close(struct snd_pcm_substream *substream)
 
 	dprintk("closing device\n");
 
-	dev->mute = 1;
 	mutex_lock(&dev->lock);
+	dev->mute = 1;
 	dev->adev.users--;
 	em28xx_audio_analog_set(dev);
 	if (substream->runtime->dma_area) {

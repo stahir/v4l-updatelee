@@ -41,6 +41,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-fh.h>
 #include <media/msp3400.h>
 #include <media/tuner.h>
 
@@ -87,9 +88,6 @@ MODULE_PARM_DESC(radio_nr, "radio device numbers");
 static unsigned int video_debug;
 module_param(video_debug, int, 0644);
 MODULE_PARM_DESC(video_debug, "enable debug messages [video]");
-
-static DEFINE_MUTEX(vb_lock);
-static DEFINE_MUTEX(vb_lock_vbi);
 
 /* supported video standards */
 static struct em28xx_fmt format[] = {
@@ -865,17 +863,13 @@ static int res_get(struct em28xx_fh *fh, unsigned int bit)
 		return 1;
 
 	/* is it free? */
-	mutex_lock(&dev->lock);
-	if (dev->resources & bit) {
-		/* no, someone else uses it */
-		mutex_unlock(&dev->lock);
-		return 0;
-	}
+	if (dev->resources & bit)
+		return 0;			/* no, someone else uses it */
+
 	/* it's free, grab it */
 	fh->resources  |= bit;
 	dev->resources |= bit;
 	em28xx_videodbg("res: get %d\n", bit);
-	mutex_unlock(&dev->lock);
 	return 1;
 }
 
@@ -895,11 +889,9 @@ static void res_free(struct em28xx_fh *fh, unsigned int bits)
 
 	BUG_ON((fh->resources & bits) != bits);
 
-	mutex_lock(&dev->lock);
 	fh->resources  &= ~bits;
 	dev->resources &= ~bits;
 	em28xx_videodbg("res: put %d\n", bits);
-	mutex_unlock(&dev->lock);
 }
 
 static int get_ressource(struct em28xx_fh *fh)
@@ -1026,8 +1018,6 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
 
-	mutex_lock(&dev->lock);
-
 	f->fmt.pix.width = dev->width;
 	f->fmt.pix.height = dev->height;
 	f->fmt.pix.pixelformat = dev->format->fourcc;
@@ -1042,7 +1032,6 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 		f->fmt.pix.field = dev->interlaced ?
 			   V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;
 
-	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -1140,8 +1129,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	if (rc < 0)
 		return rc;
 
-	mutex_lock(&dev->lock);
-
 	vidioc_try_fmt_vid_cap(file, priv, f);
 
 	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
@@ -1154,7 +1141,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 				f->fmt.pix.width, f->fmt.pix.height);
 
 out:
-	mutex_unlock(&dev->lock);
 	return rc;
 }
 
@@ -1184,7 +1170,6 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 	if (rc < 0)
 		return rc;
 
-	mutex_lock(&dev->lock);
 	dev->norm = *norm;
 
 	/* Adjusts width/height, if needed */
@@ -1200,7 +1185,6 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 	em28xx_resolution_set(dev);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, dev->norm);
 
-	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -1305,9 +1289,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 
 	dev->ctl_input = i;
 
-	mutex_lock(&dev->lock);
 	video_mux(dev, dev->ctl_input);
-	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -1368,7 +1350,6 @@ static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	if (0 == INPUT(a->index)->type)
 		return -EINVAL;
 
-	mutex_lock(&dev->lock);
 
 	dev->ctl_ainput = INPUT(a->index)->amux;
 	dev->ctl_aoutput = INPUT(a->index)->aout;
@@ -1376,7 +1357,6 @@ static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	if (!dev->ctl_aoutput)
 		dev->ctl_aoutput = EM28XX_AOUT_MASTER;
 
-	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -1404,9 +1384,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 	}
 
 	/* enumberate V4L2 device controls */
-	mutex_lock(&dev->lock);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, queryctrl, qc);
-	mutex_unlock(&dev->lock);
 
 	if (qc->type)
 		return 0;
@@ -1426,8 +1404,6 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 		return rc;
 	rc = 0;
 
-	mutex_lock(&dev->lock);
-
 	/* Set an AC97 control */
 	if (dev->audio_mode.ac97 != EM28XX_NO_AC97)
 		rc = ac97_get_ctrl(dev, ctrl);
@@ -1440,7 +1416,6 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 		rc = 0;
 	}
 
-	mutex_unlock(&dev->lock);
 	return rc;
 }
 
@@ -1454,8 +1429,6 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	rc = check_dev(dev);
 	if (rc < 0)
 		return rc;
-
-	mutex_lock(&dev->lock);
 
 	/* Set an AC97 control */
 	if (dev->audio_mode.ac97 != EM28XX_NO_AC97)
@@ -1484,7 +1457,6 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 		}
 	}
 
-	mutex_unlock(&dev->lock);
 	return rc;
 }
 
@@ -1505,9 +1477,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	strcpy(t->name, "Tuner");
 	t->type = V4L2_TUNER_ANALOG_TV;
 
-	mutex_lock(&dev->lock);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_tuner, t);
-	mutex_unlock(&dev->lock);
 
 	return 0;
 }
@@ -1526,9 +1496,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 
-	mutex_lock(&dev->lock);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_tuner, t);
-	mutex_unlock(&dev->lock);
 
 	return 0;
 }
@@ -1539,10 +1507,8 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
 
-	mutex_lock(&dev->lock);
 	f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 	f->frequency = dev->ctl_freq;
-	mutex_unlock(&dev->lock);
 
 	return 0;
 }
@@ -1566,12 +1532,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	if (unlikely(1 == fh->radio && f->type != V4L2_TUNER_RADIO))
 		return -EINVAL;
 
-	mutex_lock(&dev->lock);
-
 	dev->ctl_freq = f->frequency;
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, f);
-
-	mutex_unlock(&dev->lock);
 
 	return 0;
 }
@@ -1613,9 +1575,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 
 	switch (reg->match.type) {
 	case V4L2_CHIP_MATCH_AC97:
-		mutex_lock(&dev->lock);
 		ret = em28xx_read_ac97(dev, reg->reg);
-		mutex_unlock(&dev->lock);
 		if (ret < 0)
 			return ret;
 
@@ -1637,9 +1597,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 	/* Match host */
 	reg->size = em28xx_reg_len(reg->reg);
 	if (reg->size == 1) {
-		mutex_lock(&dev->lock);
 		ret = em28xx_read_reg(dev, reg->reg);
-		mutex_unlock(&dev->lock);
 
 		if (ret < 0)
 			return ret;
@@ -1647,10 +1605,8 @@ static int vidioc_g_register(struct file *file, void *priv,
 		reg->val = ret;
 	} else {
 		__le16 val = 0;
-		mutex_lock(&dev->lock);
 		ret = em28xx_read_reg_req_len(dev, USB_REQ_GET_STATUS,
 						   reg->reg, (char *)&val, 2);
-		mutex_unlock(&dev->lock);
 		if (ret < 0)
 			return ret;
 
@@ -1670,9 +1626,7 @@ static int vidioc_s_register(struct file *file, void *priv,
 
 	switch (reg->match.type) {
 	case V4L2_CHIP_MATCH_AC97:
-		mutex_lock(&dev->lock);
 		rc = em28xx_write_ac97(dev, reg->reg, reg->val);
-		mutex_unlock(&dev->lock);
 
 		return rc;
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
@@ -1690,10 +1644,8 @@ static int vidioc_s_register(struct file *file, void *priv,
 	/* Match host */
 	buf = cpu_to_le16(reg->val);
 
-	mutex_lock(&dev->lock);
 	rc = em28xx_write_regs(dev, reg->reg, (char *)&buf,
 			       em28xx_reg_len(reg->reg));
-	mutex_unlock(&dev->lock);
 
 	return rc;
 }
@@ -1832,15 +1784,11 @@ static int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *priv,
 	if (rc < 0)
 		return rc;
 
-	mutex_lock(&dev->lock);
-
 	f->fmt.sliced.service_set = 0;
 	v4l2_device_call_all(&dev->v4l2_dev, 0, vbi, g_sliced_fmt, &f->fmt.sliced);
 
 	if (f->fmt.sliced.service_set == 0)
 		rc = -EINVAL;
-
-	mutex_unlock(&dev->lock);
 
 	return rc;
 }
@@ -1856,9 +1804,7 @@ static int vidioc_try_set_sliced_vbi_cap(struct file *file, void *priv,
 	if (rc < 0)
 		return rc;
 
-	mutex_lock(&dev->lock);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, vbi, g_sliced_fmt, &f->fmt.sliced);
-	mutex_unlock(&dev->lock);
 
 	if (f->fmt.sliced.service_set == 0)
 		return -EINVAL;
@@ -2043,9 +1989,7 @@ static int radio_g_tuner(struct file *file, void *priv,
 	strcpy(t->name, "Radio");
 	t->type = V4L2_TUNER_RADIO;
 
-	mutex_lock(&dev->lock);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_tuner, t);
-	mutex_unlock(&dev->lock);
 
 	return 0;
 }
@@ -2078,9 +2022,7 @@ static int radio_s_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 
-	mutex_lock(&dev->lock);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_tuner, t);
-	mutex_unlock(&dev->lock);
 
 	return 0;
 }
@@ -2140,7 +2082,7 @@ static int em28xx_v4l2_open(struct file *filp)
 		break;
 	}
 
-	mutex_lock(&dev->lock);
+	set_and_lock_v4l2_fh_mutex(vdev, filp, &dev->lock);
 
 	em28xx_videodbg("open dev=%s type=%s users=%d\n",
 			video_device_node_name(vdev), v4l2_type_names[fh_type],
@@ -2150,7 +2092,6 @@ static int em28xx_v4l2_open(struct file *filp)
 	fh = kzalloc(sizeof(struct em28xx_fh), GFP_KERNEL);
 	if (!fh) {
 		em28xx_errdev("em28xx-video.c: Out of memory?!\n");
-		mutex_unlock(&dev->lock);
 		return -ENOMEM;
 	}
 	fh->dev = dev;
@@ -2185,16 +2126,14 @@ static int em28xx_v4l2_open(struct file *filp)
 				    NULL, &dev->slock,
 				    V4L2_BUF_TYPE_VIDEO_CAPTURE, field,
 				    sizeof(struct em28xx_buffer), fh,
-				    &vb_lock);
+				    NULL);
 
 	videobuf_queue_vmalloc_init(&fh->vb_vbiq, &em28xx_vbi_qops,
 				    NULL, &dev->slock,
 				    V4L2_BUF_TYPE_VBI_CAPTURE,
 				    V4L2_FIELD_SEQ_TB,
 				    sizeof(struct em28xx_buffer), fh,
-				    &vb_lock_vbi);
-
-	mutex_unlock(&dev->lock);
+				    NULL);
 
 	return errCode;
 }
@@ -2393,7 +2332,7 @@ static const struct v4l2_file_operations em28xx_v4l_fops = {
 	.read          = em28xx_v4l2_read,
 	.poll          = em28xx_v4l2_poll,
 	.mmap          = em28xx_v4l2_mmap,
-	.ioctl	       = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops video_ioctl_ops = {

@@ -3031,7 +3031,6 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 
 	/* wait until all current v4l2 io is finished then deallocate
 	   resources */
-	mutex_lock(&dev->lock);
 
 	wake_up_interruptible_all(&dev->open);
 
@@ -3050,11 +3049,13 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		wake_up_interruptible(&dev->wait_stream);
 	} else {
 		dev->state |= DEV_DISCONNECTED;
+		mutex_lock(&dev->lock);
 		em28xx_release_resources(dev);
+		mutex_unlock(&dev->lock);
 	}
 
+	mutex_lock(&dev->lock);
 	em28xx_close_extension(dev);
-
 	mutex_unlock(&dev->lock);
 
 	if (!dev->users) {
