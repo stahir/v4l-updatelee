@@ -47,6 +47,7 @@
 #include <linux/mutex.h>
 #include <linux/firmware.h>
 #include <linux/ihex.h>
+#include <media/v4l2-fh.h>
 #include "usbvideo.h"
 
 // #define VICAM_DEBUG
@@ -179,12 +180,10 @@ static int send_control_msg(struct vicam_camera *cam,
 			    u16 size)
 {
 	int status = -ENODEV;
-	mutex_lock(&cam->cam_lock);
 	if (cam->udev) {
 		status = __send_control_msg(cam, request, value,
 					    index, cp, size);
 	}
-	mutex_unlock(&cam->cam_lock);
 	return status;
 }
 static int
@@ -488,24 +487,22 @@ vicam_open(struct file *file)
 	 * rely on this fact forever.
 	 */
 
-	lock_kernel();
+	/* Serialize all file operations: open, release, ioctl, mmap */
+	set_and_lock_v4l2_fh_mutex(&cam->vdev, file, &cam->cam_lock );
+
 	if (cam->open_count > 0) {
 		printk(KERN_INFO
 		       "vicam_open called on already opened camera");
-		unlock_kernel();
 		return -EBUSY;
 	}
 
 	cam->raw_image = kmalloc(VICAM_MAX_READ_SIZE, GFP_KERNEL);
-	if (!cam->raw_image) {
-		unlock_kernel();
+	if (!cam->raw_image)
 		return -ENOMEM;
-	}
 
 	cam->framebuf = rvmalloc(VICAM_MAX_FRAME_SIZE * VICAM_FRAMES);
 	if (!cam->framebuf) {
 		kfree(cam->raw_image);
-		unlock_kernel();
 		return -ENOMEM;
 	}
 
@@ -513,7 +510,6 @@ vicam_open(struct file *file)
 	if (!cam->cntrlbuf) {
 		kfree(cam->raw_image);
 		rvfree(cam->framebuf, VICAM_MAX_FRAME_SIZE * VICAM_FRAMES);
-		unlock_kernel();
 		return -ENOMEM;
 	}
 
@@ -531,7 +527,6 @@ vicam_open(struct file *file)
 	cam->open_count++;
 
 	file->private_data = cam;
-	unlock_kernel();
 
 	return 0;
 }
@@ -555,13 +550,9 @@ vicam_close(struct file *file)
 	rvfree(cam->framebuf, VICAM_MAX_FRAME_SIZE * VICAM_FRAMES);
 	kfree(cam->cntrlbuf);
 
-	mutex_lock(&cam->cam_lock);
-
 	cam->open_count--;
 	open_count = cam->open_count;
 	udev = cam->udev;
-
-	mutex_unlock(&cam->cam_lock);
 
 	if (!open_count && !udev) {
 		kfree(cam);
@@ -684,18 +675,15 @@ read_frame(struct vicam_camera *cam, int framenum)
 	request[8] = 0;
 	// bytes 9-15 do not seem to affect exposure or image quality
 
-	mutex_lock(&cam->cam_lock);
-
-	if (!cam->udev) {
-		goto done;
-	}
+	if (!cam->udev)
+		return;
 
 	n = __send_control_msg(cam, 0x51, 0x80, 0, request, 16);
 
 	if (n < 0) {
 		printk(KERN_ERR
 		       " Problem sending frame capture control message");
-		goto done;
+		return;
 	}
 
 	n = usb_bulk_msg(cam->udev,
@@ -707,9 +695,6 @@ read_frame(struct vicam_camera *cam, int framenum)
 		printk(KERN_ERR "Problem during bulk read of frame data: %d\n",
 		       n);
 	}
-
- done:
-	mutex_unlock(&cam->cam_lock);
 }
 
 static ssize_t
@@ -790,7 +775,7 @@ static const struct v4l2_file_operations vicam_fops = {
 	.release	= vicam_close,
 	.read		= vicam_read,
 	.mmap		= vicam_mmap,
-	.ioctl		= vicam_ioctl,
+	.unlocked_ioctl	= vicam_ioctl,
 };
 
 static struct video_device vicam_template = {
@@ -898,8 +883,6 @@ vicam_disconnect(struct usb_interface *intf)
 
 	/* stop the camera from being used */
 
-	mutex_lock(&cam->cam_lock);
-
 	/* mark the camera as gone */
 
 	cam->udev = NULL;
@@ -912,8 +895,6 @@ vicam_disconnect(struct usb_interface *intf)
 	 */
 
 	open_count = cam->open_count;
-
-	mutex_unlock(&cam->cam_lock);
 
 	if (!open_count) {
 		kfree(cam);
