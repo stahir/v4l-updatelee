@@ -131,6 +131,18 @@ Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
 
 ---------------------------
 
+What:	Remove dabusb driver
+When:	kernel 2.6.38
+Files:	drivers/staging/dabusb/*
+Check:	drivers/staging/cpia/dabusb.c
+Why:	This driver were made in 1999, apparently for an experimental hardware.
+	The driver authors did not submit any patches at least since 2006,
+	and we never found anyone with that hardware. With BKL removal, it
+	will break anyway, so, it seems more appropriate to just remove it.
+Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
+
+---------------------------
+
 What:	sys_sysctl
 When:	September 2010
 Option: CONFIG_SYSCTL_SYSCALL
