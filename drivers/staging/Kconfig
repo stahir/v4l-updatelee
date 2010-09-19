@@ -155,6 +155,8 @@ source "drivers/staging/quickstart/Kconfig"
 
 source "drivers/staging/cpia/Kconfig"
 
+source "drivers/staging/stradis/Kconfig"
+
 source "drivers/staging/dabusb/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD

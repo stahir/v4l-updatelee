@@ -58,4 +58,5 @@ obj-$(CONFIG_SOLO6X10)		+= solo6x10/
 obj-$(CONFIG_TIDSPBRIDGE)	+= tidspbridge/
 obj-$(CONFIG_ACPI_QUICKSTART)	+= quickstart/
 obj-$(CONFIG_VIDEO_CPIA)	+= cpia/
+obj-$(CONFIG_VIDEO_STRADIS)	+= stradis/
 obj-$(CONFIG_USB_DABUSB)	+= dabusb/
