@@ -255,10 +255,6 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 			error = -EINVAL;
 			goto err_out;
 		}
-		if (!list_empty(&flow->list)) {
-			error = -EEXIST;
-			goto err_out;
-		}
 	} else {
 		int i;
 		unsigned long cl;
@@ -418,7 +414,7 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	ret = qdisc_enqueue(skb, flow->q);
-	if (ret != 0) {
+	if (ret != NET_XMIT_SUCCESS) {
 drop: __maybe_unused
 		if (net_xmit_drop_count(ret)) {
 			sch->qstats.drops++;
@@ -442,7 +438,7 @@ drop: __maybe_unused
 	 */
 	if (flow == &p->link) {
 		sch->q.qlen++;
-		return 0;
+		return NET_XMIT_SUCCESS;
 	}
 	tasklet_schedule(&p->task);
 	return NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;

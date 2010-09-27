@@ -37,12 +37,6 @@
 #include "nouveau_connector.h"
 #include "nouveau_hw.h"
 
-static inline struct drm_encoder_slave_funcs *
-get_slave_funcs(struct nouveau_encoder *enc)
-{
-	return to_encoder_slave(to_drm_encoder(enc))->slave_funcs;
-}
-
 static struct nouveau_encoder *
 find_encoder_by_type(struct drm_connector *connector, int type)
 {
@@ -110,7 +104,7 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 	int i;
 
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		struct nouveau_i2c_chan *i2c;
+		struct nouveau_i2c_chan *i2c = NULL;
 		struct nouveau_encoder *nv_encoder;
 		struct drm_mode_object *obj;
 		int id;
@@ -123,7 +117,9 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 		if (!obj)
 			continue;
 		nv_encoder = nouveau_encoder(obj_to_encoder(obj));
-		i2c = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
+
+		if (nv_encoder->dcb->i2c_index < 0xf)
+			i2c = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
 
 		if (i2c && nouveau_probe_i2c_addr(i2c, 0x50)) {
 			*pnv_encoder = nv_encoder;
@@ -172,7 +168,7 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 }
 
 static enum drm_connector_status
-nouveau_connector_detect(struct drm_connector *connector)
+nouveau_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
@@ -250,7 +246,7 @@ detect_analog:
 }
 
 static enum drm_connector_status
-nouveau_connector_detect_lvds(struct drm_connector *connector)
+nouveau_connector_detect_lvds(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -271,7 +267,7 @@ nouveau_connector_detect_lvds(struct drm_connector *connector)
 
 	/* Try retrieving EDID via DDC */
 	if (!dev_priv->vbios.fp_no_ddc) {
-		status = nouveau_connector_detect(connector);
+		status = nouveau_connector_detect(connector, force);
 		if (status == connector_status_connected)
 			goto out;
 	}
@@ -360,6 +356,7 @@ nouveau_connector_set_property(struct drm_connector *connector,
 {
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
+	struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
 	struct drm_device *dev = connector->dev;
 	int ret;
 
@@ -432,8 +429,8 @@ nouveau_connector_set_property(struct drm_connector *connector,
 	}
 
 	if (nv_encoder && nv_encoder->dcb->type == OUTPUT_TV)
-		return get_slave_funcs(nv_encoder)->
-			set_property(to_drm_encoder(nv_encoder), connector, property, value);
+		return get_slave_funcs(encoder)->set_property(
+			encoder, connector, property, value);
 
 	return -EINVAL;
 }
@@ -545,6 +542,7 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
+	struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
 	int ret = 0;
 
 	/* destroy the native mode, the attached monitor could have changed.
@@ -580,8 +578,7 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 	}
 
 	if (nv_encoder->dcb->type == OUTPUT_TV)
-		ret = get_slave_funcs(nv_encoder)->
-			get_modes(to_drm_encoder(nv_encoder), connector);
+		ret = get_slave_funcs(encoder)->get_modes(encoder, connector);
 
 	if (nv_connector->dcb->type == DCB_CONNECTOR_LVDS ||
 	    nv_connector->dcb->type == DCB_CONNECTOR_eDP)
@@ -597,6 +594,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 	struct drm_nouveau_private *dev_priv = connector->dev->dev_private;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
+	struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
 	unsigned min_clock = 25000, max_clock = min_clock;
 	unsigned clock = mode->clock;
 
@@ -623,8 +621,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 			max_clock = 350000;
 		break;
 	case OUTPUT_TV:
-		return get_slave_funcs(nv_encoder)->
-			mode_valid(to_drm_encoder(nv_encoder), mode);
+		return get_slave_funcs(encoder)->mode_valid(encoder, mode);
 	case OUTPUT_DP:
 		if (nv_encoder->dp.link_bw == DP_LINK_BW_2_7)
 			max_clock = nv_encoder->dp.link_nr * 270000;

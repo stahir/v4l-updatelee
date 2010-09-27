@@ -34,6 +34,9 @@
 #include "drm_crtc_helper.h"
 #include "drm_fb_helper.h"
 
+static bool drm_kms_helper_poll = true;
+module_param_named(poll, drm_kms_helper_poll, bool, 0600);
+
 static void drm_mode_validate_flag(struct drm_connector *connector,
 				   int flags)
 {
@@ -99,8 +102,10 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 			connector->status = connector_status_disconnected;
 		if (connector->funcs->force)
 			connector->funcs->force(connector);
-	} else
-		connector->status = connector->funcs->detect(connector);
+	} else {
+		connector->status = connector->funcs->detect(connector, true);
+		drm_kms_helper_poll_enable(dev);
+	}
 
 	if (connector->status == connector_status_disconnected) {
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] disconnected\n",
@@ -110,11 +115,10 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	}
 
 	count = (*connector_funcs->get_modes)(connector);
-	if (!count) {
+	if (count == 0 && connector->status == connector_status_connected)
 		count = drm_add_modes_noedid(connector, 1024, 768);
-		if (!count)
-			return 0;
-	}
+	if (count == 0)
+		goto prune;
 
 	drm_mode_connector_list_update(connector);
 
@@ -633,13 +637,13 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		mode_changed = true;
 
 	if (mode_changed) {
-		old_fb = set->crtc->fb;
-		set->crtc->fb = set->fb;
 		set->crtc->enabled = (set->mode != NULL);
 		if (set->mode != NULL) {
 			DRM_DEBUG_KMS("attempting to set mode from"
 					" userspace\n");
 			drm_mode_debug_printmodeline(set->mode);
+			old_fb = set->crtc->fb;
+			set->crtc->fb = set->fb;
 			if (!drm_crtc_helper_set_mode(set->crtc, set->mode,
 						      set->x, set->y,
 						      old_fb)) {
@@ -817,12 +821,12 @@ int drm_helper_resume_force_mode(struct drm_device *dev)
 				if (encoder_funcs->dpms)
 					(*encoder_funcs->dpms) (encoder,
 								drm_helper_choose_encoder_dpms(encoder));
-
-				crtc_funcs = crtc->helper_private;
-				if (crtc_funcs->dpms)
-					(*crtc_funcs->dpms) (crtc,
-							     drm_helper_choose_crtc_dpms(crtc));
 			}
+
+			crtc_funcs = crtc->helper_private;
+			if (crtc_funcs->dpms)
+				(*crtc_funcs->dpms) (crtc,
+						     drm_helper_choose_crtc_dpms(crtc));
 		}
 	}
 	/* disable the unused connectors while restoring the modesetting */
@@ -831,17 +835,17 @@ int drm_helper_resume_force_mode(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_helper_resume_force_mode);
 
-static struct slow_work_ops output_poll_ops;
-
 #define DRM_OUTPUT_POLL_PERIOD (10*HZ)
-static void output_poll_execute(struct slow_work *work)
+static void output_poll_execute(struct work_struct *work)
 {
-	struct delayed_slow_work *delayed_work = container_of(work, struct delayed_slow_work, work);
-	struct drm_device *dev = container_of(delayed_work, struct drm_device, mode_config.output_poll_slow_work);
+	struct delayed_work *delayed_work = to_delayed_work(work);
+	struct drm_device *dev = container_of(delayed_work, struct drm_device, mode_config.output_poll_work);
 	struct drm_connector *connector;
 	enum drm_connector_status old_status, status;
 	bool repoll = false, changed = false;
-	int ret;
+
+	if (!drm_kms_helper_poll)
+		return;
 
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -862,7 +866,7 @@ static void output_poll_execute(struct slow_work *work)
 		    !(connector->polled & DRM_CONNECTOR_POLL_HPD))
 			continue;
 
-		status = connector->funcs->detect(connector);
+		status = connector->funcs->detect(connector, false);
 		if (old_status != status)
 			changed = true;
 	}
@@ -876,18 +880,15 @@ static void output_poll_execute(struct slow_work *work)
 			dev->mode_config.funcs->output_poll_changed(dev);
 	}
 
-	if (repoll) {
-		ret = delayed_slow_work_enqueue(delayed_work, DRM_OUTPUT_POLL_PERIOD);
-		if (ret)
-			DRM_ERROR("delayed enqueue failed %d\n", ret);
-	}
+	if (repoll)
+		queue_delayed_work(system_nrt_wq, delayed_work, DRM_OUTPUT_POLL_PERIOD);
 }
 
 void drm_kms_helper_poll_disable(struct drm_device *dev)
 {
 	if (!dev->mode_config.poll_enabled)
 		return;
-	delayed_slow_work_cancel(&dev->mode_config.output_poll_slow_work);
+	cancel_delayed_work_sync(&dev->mode_config.output_poll_work);
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_disable);
 
@@ -895,26 +896,23 @@ void drm_kms_helper_poll_enable(struct drm_device *dev)
 {
 	bool poll = false;
 	struct drm_connector *connector;
-	int ret;
+
+	if (!dev->mode_config.poll_enabled || !drm_kms_helper_poll)
+		return;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->polled)
 			poll = true;
 	}
 
-	if (poll) {
-		ret = delayed_slow_work_enqueue(&dev->mode_config.output_poll_slow_work, DRM_OUTPUT_POLL_PERIOD);
-		if (ret)
-			DRM_ERROR("delayed enqueue failed %d\n", ret);
-	}
+	if (poll)
+		queue_delayed_work(system_nrt_wq, &dev->mode_config.output_poll_work, DRM_OUTPUT_POLL_PERIOD);
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_enable);
 
 void drm_kms_helper_poll_init(struct drm_device *dev)
 {
-	slow_work_register_user(THIS_MODULE);
-	delayed_slow_work_init(&dev->mode_config.output_poll_slow_work,
-			       &output_poll_ops);
+	INIT_DELAYED_WORK(&dev->mode_config.output_poll_work, output_poll_execute);
 	dev->mode_config.poll_enabled = true;
 
 	drm_kms_helper_poll_enable(dev);
@@ -924,7 +922,6 @@ EXPORT_SYMBOL(drm_kms_helper_poll_init);
 void drm_kms_helper_poll_fini(struct drm_device *dev)
 {
 	drm_kms_helper_poll_disable(dev);
-	slow_work_unregister_user(THIS_MODULE);
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_fini);
 
@@ -932,12 +929,10 @@ void drm_helper_hpd_irq_event(struct drm_device *dev)
 {
 	if (!dev->mode_config.poll_enabled)
 		return;
-	delayed_slow_work_cancel(&dev->mode_config.output_poll_slow_work);
-	/* schedule a slow work asap */
-	delayed_slow_work_enqueue(&dev->mode_config.output_poll_slow_work, 0);
+
+	/* kill timer and schedule immediate execution, this doesn't block */
+	cancel_delayed_work(&dev->mode_config.output_poll_work);
+	if (drm_kms_helper_poll)
+		queue_delayed_work(system_nrt_wq, &dev->mode_config.output_poll_work, 0);
 }
 EXPORT_SYMBOL(drm_helper_hpd_irq_event);
-
-static struct slow_work_ops output_poll_ops = {
-	.execute = output_poll_execute,
-};

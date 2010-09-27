@@ -95,6 +95,7 @@ enum dcb_type {
 	OUTPUT_TMDS = 2,
 	OUTPUT_LVDS = 3,
 	OUTPUT_DP = 6,
+	OUTPUT_EOL = 14, /* DCB 4.0+, appears to be end-of-list */
 	OUTPUT_ANY = -1
 };
 
@@ -131,6 +132,7 @@ struct dcb_entry {
 		} dpconf;
 		struct {
 			struct sor_conf sor;
+			int slave_addr;
 		} tmdsconf;
 	};
 	bool i2c_upper_default;

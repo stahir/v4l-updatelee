@@ -105,6 +105,7 @@
 #include <asm/system.h>
 #include <linux/uaccess.h>
 #include <linux/kdb.h>
+#include <linux/ctype.h>
 
 #define MAX_NR_CON_DRIVER 16
 
@@ -193,10 +194,11 @@ static DECLARE_WORK(console_work, console_callback);
 int fg_console;
 int last_console;
 int want_console = -1;
-int saved_fg_console;
-int saved_last_console;
-int saved_want_console;
-int saved_vc_mode;
+static int saved_fg_console;
+static int saved_last_console;
+static int saved_want_console;
+static int saved_vc_mode;
+static int saved_console_blanked;
 
 /*
  * For each existing display, we have a pointer to console currently visible
@@ -286,8 +288,12 @@ static inline unsigned short *screenpos(struct vc_data *vc, int offset, int view
 	return p;
 }
 
+/* Called  from the keyboard irq path.. */
 static inline void scrolldelta(int lines)
 {
+	/* FIXME */
+	/* scrolldelta needs some kind of consistency lock, but the BKL was
+	   and still is not protecting versus the scheduled back end */
 	scrollback_delta += lines;
 	schedule_console_callback();
 }
@@ -704,7 +710,10 @@ void redraw_screen(struct vc_data *vc, int is_switch)
 			update_attr(vc);
 			clear_buffer_attributes(vc);
 		}
-		if (update && vc->vc_mode != KD_GRAPHICS)
+
+		/* Forcibly update if we're panicing */
+		if ((update && vc->vc_mode != KD_GRAPHICS) ||
+		    vt_force_oops_output(vc))
 			do_update_region(vc, vc->vc_origin, vc->vc_screenbuf_size / 2);
 	}
 	set_cursor(vc);
@@ -742,6 +751,7 @@ static void visual_init(struct vc_data *vc, int num, int init)
 	vc->vc_hi_font_mask = 0;
 	vc->vc_complement_mask = 0;
 	vc->vc_can_do_color = 0;
+	vc->vc_panic_force_write = false;
 	vc->vc_sw->con_init(vc, init);
 	if (!vc->vc_complement_mask)
 		vc->vc_complement_mask = vc->vc_can_do_color ? 0x7700 : 0x0800;
@@ -774,6 +784,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 	    if (!vc)
 		return -ENOMEM;
 	    vc_cons[currcons].d = vc;
+	    tty_port_init(&vc->port);
 	    INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
 	    visual_init(vc, currcons, 1);
 	    if (!*vc->vc_uni_pagedir_loc)
@@ -837,9 +848,10 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 				unsigned int cols, unsigned int lines)
 {
 	unsigned long old_origin, new_origin, new_scr_end, rlth, rrem, err = 0;
+	unsigned long end;
 	unsigned int old_cols, old_rows, old_row_size, old_screen_size;
 	unsigned int new_cols, new_rows, new_row_size, new_screen_size;
-	unsigned int end, user;
+	unsigned int user;
 	unsigned short *newscreen;
 
 	WARN_CONSOLE_UNLOCKED();
@@ -894,22 +906,16 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 			 * bottom of buffer
 			 */
 			old_origin += (old_rows - new_rows) * old_row_size;
-			end = vc->vc_scr_end;
 		} else {
 			/*
 			 * Cursor is in no man's land, copy 1/2 screenful
 			 * from the top and bottom of cursor position
 			 */
 			old_origin += (vc->vc_y - new_rows/2) * old_row_size;
-			end = old_origin + (old_row_size * new_rows);
 		}
-	} else
-		/*
-		 * Cursor near the top, copy contents from the top of buffer
-		 */
-		end = (old_rows > new_rows) ? old_origin +
-			(old_row_size * new_rows) :
-			vc->vc_scr_end;
+	}
+
+	end = old_origin + old_row_size * min(old_rows, new_rows);
 
 	update_attr(vc);
 
@@ -962,12 +968,12 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
  *	Resize a virtual console as seen from the console end of things. We
  *	use the common vc_do_resize methods to update the structures. The
  *	caller must hold the console sem to protect console internals and
- *	vc->vc_tty
+ *	vc->port.tty
  */
 
 int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
 {
-	return vc_do_resize(vc->vc_tty, vc, cols, rows);
+	return vc_do_resize(vc->port.tty, vc, cols, rows);
 }
 
 /**
@@ -1795,8 +1801,8 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			vc->vc_state = ESnormal;
 		return;
 	case ESpalette:
-		if ( (c>='0'&&c<='9') || (c>='A'&&c<='F') || (c>='a'&&c<='f') ) {
-			vc->vc_par[vc->vc_npar++] = (c > '9' ? (c & 0xDF) - 'A' + 10 : c - '0');
+		if (isxdigit(c)) {
+			vc->vc_par[vc->vc_npar++] = hex_to_bin(c);
 			if (vc->vc_npar == 7) {
 				int i = vc->vc_par[0] * 3, j = 1;
 				vc->vc_palette[i] = 16 * vc->vc_par[j++];
@@ -2504,7 +2510,7 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 		goto quit;
 	}
 
-	if (vc->vc_mode != KD_TEXT)
+	if (vc->vc_mode != KD_TEXT && !vt_force_oops_output(vc))
 		goto quit;
 
 	/* undraw cursor first */
@@ -2610,8 +2616,6 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 		return -EFAULT;
 	ret = 0;
 
-	lock_kernel();
-
 	switch (type)
 	{
 		case TIOCL_SETSEL:
@@ -2686,7 +2690,6 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			ret = -EINVAL;
 			break;
 	}
-	unlock_kernel();
 	return ret;
 }
 
@@ -2799,12 +2802,12 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 			struct vc_data *vc = vc_cons[currcons].d;
 
 			/* Still being freed */
-			if (vc->vc_tty) {
+			if (vc->port.tty) {
 				release_console_sem();
 				return -ERESTARTSYS;
 			}
 			tty->driver_data = vc;
-			vc->vc_tty = tty;
+			vc->port.tty = tty;
 
 			if (!tty->winsize.ws_row && !tty->winsize.ws_col) {
 				tty->winsize.ws_row = vc_cons[currcons].d->vc_rows;
@@ -2832,7 +2835,7 @@ static void con_shutdown(struct tty_struct *tty)
 	struct vc_data *vc = tty->driver_data;
 	BUG_ON(vc == NULL);
 	acquire_console_sem();
-	vc->vc_tty = NULL;
+	vc->port.tty = NULL;
 	release_console_sem();
 	tty_shutdown(tty);
 }
@@ -2914,6 +2917,7 @@ static int __init con_init(void)
 	for (currcons = 0; currcons < MIN_NR_CONSOLES; currcons++) {
 		vc_cons[currcons].d = vc = kzalloc(sizeof(struct vc_data), GFP_NOWAIT);
 		INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
+		tty_port_init(&vc->port);
 		visual_init(vc, currcons, 1);
 		vc->vc_screenbuf = kzalloc(vc->vc_screenbuf_size, GFP_NOWAIT);
 		vc_init(vc, vc->vc_rows, vc->vc_cols,
@@ -3439,6 +3443,7 @@ int con_debug_enter(struct vc_data *vc)
 	saved_last_console = last_console;
 	saved_want_console = want_console;
 	saved_vc_mode = vc->vc_mode;
+	saved_console_blanked = console_blanked;
 	vc->vc_mode = KD_TEXT;
 	console_blanked = 0;
 	if (vc->vc_sw->con_debug_enter)
@@ -3482,6 +3487,7 @@ int con_debug_leave(void)
 	fg_console = saved_fg_console;
 	last_console = saved_last_console;
 	want_console = saved_want_console;
+	console_blanked = saved_console_blanked;
 	vc_cons[fg_console].d->vc_mode = saved_vc_mode;
 
 	vc = vc_cons[fg_console].d;
@@ -3781,7 +3787,8 @@ void do_unblank_screen(int leaving_gfx)
 		return;
 	}
 	vc = vc_cons[fg_console].d;
-	if (vc->vc_mode != KD_TEXT)
+	/* Try to unblank in oops case too */
+	if (vc->vc_mode != KD_TEXT && !vt_force_oops_output(vc))
 		return; /* but leave console_blanked != 0 */
 
 	if (blankinterval) {
@@ -3790,7 +3797,7 @@ void do_unblank_screen(int leaving_gfx)
 	}
 
 	console_blanked = 0;
-	if (vc->vc_sw->con_blank(vc, 0, leaving_gfx))
+	if (vc->vc_sw->con_blank(vc, 0, leaving_gfx) || vt_force_oops_output(vc))
 		/* Low-level driver cannot restore -> do it ourselves */
 		update_screen(vc);
 	if (console_blank_hook)

@@ -305,14 +305,16 @@ struct drm_ioctl_desc {
 	unsigned int cmd;
 	int flags;
 	drm_ioctl_t *func;
+	unsigned int cmd_drv;
 };
 
 /**
  * Creates a driver or general drm_ioctl_desc array entry for the given
  * ioctl, for use by drm_ioctl().
  */
-#define DRM_IOCTL_DEF(ioctl, _func, _flags) \
-	[DRM_IOCTL_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags}
+
+#define DRM_IOCTL_DEF_DRV(ioctl, _func, _flags)			\
+	[DRM_IOCTL_NR(DRM_##ioctl)] = {.cmd = DRM_##ioctl, .func = _func, .flags = _flags, .cmd_drv = DRM_IOCTL_##ioctl}
 
 struct drm_magic_entry {
 	struct list_head head;
@@ -1075,7 +1077,6 @@ static __inline__ int drm_core_check_feature(struct drm_device *dev,
 	return ((dev->driver->driver_features & feature) ? 1 : 0);
 }
 
-
 static inline int drm_dev_to_irq(struct drm_device *dev)
 {
 	if (drm_core_check_feature(dev, DRIVER_USE_PLATFORM_DEVICE))
@@ -1084,11 +1085,22 @@ static inline int drm_dev_to_irq(struct drm_device *dev)
 		return dev->pdev->irq;
 }
 
-#ifdef __alpha__
-#define drm_get_pci_domain(dev) dev->hose->index
-#else
-#define drm_get_pci_domain(dev) 0
-#endif
+static inline int drm_get_pci_domain(struct drm_device *dev)
+{
+	if (drm_core_check_feature(dev, DRIVER_USE_PLATFORM_DEVICE))
+		return 0;
+
+#ifndef __alpha__
+	/* For historical reasons, drm_get_pci_domain() is busticated
+	 * on most archs and has to remain so for userspace interface
+	 * < 1.4, except on alpha which was right from the beginning
+	 */
+	if (dev->if_version < 0x10004)
+		return 0;
+#endif /* __alpha__ */
+
+	return pci_domain_nr(dev->pdev->bus);
+}
 
 #if __OS_HAS_AGP
 static inline int drm_core_has_AGP(struct drm_device *dev)

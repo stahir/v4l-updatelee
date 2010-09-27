@@ -1928,6 +1928,31 @@ init_condition_time(struct nvbios *bios, uint16_t offset,
 }
 
 static int
+init_ltime(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
+{
+	/*
+	 * INIT_LTIME   opcode: 0x57 ('V')
+	 *
+	 * offset      (8  bit): opcode
+	 * offset + 1  (16 bit): time
+	 *
+	 * Sleep for "time" miliseconds.
+	 */
+
+	unsigned time = ROM16(bios->data[offset + 1]);
+
+	if (!iexec->execute)
+		return 3;
+
+	BIOSLOG(bios, "0x%04X: Sleeping for 0x%04X miliseconds\n",
+		offset, time);
+
+	msleep(time);
+
+	return 3;
+}
+
+static int
 init_zm_reg_sequence(struct nvbios *bios, uint16_t offset,
 		     struct init_exec *iexec)
 {
@@ -1992,6 +2017,64 @@ init_sub_direct(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	BIOSLOG(bios, "0x%04X: End of 0x%04X subroutine\n", offset, sub_offset);
 
 	return 3;
+}
+
+static int
+init_i2c_if(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
+{
+	/*
+	 * INIT_I2C_IF   opcode: 0x5E ('^')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): DCB I2C table entry index
+	 * offset + 2  (8 bit): I2C slave address
+	 * offset + 3  (8 bit): I2C register
+	 * offset + 4  (8 bit): mask
+	 * offset + 5  (8 bit): data
+	 *
+	 * Read the register given by "I2C register" on the device addressed
+	 * by "I2C slave address" on the I2C bus given by "DCB I2C table
+	 * entry index". Compare the result AND "mask" to "data".
+	 * If they're not equal, skip subsequent opcodes until condition is
+	 * inverted (INIT_NOT), or we hit INIT_RESUME
+	 */
+
+	uint8_t i2c_index = bios->data[offset + 1];
+	uint8_t i2c_address = bios->data[offset + 2] >> 1;
+	uint8_t reg = bios->data[offset + 3];
+	uint8_t mask = bios->data[offset + 4];
+	uint8_t data = bios->data[offset + 5];
+	struct nouveau_i2c_chan *chan;
+	union i2c_smbus_data val;
+	int ret;
+
+	/* no execute check by design */
+
+	BIOSLOG(bios, "0x%04X: DCBI2CIndex: 0x%02X, I2CAddress: 0x%02X\n",
+		offset, i2c_index, i2c_address);
+
+	chan = init_i2c_device_find(bios->dev, i2c_index);
+	if (!chan)
+		return -ENODEV;
+
+	ret = i2c_smbus_xfer(&chan->adapter, i2c_address, 0,
+			     I2C_SMBUS_READ, reg,
+			     I2C_SMBUS_BYTE_DATA, &val);
+	if (ret < 0) {
+		BIOSLOG(bios, "0x%04X: I2CReg: 0x%02X, Value: [no device], "
+			      "Mask: 0x%02X, Data: 0x%02X\n",
+			offset, reg, mask, data);
+		iexec->execute = 0;
+		return 6;
+	}
+
+	BIOSLOG(bios, "0x%04X: I2CReg: 0x%02X, Value: 0x%02X, "
+		      "Mask: 0x%02X, Data: 0x%02X\n",
+		offset, reg, val.byte, mask, data);
+
+	iexec->execute = ((val.byte & mask) == data);
+
+	return 6;
 }
 
 static int
@@ -2083,9 +2166,10 @@ peek_fb(struct drm_device *dev, struct io_mapping *fb,
 	uint32_t val = 0;
 
 	if (off < pci_resource_len(dev->pdev, 1)) {
-		uint32_t __iomem *p = io_mapping_map_atomic_wc(fb, off, KM_USER0);
+		uint8_t __iomem *p =
+			io_mapping_map_atomic_wc(fb, off & PAGE_MASK, KM_USER0);
 
-		val = ioread32(p);
+		val = ioread32(p + (off & ~PAGE_MASK));
 
 		io_mapping_unmap_atomic(p, KM_USER0);
 	}
@@ -2098,9 +2182,10 @@ poke_fb(struct drm_device *dev, struct io_mapping *fb,
 	uint32_t off, uint32_t val)
 {
 	if (off < pci_resource_len(dev->pdev, 1)) {
-		uint32_t __iomem *p = io_mapping_map_atomic_wc(fb, off, KM_USER0);
+		uint8_t __iomem *p =
+			io_mapping_map_atomic_wc(fb, off & PAGE_MASK, KM_USER0);
 
-		iowrite32(val, p);
+		iowrite32(val, p + (off & ~PAGE_MASK));
 		wmb();
 
 		io_mapping_unmap_atomic(p, KM_USER0);
@@ -2165,7 +2250,7 @@ nv04_init_compute_mem(struct nvbios *bios)
 			  NV04_PFB_BOOT_0_RAM_AMOUNT,
 			  NV04_PFB_BOOT_0_RAM_AMOUNT_4MB);
 
-	} else if (peek_fb(dev, fb, 0) == patt) {
+	} else if (peek_fb(dev, fb, 0) != patt) {
 		if (read_back_fb(dev, fb, 0x800000, patt))
 			bios_md32(bios, NV04_PFB_BOOT_0,
 				  NV04_PFB_BOOT_0_RAM_AMOUNT,
@@ -2593,7 +2678,7 @@ init_configure_preinit(struct nvbios *bios, uint16_t offset,
 	/* no iexec->execute check by design */
 
 	uint32_t straps = bios_rd32(bios, NV_PEXTDEV_BOOT_0);
-	uint8_t cr3c = ((straps << 2) & 0xf0) | (straps & (1 << 6));
+	uint8_t cr3c = ((straps << 2) & 0xf0) | (straps & 0x40) >> 6;
 
 	if (bios->major_version > 2)
 		return 0;
@@ -3140,7 +3225,7 @@ init_gpio(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	const uint32_t nv50_gpio_ctl[2] = { 0xe100, 0xe28c };
 	int i;
 
-	if (dev_priv->card_type != NV_50) {
+	if (dev_priv->card_type < NV_50) {
 		NV_ERROR(bios->dev, "INIT_GPIO on unsupported chipset\n");
 		return 1;
 	}
@@ -3490,6 +3575,69 @@ init_zm_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	return len;
 }
 
+static int
+init_i2c_long_if(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
+{
+	/*
+	 * INIT_I2C_LONG_IF   opcode: 0x9A ('')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): DCB I2C table entry index
+	 * offset + 2  (8 bit): I2C slave address
+	 * offset + 3  (16 bit): I2C register
+	 * offset + 5  (8 bit): mask
+	 * offset + 6  (8 bit): data
+	 *
+	 * Read the register given by "I2C register" on the device addressed
+	 * by "I2C slave address" on the I2C bus given by "DCB I2C table
+	 * entry index". Compare the result AND "mask" to "data".
+	 * If they're not equal, skip subsequent opcodes until condition is
+	 * inverted (INIT_NOT), or we hit INIT_RESUME
+	 */
+
+	uint8_t i2c_index = bios->data[offset + 1];
+	uint8_t i2c_address = bios->data[offset + 2] >> 1;
+	uint8_t reglo = bios->data[offset + 3];
+	uint8_t reghi = bios->data[offset + 4];
+	uint8_t mask = bios->data[offset + 5];
+	uint8_t data = bios->data[offset + 6];
+	struct nouveau_i2c_chan *chan;
+	uint8_t buf0[2] = { reghi, reglo };
+	uint8_t buf1[1];
+	struct i2c_msg msg[2] = {
+		{ i2c_address, 0, 1, buf0 },
+		{ i2c_address, I2C_M_RD, 1, buf1 },
+	};
+	int ret;
+
+	/* no execute check by design */
+
+	BIOSLOG(bios, "0x%04X: DCBI2CIndex: 0x%02X, I2CAddress: 0x%02X\n",
+		offset, i2c_index, i2c_address);
+
+	chan = init_i2c_device_find(bios->dev, i2c_index);
+	if (!chan)
+		return -ENODEV;
+
+
+	ret = i2c_transfer(&chan->adapter, msg, 2);
+	if (ret < 0) {
+		BIOSLOG(bios, "0x%04X: I2CReg: 0x%02X:0x%02X, Value: [no device], "
+			      "Mask: 0x%02X, Data: 0x%02X\n",
+			offset, reghi, reglo, mask, data);
+		iexec->execute = 0;
+		return 7;
+	}
+
+	BIOSLOG(bios, "0x%04X: I2CReg: 0x%02X:0x%02X, Value: 0x%02X, "
+		      "Mask: 0x%02X, Data: 0x%02X\n",
+		offset, reghi, reglo, buf1[0], mask, data);
+
+	iexec->execute = ((buf1[0] & mask) == data);
+
+	return 7;
+}
+
 static struct init_tbl_entry itbl_entry[] = {
 	/* command name                       , id  , length  , offset  , mult    , command handler                 */
 	/* INIT_PROG (0x31, 15, 10, 4) removed due to no example of use */
@@ -3516,9 +3664,11 @@ static struct init_tbl_entry itbl_entry[] = {
 	{ "INIT_ZM_CR"                        , 0x53, init_zm_cr                      },
 	{ "INIT_ZM_CR_GROUP"                  , 0x54, init_zm_cr_group                },
 	{ "INIT_CONDITION_TIME"               , 0x56, init_condition_time             },
+	{ "INIT_LTIME"                        , 0x57, init_ltime                      },
 	{ "INIT_ZM_REG_SEQUENCE"              , 0x58, init_zm_reg_sequence            },
 	/* INIT_INDIRECT_REG (0x5A, 7, 0, 0) removed due to no example of use */
 	{ "INIT_SUB_DIRECT"                   , 0x5B, init_sub_direct                 },
+	{ "INIT_I2C_IF"                       , 0x5E, init_i2c_if                     },
 	{ "INIT_COPY_NV_REG"                  , 0x5F, init_copy_nv_reg                },
 	{ "INIT_ZM_INDEX_IO"                  , 0x62, init_zm_index_io                },
 	{ "INIT_COMPUTE_MEM"                  , 0x63, init_compute_mem                },
@@ -3552,6 +3702,7 @@ static struct init_tbl_entry itbl_entry[] = {
 	{ "INIT_97"                           , 0x97, init_97                         },
 	{ "INIT_AUXCH"                        , 0x98, init_auxch                      },
 	{ "INIT_ZM_AUXCH"                     , 0x99, init_zm_auxch                   },
+	{ "INIT_I2C_LONG_IF"                  , 0x9A, init_i2c_long_if                },
 	{ NULL                                , 0   , NULL                            }
 };
 
@@ -3718,27 +3869,10 @@ static int call_lvds_manufacturer_script(struct drm_device *dev, struct dcb_entr
 	}
 #ifdef __powerpc__
 	/* Powerbook specific quirks */
-	if ((dev->pci_device & 0xffff) == 0x0179 ||
-	    (dev->pci_device & 0xffff) == 0x0189 ||
-	    (dev->pci_device & 0xffff) == 0x0329) {
-		if (script == LVDS_RESET) {
-			nv_write_tmds(dev, dcbent->or, 0, 0x02, 0x72);
-
-		} else if (script == LVDS_PANEL_ON) {
-			bios_wr32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL,
-				  bios_rd32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL)
-				  | (1 << 31));
-			bios_wr32(bios, NV_PCRTC_GPIO_EXT,
-				  bios_rd32(bios, NV_PCRTC_GPIO_EXT) | 1);
-
-		} else if (script == LVDS_PANEL_OFF) {
-			bios_wr32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL,
-				  bios_rd32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL)
-				  & ~(1 << 31));
-			bios_wr32(bios, NV_PCRTC_GPIO_EXT,
-				  bios_rd32(bios, NV_PCRTC_GPIO_EXT) & ~3);
-		}
-	}
+	if (script == LVDS_RESET &&
+	    (dev->pci_device == 0x0179 || dev->pci_device == 0x0189 ||
+	     dev->pci_device == 0x0329))
+		nv_write_tmds(dev, dcbent->or, 0, 0x02, 0x72);
 #endif
 
 	return 0;
@@ -4230,11 +4364,8 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 	 *
 	 * For the moment, a quirk will do :)
 	 */
-	if ((dev->pdev->device == 0x01d7) &&
-	    (dev->pdev->subsystem_vendor == 0x1028) &&
-	    (dev->pdev->subsystem_device == 0x01c2)) {
+	if (nv_match_device(dev, 0x01d7, 0x1028, 0x01c2))
 		bios->fp.duallink_transition_clk = 80000;
-	}
 
 	/* set dual_link flag for EDID case */
 	if (pxclk && (chip_version < 0x25 || chip_version > 0x28))
@@ -4410,7 +4541,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 					  bios->display.script_table_ptr,
 					  table[2], table[3], table[0] >= 0x21);
 	if (!otable) {
-		NV_ERROR(dev, "Couldn't find matching output script table\n");
+		NV_DEBUG_KMS(dev, "failed to match any output table\n");
 		return 1;
 	}
 
@@ -4436,7 +4567,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing output script 0\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing output script 0\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk == -1) {
@@ -4446,7 +4577,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing output script 1\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing output script 1\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk == -2) {
@@ -4459,7 +4590,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing output script 2\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing output script 2\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk > 0) {
@@ -4467,11 +4598,11 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 		if (script)
 			script = clkcmptable(bios, script, pxclk);
 		if (!script) {
-			NV_ERROR(dev, "clock script 0 not found\n");
+			NV_DEBUG_KMS(dev, "clock script 0 not found\n");
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing clock script 0\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing clock script 0\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk < 0) {
@@ -4483,7 +4614,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing clock script 1\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing clock script 1\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	}
 
@@ -4826,7 +4957,7 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 		pll_lim->min_p = record[12];
 		pll_lim->max_p = record[13];
 		/* where did this go to?? */
-		if (limit_match == 0x00614100 || limit_match == 0x00614900)
+		if ((entry[0] & 0xf0) == 0x80)
 			pll_lim->refclk = 27000;
 		else
 			pll_lim->refclk = 100000;
@@ -5206,19 +5337,17 @@ static int parse_bit_tmds_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	}
 
 	tmdstableptr = ROM16(bios->data[bitentry->offset]);
-
-	if (tmdstableptr == 0x0) {
+	if (!tmdstableptr) {
 		NV_ERROR(dev, "Pointer to TMDS table invalid\n");
 		return -EINVAL;
 	}
 
+	NV_INFO(dev, "TMDS table version %d.%d\n",
+		bios->data[tmdstableptr] >> 4, bios->data[tmdstableptr] & 0xf);
+
 	/* nv50+ has v2.0, but we don't parse it atm */
-	if (bios->data[tmdstableptr] != 0x11) {
-		NV_WARN(dev,
-			"TMDS table revision %d.%d not currently supported\n",
-			bios->data[tmdstableptr] >> 4, bios->data[tmdstableptr] & 0xf);
+	if (bios->data[tmdstableptr] != 0x11)
 		return -ENOSYS;
-	}
 
 	/*
 	 * These two scripts are odd: they don't seem to get run even when
@@ -5658,6 +5787,20 @@ parse_dcb_gpio_table(struct nvbios *bios)
 			gpio->line = tvdac_gpio[1] >> 4;
 			gpio->invert = tvdac_gpio[0] & 2;
 		}
+	} else {
+		/*
+		 * No systematic way to store GPIO info on pre-v2.2
+		 * DCBs, try to match the PCI device IDs.
+		 */
+
+		/* Apple iMac G4 NV18 */
+		if (nv_match_device(dev, 0x0189, 0x10de, 0x0010)) {
+			struct dcb_gpio_entry *gpio = new_gpio_entry(bios);
+
+			gpio->tag = DCB_GPIO_TVDAC0;
+			gpio->line = 4;
+		}
+
 	}
 
 	if (!gpio_table_ptr)
@@ -5733,9 +5876,7 @@ apply_dcb_connector_quirks(struct nvbios *bios, int idx)
 	struct drm_device *dev = bios->dev;
 
 	/* Gigabyte NX85T */
-	if ((dev->pdev->device == 0x0421) &&
-	    (dev->pdev->subsystem_vendor == 0x1458) &&
-	    (dev->pdev->subsystem_device == 0x344c)) {
+	if (nv_match_device(dev, 0x0421, 0x1458, 0x344c)) {
 		if (cte->type == DCB_CONNECTOR_HDMI_1)
 			cte->type = DCB_CONNECTOR_DVI_I;
 	}
@@ -5852,7 +5993,7 @@ static void fabricate_vga_output(struct dcb_table *dcb, int i2c, int heads)
 	entry->i2c_index = i2c;
 	entry->heads = heads;
 	entry->location = DCB_LOC_ON_CHIP;
-	/* "or" mostly unused in early gen crt modesetting, 0 is fine */
+	entry->or = 1;
 }
 
 static void fabricate_dvi_i_output(struct dcb_table *dcb, bool twoHeads)
@@ -5980,9 +6121,15 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		}
 		break;
 	case OUTPUT_TMDS:
-		entry->tmdsconf.sor.link = (conf & 0x00000030) >> 4;
+		if (dcb->version >= 0x40)
+			entry->tmdsconf.sor.link = (conf & 0x00000030) >> 4;
+		else if (dcb->version >= 0x30)
+			entry->tmdsconf.slave_addr = (conf & 0x00000700) >> 8;
+		else if (dcb->version >= 0x22)
+			entry->tmdsconf.slave_addr = (conf & 0x00000070) >> 4;
+
 		break;
-	case 0xe:
+	case OUTPUT_EOL:
 		/* weird g80 mobile type that "nv" treats as a terminator */
 		dcb->entries--;
 		return false;
@@ -6019,22 +6166,14 @@ parse_dcb15_entry(struct drm_device *dev, struct dcb_table *dcb,
 		entry->type = OUTPUT_TV;
 		break;
 	case 2:
+	case 4:
+		if (conn & 0x10)
+			entry->type = OUTPUT_LVDS;
+		else
+			entry->type = OUTPUT_TMDS;
+		break;
 	case 3:
 		entry->type = OUTPUT_LVDS;
-		break;
-	case 4:
-		switch ((conn & 0x000000f0) >> 4) {
-		case 0:
-			entry->type = OUTPUT_TMDS;
-			break;
-		case 1:
-			entry->type = OUTPUT_LVDS;
-			break;
-		default:
-			NV_ERROR(dev, "Unknown DCB subtype 4/%d\n",
-				 (conn & 0x000000f0) >> 4);
-			return false;
-		}
 		break;
 	default:
 		NV_ERROR(dev, "Unknown DCB type %d\n", conn & 0x0000000f);
@@ -6150,9 +6289,7 @@ apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
 	 * nasty problems until this is sorted (assuming it's not a
 	 * VBIOS bug).
 	 */
-	if ((dev->pdev->device == 0x040d) &&
-	    (dev->pdev->subsystem_vendor == 0x1028) &&
-	    (dev->pdev->subsystem_device == 0x019b)) {
+	if (nv_match_device(dev, 0x040d, 0x1028, 0x019b)) {
 		if (*conn == 0x02026312 && *conf == 0x00000020)
 			return false;
 	}
@@ -6270,6 +6407,19 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 		dcb->i2c_table = &bios->data[i2ctabptr];
 		if (dcb->version >= 0x30)
 			dcb->i2c_default_indices = dcb->i2c_table[4];
+
+		/*
+		 * Parse the "management" I2C bus, used for hardware
+		 * monitoring and some external TMDS transmitters.
+		 */
+		if (dcb->version >= 0x22) {
+			int idx = (dcb->version >= 0x40 ?
+				   dcb->i2c_default_indices & 0xf :
+				   2);
+
+			read_dcb_i2c_entry(dev, dcb->version, dcb->i2c_table,
+					   idx, &dcb->i2c[idx]);
+		}
 	}
 
 	if (entries > DCB_MAX_NUM_ENTRIES)

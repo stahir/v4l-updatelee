@@ -182,7 +182,7 @@ static int input_handle_abs_event(struct input_dev *dev,
 	is_mt_event = code >= ABS_MT_FIRST && code <= ABS_MT_LAST;
 
 	if (!is_mt_event) {
-		pold = &dev->abs[code];
+		pold = &dev->absinfo[code].value;
 	} else if (dev->mt) {
 		struct input_mt_slot *mtslot = &dev->mt[dev->slot];
 		pold = &mtslot->abs[code - ABS_MT_FIRST];
@@ -196,7 +196,7 @@ static int input_handle_abs_event(struct input_dev *dev,
 
 	if (pold) {
 		*pval = input_defuzz_abs_event(*pval, *pold,
-						dev->absfuzz[code]);
+						dev->absinfo[code].fuzz);
 		if (*pold == *pval)
 			return INPUT_IGNORE_EVENT;
 
@@ -204,8 +204,8 @@ static int input_handle_abs_event(struct input_dev *dev,
 	}
 
 	/* Flush pending "slot" event */
-	if (is_mt_event && dev->slot != dev->abs[ABS_MT_SLOT]) {
-		dev->abs[ABS_MT_SLOT] = dev->slot;
+	if (is_mt_event && dev->slot != input_abs_get_val(dev, ABS_MT_SLOT)) {
+		input_abs_set_val(dev, ABS_MT_SLOT, dev->slot);
 		input_pass_event(dev, EV_ABS, ABS_MT_SLOT, dev->slot);
 	}
 
@@ -389,6 +389,43 @@ void input_inject_event(struct input_handle *handle,
 	}
 }
 EXPORT_SYMBOL(input_inject_event);
+
+/**
+ * input_alloc_absinfo - allocates array of input_absinfo structs
+ * @dev: the input device emitting absolute events
+ *
+ * If the absinfo struct the caller asked for is already allocated, this
+ * functions will not do anything.
+ */
+void input_alloc_absinfo(struct input_dev *dev)
+{
+	if (!dev->absinfo)
+		dev->absinfo = kcalloc(ABS_CNT, sizeof(struct input_absinfo),
+					GFP_KERNEL);
+
+	WARN(!dev->absinfo, "%s(): kcalloc() failed?\n", __func__);
+}
+EXPORT_SYMBOL(input_alloc_absinfo);
+
+void input_set_abs_params(struct input_dev *dev, unsigned int axis,
+			  int min, int max, int fuzz, int flat)
+{
+	struct input_absinfo *absinfo;
+
+	input_alloc_absinfo(dev);
+	if (!dev->absinfo)
+		return;
+
+	absinfo = &dev->absinfo[axis];
+	absinfo->minimum = min;
+	absinfo->maximum = max;
+	absinfo->fuzz = fuzz;
+	absinfo->flat = flat;
+
+	dev->absbit[BIT_WORD(axis)] |= BIT_MASK(axis);
+}
+EXPORT_SYMBOL(input_set_abs_params);
+
 
 /**
  * input_grab_device - grabs device for exclusive use
@@ -1308,6 +1345,7 @@ static void input_dev_release(struct device *device)
 
 	input_ff_destroy(dev);
 	input_mt_destroy_slots(dev);
+	kfree(dev->absinfo);
 	kfree(dev);
 
 	module_put(THIS_MODULE);
@@ -1561,11 +1599,14 @@ EXPORT_SYMBOL(input_free_device);
  * @dev: input device supporting MT events and finger tracking
  * @num_slots: number of slots used by the device
  *
- * This function allocates all necessary memory for MT slot handling
- * in the input device, and adds ABS_MT_SLOT to the device capabilities.
+ * This function allocates all necessary memory for MT slot handling in the
+ * input device, and adds ABS_MT_SLOT to the device capabilities. All slots
+ * are initially marked as unused iby setting ABS_MT_TRACKING_ID to -1.
  */
 int input_mt_create_slots(struct input_dev *dev, unsigned int num_slots)
 {
+	int i;
+
 	if (!num_slots)
 		return 0;
 
@@ -1575,6 +1616,10 @@ int input_mt_create_slots(struct input_dev *dev, unsigned int num_slots)
 
 	dev->mtsize = num_slots;
 	input_set_abs_params(dev, ABS_MT_SLOT, 0, num_slots - 1, 0, 0);
+
+	/* Mark slots as 'unused' */
+	for (i = 0; i < num_slots; i++)
+		dev->mt[i].abs[ABS_MT_TRACKING_ID - ABS_MT_FIRST] = -1;
 
 	return 0;
 }
