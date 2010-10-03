@@ -623,24 +623,33 @@ static struct tda827x_config tda827x_cfg_2_sw42 = {
 
 /* ------------------------------------------------------------------ */
 
-static int kworld_sbtvd_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
+static int __kworld_sbtvd_i2c_gate_ctrl(struct saa7134_dev *dev, int enable)
 {
-	struct tda18271_state *state = fe->demodulator_priv;
-	struct i2c_msg msg = {.addr = 0x4b, .flags = 0, .len = 2};
-	unsigned char msg_enable[2] = { 0x45, 0xc1 };
-	unsigned char msg_disable[2] = { 0x45, 0x81 };
+	unsigned char initmsg[] = {0x45, 0x97};
+	unsigned char msg_enable[] = {0x45, 0xc1};
+	unsigned char msg_disable[] = {0x45, 0x81};
+	struct i2c_msg msg = {.addr = 0x4b, .flags = 0, .buf = initmsg, .len = 2};
 
+	if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1) {
+		wprintk("could not access the I2C gate\n");
+		return -EIO;
+	}
 	if (enable)
 		msg.buf = msg_enable;
 	else
 		msg.buf = msg_disable;
-	if (i2c_transfer(state->i2c, &msg, 1) != 1) {
-		struct saa7134_dev *dev = fe->dvb->priv;
+	if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1) {
 		wprintk("could not access the I2C gate\n");
 		return -EIO;
 	}
 	msleep(20);
 	return 0;
+}
+static int kworld_sbtvd_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
+{
+	struct saa7134_dev *dev = fe->dvb->priv;
+
+	return __kworld_sbtvd_i2c_gate_ctrl(dev, enable);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1651,17 +1660,27 @@ static int dvb_init(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_KWORLD_PCI_SBTVD_FULLSEG:
-		fe0->ops.i2c_gate_ctrl =
+		__kworld_sbtvd_i2c_gate_ctrl(dev, 0);
+		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x14000);
+		saa_writel(SAA7134_GPIO_GPSTATUS0 >> 2, 0x14000);
+		msleep(20);
+		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x54000);
+		saa_writel(SAA7134_GPIO_GPSTATUS0 >> 2, 0x54000);
+		msleep(20);
 		fe0->dvb.frontend = dvb_attach(mb86a20s_attach,
 					       &kworld_mb86a20s_config,
 					       &dev->i2c_adap);
-		fe0->ops.i2c_gate_ctrl(fe, 1);
+		__kworld_sbtvd_i2c_gate_ctrl(dev, 1);
 		if (fe0->dvb.frontend != NULL) {
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_adap,
 				   &kworld_tda18271_config);
+			/*
+			 * Only after success, it can initialize the gate, otherwise
+			 * an OOPS will hit, due to kfree(fe0->dvb.frontend)
+			 */
+			fe0->dvb.frontend->ops.i2c_gate_ctrl = kworld_sbtvd_i2c_gate_ctrl;
 		}
-
 		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");
