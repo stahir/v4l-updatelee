@@ -36,9 +36,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
-#include <linux/input.h>
 #include <media/ir-core.h>
-#include <media/ir-common.h>
 
 #define DRIVER_VERSION	"1.91"
 #define DRIVER_AUTHOR	"Jarod Wilson <jarod@wilsonet.com>"
@@ -313,12 +311,11 @@ static struct usb_device_id mceusb_dev_table[] = {
 /* data structure for each usb transceiver */
 struct mceusb_dev {
 	/* ir-core bits */
-	struct ir_dev_props *props;
+	struct rc_dev *rc;
 	struct ir_raw_event rawir;
 
 	/* core device bits */
 	struct device *dev;
-	struct input_dev *idev;
 
 	/* usb */
 	struct usb_device *usbdev;
@@ -655,9 +652,9 @@ static void mce_sync_in(struct mceusb_dev *ir, unsigned char *data, int size)
 }
 
 /* Send data out the IR blaster port(s) */
-static int mceusb_tx_ir(void *priv, int *txbuf, u32 n)
+static int mceusb_tx_ir(struct rc_dev *dev, int *txbuf, u32 n)
 {
-	struct mceusb_dev *ir = priv;
+	struct mceusb_dev *ir = dev->priv;
 	int i, ret = 0;
 	int count, cmdcount = 0;
 	unsigned char *cmdbuf; /* MCE command buffer */
@@ -741,9 +738,9 @@ out:
 }
 
 /* Sets active IR outputs -- mce devices typically have two */
-static int mceusb_set_tx_mask(void *priv, u32 mask)
+static int mceusb_set_tx_mask(struct rc_dev *dev, u32 mask)
 {
-	struct mceusb_dev *ir = priv;
+	struct mceusb_dev *ir = dev->priv;
 
 	if (ir->flags.tx_mask_inverted)
 		ir->tx_mask = (mask != MCE_DEFAULT_TX_MASK ?
@@ -755,9 +752,9 @@ static int mceusb_set_tx_mask(void *priv, u32 mask)
 }
 
 /* Sets the send carrier frequency and mode */
-static int mceusb_set_tx_carrier(void *priv, u32 carrier)
+static int mceusb_set_tx_carrier(struct rc_dev *dev, u32 carrier)
 {
-	struct mceusb_dev *ir = priv;
+	struct mceusb_dev *ir = dev->priv;
 	int clk = 10000000;
 	int prescaler = 0, divisor = 0;
 	unsigned char cmdbuf[4] = { MCE_COMMAND_HEADER,
@@ -829,7 +826,7 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 				rawir.pulse ? "pulse" : "space",
 				rawir.duration);
 
-			ir_raw_event_store_with_filter(ir->idev, &rawir);
+			ir_raw_event_store_with_filter(ir->rc, &rawir);
 			break;
 		case CMD_DATA:
 			ir->rem--;
@@ -855,7 +852,7 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 			ir->parser_state = CMD_HEADER;
 	}
 	dev_dbg(ir->dev, "processed IR data, calling ir_raw_event_handle\n");
-	ir_raw_event_handle(ir->idev);
+	ir_raw_event_handle(ir->rc);
 }
 
 static void mceusb_dev_recv(struct urb *urb, struct pt_regs *regs)
@@ -997,68 +994,51 @@ static void mceusb_get_parameters(struct mceusb_dev *ir)
 	mce_sync_in(ir, NULL, maxp);
 }
 
-static struct input_dev *mceusb_init_input_dev(struct mceusb_dev *ir)
+static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
 {
-	struct input_dev *idev;
-	struct ir_dev_props *props;
 	struct device *dev = ir->dev;
-	const char *rc_map = RC_MAP_RC6_MCE;
-	const char *name = "Media Center Ed. eHome Infrared Remote Transceiver";
-	int ret = -ENODEV;
+	struct rc_dev *rc;
+	int ret;
 
-	idev = input_allocate_device();
-	if (!idev) {
-		dev_err(dev, "remote input dev allocation failed\n");
-		goto idev_alloc_failed;
+	rc = rc_allocate_device();
+	if (!rc) {
+		dev_err(dev, "remote dev allocation failed\n");
+		goto out;
 	}
-
-	ret = -ENOMEM;
-	props = kzalloc(sizeof(struct ir_dev_props), GFP_KERNEL);
-	if (!props) {
-		dev_err(dev, "remote ir dev props allocation failed\n");
-		goto props_alloc_failed;
-	}
-
-	if (mceusb_model[ir->model].name)
-		name = mceusb_model[ir->model].name;
 
 	snprintf(ir->name, sizeof(ir->name), "%s (%04x:%04x)",
-		 name,
+		 mceusb_model[ir->model].name ?
+		 	mceusb_model[ir->model].name :
+			"Media Center Ed. eHome Infrared Remote Transceiver",
 		 le16_to_cpu(ir->usbdev->descriptor.idVendor),
 		 le16_to_cpu(ir->usbdev->descriptor.idProduct));
 
-	idev->name = ir->name;
 	usb_make_path(ir->usbdev, ir->phys, sizeof(ir->phys));
-	strlcat(ir->phys, "/input0", sizeof(ir->phys));
-	idev->phys = ir->phys;
 
-	props->priv = ir;
-	props->driver_type = RC_DRIVER_IR_RAW;
-	props->allowed_protos = IR_TYPE_ALL;
+	rc->input_name = ir->name;
+	rc->input_phys = ir->phys;
+	rc->priv = ir;
+	rc->driver_type = RC_DRIVER_IR_RAW;
+	rc->allowed_protos = IR_TYPE_ALL;
 	if (!ir->flags.no_tx) {
-		props->s_tx_mask = mceusb_set_tx_mask;
-		props->s_tx_carrier = mceusb_set_tx_carrier;
-		props->tx_ir = mceusb_tx_ir;
+		rc->s_tx_mask = mceusb_set_tx_mask;
+		rc->s_tx_carrier = mceusb_set_tx_carrier;
+		rc->tx_ir = mceusb_tx_ir;
 	}
+	rc->driver_name = DRIVER_NAME;
+	rc->map_name = mceusb_model[ir->model].rc_map ?
+			mceusb_model[ir->model].rc_map : RC_MAP_RC6_MCE;
 
-	ir->props = props;
-
-	if (mceusb_model[ir->model].rc_map)
-		rc_map = mceusb_model[ir->model].rc_map;
-
-	ret = ir_input_register(idev, rc_map, props, DRIVER_NAME);
+	ret = rc_register_device(rc);
 	if (ret < 0) {
-		dev_err(dev, "remote input device register failed\n");
-		goto irdev_failed;
+		dev_err(dev, "remote dev registration failed\n");
+		goto out;
 	}
 
-	return idev;
+	return rc;
 
-irdev_failed:
-	kfree(props);
-props_alloc_failed:
-	input_free_device(idev);
-idev_alloc_failed:
+out:
+	rc_free_device(rc);
 	return NULL;
 }
 
@@ -1170,9 +1150,9 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 		snprintf(name + strlen(name), sizeof(name) - strlen(name),
 			 " %s", buf);
 
-	ir->idev = mceusb_init_input_dev(ir);
-	if (!ir->idev)
-		goto input_dev_fail;
+	ir->rc = mceusb_init_rc_dev(ir);
+	if (!ir->rc)
+		goto rc_dev_fail;
 
 	/* flush buffers on the device */
 	mce_sync_in(ir, NULL, maxp);
@@ -1193,7 +1173,7 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	mceusb_get_parameters(ir);
 
 	if (!ir->flags.no_tx)
-		mceusb_set_tx_mask(ir, MCE_DEFAULT_TX_MASK);
+		mceusb_set_tx_mask(ir->rc, MCE_DEFAULT_TX_MASK);
 
 	usb_set_intfdata(intf, ir);
 
@@ -1203,7 +1183,7 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	return 0;
 
 	/* Error-handling path */
-input_dev_fail:
+rc_dev_fail:
 	usb_free_urb(ir->urb_in);
 urb_in_alloc_fail:
 	usb_free_coherent(dev, maxp, ir->buf_in, ir->dma_in);
@@ -1227,7 +1207,7 @@ static void __devexit mceusb_dev_disconnect(struct usb_interface *intf)
 		return;
 
 	ir->usbdev = NULL;
-	ir_input_unregister(ir->idev);
+	rc_unregister_device(ir->rc);
 	usb_kill_urb(ir->urb_in);
 	usb_free_urb(ir->urb_in);
 	usb_free_coherent(dev, ir->len_in, ir->buf_in, ir->dma_in);
