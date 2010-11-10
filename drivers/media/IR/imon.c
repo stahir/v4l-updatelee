@@ -158,7 +158,8 @@ static const struct file_operations vfd_fops = {
 	.owner		= THIS_MODULE,
 	.open		= &display_open,
 	.write		= &vfd_write,
-	.release	= &display_close
+	.release	= &display_close,
+	.llseek		= noop_llseek,
 };
 
 /* lcd character device file operations */
@@ -166,7 +167,8 @@ static const struct file_operations lcd_fops = {
 	.owner		= THIS_MODULE,
 	.open		= &display_open,
 	.write		= &lcd_write,
-	.release	= &display_close
+	.release	= &display_close,
+	.llseek		= noop_llseek,
 };
 
 enum {

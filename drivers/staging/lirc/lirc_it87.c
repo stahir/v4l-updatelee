@@ -344,6 +344,7 @@ static const struct file_operations lirc_fops = {
 #endif
 	.open		= lirc_open,
 	.release	= lirc_close,
+	.llseek		= noop_llseek,
 };
 
 static int set_use_inc(void *data)
