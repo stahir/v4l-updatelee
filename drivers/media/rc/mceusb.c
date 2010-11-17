@@ -36,6 +36,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
+#include <linux/usb/input.h>
 #include <media/rc-core.h>
 
 #define DRIVER_VERSION	"1.91"
@@ -1044,7 +1045,7 @@ static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
 
 	snprintf(ir->name, sizeof(ir->name), "%s (%04x:%04x)",
 		 mceusb_model[ir->model].name ?
-		 	mceusb_model[ir->model].name :
+			mceusb_model[ir->model].name :
 			"Media Center Ed. eHome Infrared Remote Transceiver",
 		 le16_to_cpu(ir->usbdev->descriptor.idVendor),
 		 le16_to_cpu(ir->usbdev->descriptor.idProduct));
@@ -1053,6 +1054,8 @@ static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
 
 	rc->input_name = ir->name;
 	rc->input_phys = ir->phys;
+	usb_to_input_id(ir->usbdev, &rc->input_id);
+	rc->dev.parent = dev;
 	rc->priv = ir;
 	rc->driver_type = RC_DRIVER_IR_RAW;
 	rc->allowed_protos = RC_TYPE_ALL;
