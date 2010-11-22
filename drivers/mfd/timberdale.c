@@ -258,7 +258,6 @@ static __devinitdata struct timb_video_platform_data
 	.dma_channel = DMA_VIDEO_RX,
 	.i2c_adapter = 0,
 	.encoder = {
-		.module_name = "adv7180",
 		.info = &timberdale_adv7180_i2c_board_info
 	}
 };
@@ -289,11 +288,9 @@ static __devinitdata struct timb_radio_platform_data
 	timberdale_radio_platform_data = {
 	.i2c_adapter = 0,
 	.tuner = {
-		.module_name = "tef6862",
 		.info = &timberdale_tef6868_i2c_board_info
 	},
 	.dsp = {
-		.module_name = "saa7706h",
 		.info = &timberdale_saa7706_i2c_board_info
 	}
 };

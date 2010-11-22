@@ -638,8 +638,7 @@ static int timblogiw_open(struct file *file)
 
 		/* now find the encoder */
 		lw->sd_enc = v4l2_i2c_new_subdev_board(&lw->v4l2_dev, adapt,
-			lw->pdata.encoder.module_name, lw->pdata.encoder.info,
-			NULL);
+			lw->pdata.encoder.info, NULL);
 
 		i2c_put_adapter(adapt);
 
