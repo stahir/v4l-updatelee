@@ -1466,7 +1466,7 @@ sub process {
 		    $line =~ /^\+\s*"[^"]*"\s*(?:\s*|,|\)\s*;)\s*$/) &&
 		    $length > 80)
 		{
-#			WARN("line over 80 characters\n" . $herecurr);
+			WARN("line over 80 characters\n" . $herecurr);
 		}
 
 # check for spaces before a quoted newline
