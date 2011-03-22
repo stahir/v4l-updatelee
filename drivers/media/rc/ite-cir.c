@@ -1,4 +1,4 @@
-	/*
+/*
  * Driver for ITE Tech Inc. IT8712F/IT8512 CIR
  *
  * Copyright (C) 2010 Juan Jesús García de Soria <skandalfo@gmail.com>

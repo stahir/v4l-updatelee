@@ -28,13 +28,13 @@
 #define ite_dbg(text, ...) do { \
 	if (debug) \
 		printk(KERN_DEBUG \
-			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__) \
+			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__); \
 } while (0)
 
 #define ite_dbg_verbose(text, ...) do {\
 	if (debug > 1) \
 		printk(KERN_DEBUG \
-			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__) \
+			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__); \
 } while (0)
 
 /* FIFO sizes */
