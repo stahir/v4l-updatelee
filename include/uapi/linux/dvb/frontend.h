@@ -67,7 +67,9 @@ typedef enum fe_caps {
 	FE_CAN_2G_MODULATION		= 0x10000000, /* frontend supports "2nd generation modulation" (DVB-S2) */
 	FE_NEEDS_BENDING		= 0x20000000, /* not supported anymore, don't use (frontend requires frequency bending) */
 	FE_CAN_RECOVER			= 0x40000000, /* frontend can recover from a cable unplug automatically */
-	FE_CAN_MUTE_TS			= 0x80000000  /* frontend can stop spurious TS data output */
+	FE_CAN_MUTE_TS			= 0x80000000,  /* frontend can stop spurious TS data output */        FE_CAN_SPECTRUMSCAN             = 0x100000000,
+        FE_CAN_IQ                       = 0x200000000,
+        FE_CAN_BLINDSEARCH              = 0x400000000
 } fe_caps_t;
 
 
@@ -165,10 +167,12 @@ typedef enum fe_code_rate {
 	FEC_3_5,
 	FEC_9_10,
 	FEC_2_5,
+        FEC_5_11,
 } fe_code_rate_t;
 
 
 typedef enum fe_modulation {
+        NOMOD = 0,
 	QPSK,
 	QAM_16,
 	QAM_32,
@@ -377,8 +381,9 @@ struct dvb_frontend_event {
 
 #define DTV_ENUM_DELMOD		70
 #define DTV_ENUM_DELFEC		71
+#define DTV_MATYPE              72
 
-#define DTV_MAX_COMMAND				DTV_ENUM_DELFEC
+#define DTV_MAX_COMMAND				DTV_MATYPE
 
 typedef enum fe_pilot {
 	PILOT_ON,
@@ -413,6 +418,10 @@ typedef enum fe_delivery_system {
 	SYS_DVBT2,
 	SYS_TURBO,
 	SYS_DVBC_ANNEX_C,
+        SYS_DCII_C_QPSK,
+        SYS_DCII_I_QPSK,
+        SYS_DCII_Q_QPSK,
+        SYS_DCII_C_OQPSK,
 } fe_delivery_system_t;
 
 /* backward compatibility */
@@ -558,6 +567,28 @@ struct dtv_properties {
 #define FE_SET_PROPERTY		   _IOW('o', 82, struct dtv_properties)
 #define FE_GET_PROPERTY		   _IOR('o', 83, struct dtv_properties)
 
+struct dvb_fe_constellation_sample {
+        __s16           real;
+        __s16           imaginary;
+};
+
+struct dvb_fe_constellation_samples {
+        __u32           num;
+        struct dvb_fe_constellation_sample *samples;
+};
+
+#define DTV_MAX_CONSTELLATION_SAMPLES 1000
+#define FE_GET_CONSTELLATION_SAMPLES    _IOR('o',84, struct dvb_fe_constellation_samples)
+
+struct dvb_fe_spectrum_scan {
+        __u32           start_frequency;
+        __u32           step_size;
+        __u32           num_steps;
+        __u16           *rf_level;
+};
+
+#define DTV_MAX_SPECTRUM_SCAN_STEPS     2000
+#define FE_GET_SPECTRUM_SCAN            _IOW('o',85, struct dvb_fe_spectrum_scan)
 
 /**
  * When set, this flag will disable any zigzagging or other "normal" tuning
