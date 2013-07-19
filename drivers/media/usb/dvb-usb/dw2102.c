@@ -1218,6 +1218,14 @@ static int ds3000_frontend_attach(struct dvb_usb_adapter *d)
 	return 0;
 }
 
+static int dw210x_set_frame_ops(struct dvb_frontend *fe, struct dvb_frame frame_ops)
+{
+	struct dvb_usb_adapter *udev_adap = (struct dvb_usb_adapter *)(fe->dvb->priv);
+	udev_adap->demux.frame_ops = frame_ops;
+
+	return 0;
+}
+
 static int prof_7500_frontend_attach(struct dvb_usb_adapter *d)
 {
 	u8 obuf[] = {7, 1};
@@ -1227,7 +1235,8 @@ static int prof_7500_frontend_attach(struct dvb_usb_adapter *d)
 	if (d->fe_adap[0].fe == NULL)
 		return -EIO;
 
-	d->fe_adap[0].fe->ops.set_voltage = dw210x_set_voltage;
+	d->fe_adap[0].fe->ops.set_voltage	= dw210x_set_voltage;
+	d->fe_adap[0].fe->ops.set_frame_ops	= dw210x_set_frame_ops;
 
 	dw210x_op_rw(d->dev->udev, 0x8a, 0, 0, obuf, 2, DW210X_WRITE_MSG);
 

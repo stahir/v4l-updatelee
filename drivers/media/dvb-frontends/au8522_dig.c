@@ -761,6 +761,41 @@ static int au8522_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
+static int au8522_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spectrum_scan *s)
+{
+	int x;
+	fe->dtv_property_cache.bandwidth_hz = s->step_size;
+	fe->dtv_property_cache.frequency = 0;
+	fe->dtv_property_cache.delivery_system = SYS_ATSC;
+
+	dprintk("%s", __func__);
+
+	if (fe->ops.tuner_ops.set_params) {
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
+		fe->ops.tuner_ops.set_params(fe);
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 0);
+	}
+	msleep(100);
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	if (fe->ops.tuner_ops.set_frequency && fe->ops.tuner_ops.get_rf_strength) {
+		for (x = 0 ; x < s->num_steps ; x++)
+		{
+			fe->ops.tuner_ops.set_frequency(fe, s->start_frequency + (x * s->step_size));
+			msleep(20);
+			fe->ops.tuner_ops.get_rf_strength(fe, (s->rf_level + x));
+		}
+	}
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
+	return 0;
+}
+
 static struct dvb_frontend_ops au8522_ops;
 
 
@@ -822,13 +857,15 @@ error:
 EXPORT_SYMBOL(au8522_attach);
 
 static struct dvb_frontend_ops au8522_ops = {
-	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
+	.delsys = { SYS_DVBC_ANNEX_B, SYS_ATSC },
+	.delmod = { QAM_256, QAM_64, VSB_8 },
+	.delfec = { FEC_NONE },
 	.info = {
 		.name			= "Auvitek AU8522 QAM/8VSB Frontend",
 		.frequency_min		= 54000000,
 		.frequency_max		= 858000000,
 		.frequency_stepsize	= 62500,
-		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
+		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB | FE_CAN_SPECTRUMSCAN
 	},
 
 	.init                 = au8522_init,
@@ -843,6 +880,7 @@ static struct dvb_frontend_ops au8522_ops = {
 	.read_snr             = au8522_read_snr,
 	.read_ucblocks        = au8522_read_ucblocks,
 	.release              = au8522_release,
+	.get_spectrum_scan    = au8522_get_spectrum_scan,	
 };
 
 module_param(debug, int, 0644);

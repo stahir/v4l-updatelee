@@ -28,10 +28,7 @@
 
 static int debug;
 
-#define dprintk(arg...)\
-  do { if (debug)\
-	 printk(arg);\
-  } while (0)
+#define dprintk(arg...) printk(arg)
 
 /* Despite the name "hybrid_tuner", the framework works just as well for
    hybrid demodulators as well... */

@@ -652,6 +652,8 @@ restart:
 		if (fe->ops.get_frontend_algo) {
 			algo = fe->ops.get_frontend_algo(fe);
 			switch (algo) {
+			case DVBFE_ALGO_NOTUNE:
+				break;
 			case DVBFE_ALGO_HW:
 				dev_dbg(fe->dvb->device, "%s: Frontend ALGO = DVBFE_ALGO_HW\n", __func__);
 
@@ -1029,6 +1031,7 @@ static struct dtv_cmds_h dtv_cmds[DTV_MAX_COMMAND + 1] = {
 
 	_DTV_CMD(DTV_STREAM_ID, 1, 0),
 	_DTV_CMD(DTV_DVBT2_PLP_ID_LEGACY, 1, 0),
+	_DTV_CMD(DTV_MATYPE, 1, 0),
 	_DTV_CMD(DTV_LNA, 1, 0),
 
 	/* Get */
@@ -1036,6 +1039,8 @@ static struct dtv_cmds_h dtv_cmds[DTV_MAX_COMMAND + 1] = {
 	_DTV_CMD(DTV_API_VERSION, 0, 0),
 
 	_DTV_CMD(DTV_ENUM_DELSYS, 0, 0),
+	_DTV_CMD(DTV_ENUM_DELMOD, 0, 0),
+	_DTV_CMD(DTV_ENUM_DELFEC, 0, 0),
 
 	_DTV_CMD(DTV_ATSCMH_PARADE_ID, 1, 0),
 	_DTV_CMD(DTV_ATSCMH_RS_FRAME_ENSEMBLE, 1, 0),
@@ -1285,6 +1290,22 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 		}
 		tvp->u.buffer.len = ncaps;
 		break;
+	case DTV_ENUM_DELMOD:
+		ncaps = 0;
+		while (fe->ops.delmod[ncaps] && ncaps < MAX_DELMOD) {
+		tvp->u.buffer.data[ncaps] = fe->ops.delmod[ncaps];
+			ncaps++;
+		}
+		tvp->u.buffer.len = ncaps;
+		break;
+	case DTV_ENUM_DELFEC:
+		ncaps = 0;
+		while (fe->ops.delfec[ncaps] && ncaps < MAX_DELFEC) {
+			tvp->u.buffer.data[ncaps] = fe->ops.delfec[ncaps];
+			ncaps++;
+		}
+		tvp->u.buffer.len = ncaps;
+		break;
 	case DTV_FREQUENCY:
 		tvp->u.data = c->frequency;
 		break;
@@ -1400,6 +1421,9 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 	case DTV_STREAM_ID:
 	case DTV_DVBT2_PLP_ID_LEGACY:
 		tvp->u.data = c->stream_id;
+		break;
+	case DTV_MATYPE:
+		tvp->u.data = c->matype;
 		break;
 
 	/* ATSC-MH */
@@ -1891,6 +1915,92 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 	return r;
 }
 
+static int dvb_frontend_ioctl_get_spectrum_scan(struct file *file,
+			unsigned int cmd, void *parg)
+{
+	struct dvb_device *dvbdev = file->private_data;
+	struct dvb_frontend *fe = dvbdev->priv;
+
+	struct dvb_fe_spectrum_scan *s_user = NULL;
+	struct dvb_fe_spectrum_scan s_kernel;
+
+	int err = -EOPNOTSUPP;
+
+	if (fe->ops.get_spectrum_scan)
+	{
+		s_user = (struct dvb_fe_spectrum_scan __user *)parg;
+		// make sure samples are within range
+		if ((s_user->num_steps == 0) || (s_user->num_steps > DTV_MAX_SPECTRUM_SCAN_STEPS))
+			return -EINVAL;
+
+		// create kernel memory structure
+		s_kernel.start_frequency = s_user->start_frequency;
+		s_kernel.step_size = s_user->step_size;
+		s_kernel.num_steps = s_user->num_steps;
+		s_kernel.rf_level = kmalloc(s_user->num_steps * sizeof(__u16), GFP_KERNEL);
+
+		if (!s_kernel.rf_level) {
+				return -ENOMEM;
+		}
+
+		// call user function
+		err = fe->ops.get_spectrum_scan(fe, &s_kernel);
+
+		// copy results to userspace
+		if (copy_to_user(s_user->rf_level, s_kernel.rf_level, s_kernel.num_steps * sizeof(__u16))) {
+			err = -EFAULT;
+		}
+
+		// free kernel allocated memory
+		kfree(s_kernel.rf_level);
+	}
+
+	return err;
+}
+
+static int dvb_frontend_ioctl_get_constellation_samples(struct file *file,
+			unsigned int cmd, void *parg)
+{
+	struct dvb_device *dvbdev = file->private_data;
+	struct dvb_frontend *fe = dvbdev->priv;
+
+	struct dvb_fe_constellation_samples *s_user = NULL;
+	struct dvb_fe_constellation_samples s_kernel;
+
+	int err = -EOPNOTSUPP;
+
+	if (fe->ops.get_constellation_samples)
+	{
+
+		s_user = (struct dvb_fe_constellation_samples __user *)parg;
+
+		// make sure samples are within range
+		if ((s_user->num == 0) || (s_user->num > DTV_MAX_CONSTELLATION_SAMPLES))
+			return -EINVAL;
+
+		// create kernel memory structure
+		s_kernel.num = s_user->num;
+			s_kernel.samples = kmalloc(s_user->num * sizeof(struct dvb_fe_constellation_sample), GFP_KERNEL);
+
+				if (!s_kernel.samples) {
+						return -ENOMEM;
+				}
+
+		// call user function
+		err = fe->ops.get_constellation_samples(fe, &s_kernel);
+
+		// copy results to userspace
+		if (copy_to_user(s_user->samples, s_kernel.samples, s_kernel.num * sizeof(struct dvb_fe_constellation_sample))) {
+			err = -EFAULT;
+		}
+
+		// free kernel allocated memory
+		kfree(s_kernel.samples);
+	}
+
+	return err;
+}
+
 static int dvb_frontend_ioctl(struct file *file,
 			unsigned int cmd, void *parg)
 {
@@ -1918,6 +2028,10 @@ static int dvb_frontend_ioctl(struct file *file,
 
 	if ((cmd == FE_SET_PROPERTY) || (cmd == FE_GET_PROPERTY))
 		err = dvb_frontend_ioctl_properties(file, cmd, parg);
+	else if (cmd == FE_GET_CONSTELLATION_SAMPLES)
+		err = dvb_frontend_ioctl_get_constellation_samples(file, cmd, parg);
+	else if (cmd == FE_GET_SPECTRUM_SCAN)
+		err = dvb_frontend_ioctl_get_spectrum_scan(file, cmd, parg);
 	else {
 		c->state = DTV_UNDEFINED;
 		err = dvb_frontend_ioctl_legacy(file, cmd, parg);

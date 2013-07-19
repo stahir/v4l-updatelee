@@ -27,7 +27,7 @@
 #include <linux/timer.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
-
+#include "dvb_frontend.h"
 #include "demux.h"
 
 #define DMX_TYPE_TS  0
@@ -136,6 +136,7 @@ struct dvb_demux {
 
 	struct timespec speed_last_time; /* for TS speed check */
 	uint32_t speed_pkts_cnt; /* for TS speed check */
+	struct dvb_frame frame_ops;
 };
 
 int dvb_dmx_init(struct dvb_demux *dvbdemux);

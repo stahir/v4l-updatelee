@@ -47,6 +47,8 @@
  * should be smaller or equal to 32
  */
 #define MAX_DELSYS	8
+#define MAX_DELMOD	8
+#define MAX_DELFEC	32
 
 struct dvb_frontend_tune_settings {
 	int min_delay_ms;
@@ -150,6 +152,7 @@ enum dvbfe_algo {
 	DVBFE_ALGO_HW			= (1 <<  0),
 	DVBFE_ALGO_SW			= (1 <<  1),
 	DVBFE_ALGO_CUSTOM		= (1 <<  2),
+	DVBFE_ALGO_NOTUNE		= (1 <<  3),
 	DVBFE_ALGO_RECOVERY		= (1 << 31)
 };
 
@@ -258,11 +261,19 @@ struct analog_demod_ops {
 
 struct dtv_frontend_properties;
 
+struct dvb_frame {
+	int frame_size;
+	int packet_size;
+	int sync_byte;
+};
+
 struct dvb_frontend_ops {
 
 	struct dvb_frontend_info info;
 
 	u8 delsys[MAX_DELSYS];
+	u8 delmod[MAX_DELMOD];
+	u8 delfec[MAX_DELFEC];
 
 	void (*release)(struct dvb_frontend* fe);
 	void (*release_sec)(struct dvb_frontend* fe);
@@ -315,6 +326,10 @@ struct dvb_frontend_ops {
 
 	int (*set_property)(struct dvb_frontend* fe, struct dtv_property* tvp);
 	int (*get_property)(struct dvb_frontend* fe, struct dtv_property* tvp);
+
+	int (*get_constellation_samples)(struct dvb_frontend* fe, struct dvb_fe_constellation_samples* s);
+	int (*get_spectrum_scan)(struct dvb_frontend* fe, struct dvb_fe_spectrum_scan* s);
+	int (*set_frame_ops)(struct dvb_frontend* fe, struct dvb_frame frame_ops);
 };
 
 #ifdef __DVB_CORE__
@@ -373,6 +388,7 @@ struct dtv_frontend_properties {
 
 	/* Multistream specifics */
 	u32			stream_id;
+	u32			matype;
 
 	/* ATSC-MH specifics */
 	u8			atscmh_fic_ver;

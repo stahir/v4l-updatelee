@@ -46,8 +46,7 @@ MODULE_PARM_DESC(no_poweroff, "0 (default) powers device off when not used.\n"
 static DEFINE_MUTEX(xc5000_list_mutex);
 static LIST_HEAD(hybrid_tuner_instance_list);
 
-#define dprintk(level, fmt, arg...) if (debug >= level) \
-	printk(KERN_INFO "%s: " fmt, "xc5000", ## arg)
+#define dprintk(level, fmt, arg...) printk(KERN_INFO "%s: " fmt, "xc5000", ## arg)
 
 struct xc5000_priv {
 	struct tuner_i2c_props i2c_props;
@@ -462,8 +461,6 @@ static const struct dvb_tuner_ops xc5000_tuner_ops;
 static int xc_set_RF_frequency(struct xc5000_priv *priv, u32 freq_hz)
 {
 	u16 freq_code;
-
-	dprintk(1, "%s(%u)\n", __func__, freq_hz);
 
 	if ((freq_hz > xc5000_tuner_ops.info.frequency_max) ||
 		(freq_hz < xc5000_tuner_ops.info.frequency_min))
@@ -1102,6 +1099,25 @@ static int xc5000_get_status(struct dvb_frontend *fe, u32 *status)
 	return 0;
 }
 
+static int xc5000_set_frequency(struct dvb_frontend *fe, u32 frequency)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+
+	if (xc_set_RF_frequency(priv, frequency - 1750000) != XC_RESULT_SUCCESS)
+		return 0;
+	return 1;
+}
+
+static int xc5000_get_rf_strength(struct dvb_frontend *fe, u16 *strength)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+
+	xc_get_totalgain(priv, strength);
+	*strength = 0xFFFF - *strength;
+\
+	return 0;
+}
+
 static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
@@ -1269,7 +1285,9 @@ static const struct dvb_tuner_ops xc5000_tuner_ops = {
 	.get_frequency	   = xc5000_get_frequency,
 	.get_if_frequency  = xc5000_get_if_frequency,
 	.get_bandwidth	   = xc5000_get_bandwidth,
-	.get_status	   = xc5000_get_status
+	.get_status	   = xc5000_get_status,
+	.set_frequency     = xc5000_set_frequency,
+	.get_rf_strength   = xc5000_get_rf_strength,
 };
 
 struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,

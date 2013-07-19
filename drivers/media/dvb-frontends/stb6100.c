@@ -332,10 +332,7 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	u8 regs[STB6100_NUMREGS];
 	u8 g, psd2, odiv;
 
-	dprintk(verbose, FE_DEBUG, 1, "Version 2010-8-14 13:51");
-
 	if (fe->ops.get_frontend) {
-		dprintk(verbose, FE_DEBUG, 1, "Get frontend parameters");
 		fe->ops.get_frontend(fe);
 	}
 	srate = p->symbol_rate;
@@ -430,12 +427,6 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	if (rc < 0)
 		return rc;
 
-	dprintk(verbose, FE_DEBUG, 1,
-		"frequency = %u, srate = %u, g = %u, odiv = %u, psd2 = %u, fxtal = %u, osm = %u, fvco = %u, N(I) = %u, N(F) = %u",
-		frequency, srate, (unsigned int)g, (unsigned int)odiv,
-		(unsigned int)psd2, state->reference,
-		ptr->reg, fvco, nint, nfrac);
-
 	/* Set up the test registers */
 	regs[STB6100_TEST1] = 0x8f;
 	rc = stb6100_write_reg(state, STB6100_TEST1, regs[STB6100_TEST1]);
@@ -451,8 +442,6 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	rc = stb6100_write_reg(state, STB6100_LPEN, regs[STB6100_LPEN]);
 	if (rc < 0)
 		return rc;
-
-	msleep(2);
 
 	/* Bring up tuner according to LLA 3.7 3.4.1, step 3 */
 	regs[STB6100_VCO] &= ~STB6100_VCO_OCK;		/* VCO fast search		*/
@@ -472,8 +461,6 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	if (rc < 0)
 		return rc;  /* Stop LPF calibration */
 
-	msleep(10);  /*  This is dangerous as another (related) thread may start */
-		     /* wait for stabilisation, (should not be necessary)		*/
 	return 0;
 }
 

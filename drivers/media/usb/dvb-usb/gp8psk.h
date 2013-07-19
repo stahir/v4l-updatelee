@@ -52,7 +52,13 @@ extern int dvb_usb_gp8psk_debug;
 #define GET_SERIAL_NUMBER               0x93    /* in */
 #define USE_EXTRA_VOLT                  0x94
 #define GET_FPGA_VERS			0x95
+#define GET_SIGNAL_STAT			0x9A
+#define GET_BER_RATE			0x9B
 #define CW3K_INIT			0x9d
+
+#define SET_FREQUENCY			0xB1
+#define GET_SIGNAL_POWER		0xB2	// in (in -1/256 dBm)
+#define GET_SOFT_DECISIONS		0xB3	// in ( 16 pairs of I/Q values)
 
 /* PSK_configuration bits */
 #define bm8pskStarted                   0x01
