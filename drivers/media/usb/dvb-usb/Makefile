@@ -40,6 +40,21 @@ obj-$(CONFIG_DVB_USB_DIGITV) += dvb-usb-digitv.o
 dvb-usb-cxusb-objs := cxusb.o
 obj-$(CONFIG_DVB_USB_CXUSB) += dvb-usb-cxusb.o
 
+dvb-usb-tbsqbox-objs = tbs-qbox.o
+obj-$(CONFIG_DVB_USB_TBSQBOX) += dvb-usb-tbsqbox.o
+
+dvb-usb-tbsqbox2-objs = tbs-qbox2.o
+obj-$(CONFIG_DVB_USB_TBSQBOX2) += dvb-usb-tbsqbox2.o
+
+dvb-usb-tbsqbox2ci-objs = tbs-qbox2ci.o
+obj-$(CONFIG_DVB_USB_TBSQBOX2CI) += dvb-usb-tbsqbox2ci.o
+
+dvb-usb-tbsqboxs2-objs = tbs-qboxs2.o
+obj-$(CONFIG_DVB_USB_TBSQBOXS2) += dvb-usb-tbsqboxs2.o
+
+dvb-usb-tbs5925-objs = tbs5925.o
+obj-$(CONFIG_DVB_USB_TBS5925) += dvb-usb-tbs5925.o
+
 dvb-usb-ttusb2-objs := ttusb2.o
 obj-$(CONFIG_DVB_USB_TTUSB2) += dvb-usb-ttusb2.o
 
