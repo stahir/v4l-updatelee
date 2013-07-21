@@ -346,6 +346,7 @@ struct dvb_frontend_event {
 #define DTV_STREAM_ID		42
 #define DTV_ISDBS_TS_ID_LEGACY	DTV_STREAM_ID
 #define DTV_DVBT2_PLP_ID_LEGACY	43
+#define DTV_DVBS2_MIS_ID        43
 
 #define DTV_ENUM_DELSYS		44
 

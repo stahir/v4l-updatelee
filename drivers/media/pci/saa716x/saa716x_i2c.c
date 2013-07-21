@@ -429,7 +429,6 @@ static int saa716x_i2c_write_msg(struct saa716x_i2c *i2c, u32 I2C_DEV,
 
 	/* first write START with I2C address */
 	data = I2C_START_BIT | (addr << 1);
-	dprintk(SAA716x_DEBUG, 1, "length=%d Addr:0x%02x", len, data);
 	err = saa716x_i2c_send(i2c, I2C_DEV, data);
 	if (err < 0) {
 		dprintk(SAA716x_ERROR, 1, "Address write failed");
@@ -450,7 +449,6 @@ static int saa716x_i2c_write_msg(struct saa716x_i2c *i2c, u32 I2C_DEV,
 
 		for (i = 0; i < bytes; i++) {
 			data = buf[i];
-			dprintk(SAA716x_DEBUG, 0, "    <W %04x> 0x%02x\n", i, data);
 			if (add_stop && i == (len - 1))
 				data |= I2C_STOP_BIT;
 			err = saa716x_i2c_send(i2c, I2C_DEV, data);
@@ -490,7 +488,6 @@ static int saa716x_i2c_read_msg(struct saa716x_i2c *i2c, u32 I2C_DEV,
 
 	/* first write START with I2C address */
 	data = I2C_START_BIT | (addr << 1) | 1;
-	dprintk(SAA716x_DEBUG, 1, "length=%d Addr:0x%02x", len, data);
 	err = saa716x_i2c_send(i2c, I2C_DEV, data);
 	if (err < 0) {
 		dprintk(SAA716x_ERROR, 1, "Address write failed");
@@ -531,7 +528,6 @@ static int saa716x_i2c_read_msg(struct saa716x_i2c *i2c, u32 I2C_DEV,
 				dprintk(SAA716x_ERROR, 1, "Data receive failed");
 				goto exit;
 			}
-			dprintk(SAA716x_DEBUG, 0, "    <R %04x> 0x%02x\n\n", i, data);
 			buf[i] = data;
 		}
 
@@ -556,8 +552,6 @@ static int saa716x_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, i
 	int i, j, err = 0;
 	int t;
 
-	dprintk(SAA716x_DEBUG, 0, "\n");
-	dprintk(SAA716x_DEBUG, 1, "Bus(%02x) I2C transfer", DEV);
 	mutex_lock(&i2c->i2c_lock);
 
 	for (t = 0; t < 3; t++) {
