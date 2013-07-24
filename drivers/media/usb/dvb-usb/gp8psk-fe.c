@@ -70,10 +70,10 @@ static int gp8psk_fe_read_status(struct dvb_frontend* fe, fe_status_t *status)
 		SYS_TURBO,
 		SYS_TURBO,
 		SYS_TURBO,
-		SYS_DCII_C_QPSK,
-		SYS_DCII_I_QPSK,
-		SYS_DCII_Q_QPSK,
-		SYS_DCII_C_OQPSK,
+		SYS_DCII,
+		SYS_DCII,
+		SYS_DCII,
+		SYS_DCII,
 		SYS_DSS,
 		SYS_UNDEFINED
 	};
@@ -83,12 +83,12 @@ static int gp8psk_fe_read_status(struct dvb_frontend* fe, fe_status_t *status)
 		QPSK,
 		PSK_8,
 		QAM_16,
+		C_QPSK,
+		I_QPSK,
+		Q_QPSK,
+		C_OQPSK,
 		QPSK,
 		QPSK,
-		QPSK,
-		QPSK,
-		QPSK,
-		NOMOD
 	};
 
 	gp8psk_fe_update_status(st);
@@ -148,10 +148,7 @@ static int gp8psk_fe_read_status(struct dvb_frontend* fe, fe_status_t *status)
 				}
 			}
 			break;
-		case SYS_DCII_C_QPSK:
-		case SYS_DCII_I_QPSK:
-		case SYS_DCII_Q_QPSK:
-		case SYS_DCII_C_OQPSK:
+		case SYS_DCII:
 			c->modulation		= fe_gp8psk_modulation_return[buf[1]];
 			switch (buf[2]) {
 			case 0:  c->fec_inner = FEC_5_11; break;
@@ -311,59 +308,25 @@ static int gp8psk_fe_set_frontend(struct dvb_frontend *fe)
 		default:		cmd[9] = 5; break;
 		}
 		break;
-	case SYS_DCII_C_QPSK:
-		info("%s: DCII_C_QPSK delivery system selected w/fec %d", __func__, c->fec_inner);
-		cmd[8] = ADV_MOD_DCII_C_QPSK;
+	case SYS_DCII:
+		info("%s: DCII delivery system selected w/fec %d", __func__, c->fec_inner);
+		switch (c->modulation) {
+		case C_QPSK:
+			cmd[8] = ADV_MOD_DCII_C_QPSK;
+			break;
+		case I_QPSK:
+			cmd[8] = ADV_MOD_DCII_I_QPSK;
+			break;
+		case Q_QPSK:
+			cmd[8] = ADV_MOD_DCII_Q_QPSK;
+			break;
+		case C_OQPSK:
+		default:
+			cmd[8] = ADV_MOD_DCII_C_OQPSK;
+			break;
+		}		
 		switch (c->fec_inner) {
-		/* 5/11 FEC is cmd[9] = 0 but not added to the API */
-		case FEC_1_2:  cmd[9] = 1; break;
-		case FEC_3_5:  cmd[9] = 2; break;
-		case FEC_2_3:  cmd[9] = 3; break;
-		case FEC_3_4:  cmd[9] = 4; break;
-		case FEC_4_5:  cmd[9] = 5; break;
-		case FEC_5_6:  cmd[9] = 6; break;
-		case FEC_7_8:  cmd[9] = 7; break;
-		case FEC_AUTO: cmd[9] = 8; break;
-		default:       cmd[9] = 8; break;
-		}
-		break;
-	case SYS_DCII_I_QPSK:
-		info("%s: DCII_I_QPSK delivery system selected w/fec %d", __func__, cmd[9]);
-		cmd[8] = ADV_MOD_DCII_I_QPSK;
-		switch (c->fec_inner) {
-		/* 5/11 FEC is cmd[9] = 0 but not added to the API */
-		case FEC_1_2:  cmd[9] = 1; break;
-		case FEC_3_5:  cmd[9] = 2; break;
-		case FEC_2_3:  cmd[9] = 3; break;
-		case FEC_3_4:  cmd[9] = 4; break;
-		case FEC_4_5:  cmd[9] = 5; break;
-		case FEC_5_6:  cmd[9] = 6; break;
-		case FEC_7_8:  cmd[9] = 7; break;
-		case FEC_AUTO: cmd[9] = 8; break;
-		default:       cmd[9] = 8; break;
-		}
-		break;
-	case SYS_DCII_Q_QPSK:
-		info("%s: DCII_Q_QPSK delivery system selected w/fec %d", __func__, cmd[9]);
-		cmd[8] = ADV_MOD_DCII_Q_QPSK;
-		switch (c->fec_inner) {
-		/* 5/11 FEC is cmd[9] = 0 but not added to the API */
-		case FEC_1_2:  cmd[9] = 1; break;
-		case FEC_3_5:  cmd[9] = 2; break;
-		case FEC_2_3:  cmd[9] = 3; break;
-		case FEC_3_4:  cmd[9] = 4; break;
-		case FEC_4_5:  cmd[9] = 5; break;
-		case FEC_5_6:  cmd[9] = 6; break;
-		case FEC_7_8:  cmd[9] = 7; break;
-		case FEC_AUTO: cmd[9] = 8; break;
-		default:       cmd[9] = 8; break;
-		}
-		break;
-	case SYS_DCII_C_OQPSK:
-		info("%s: DCII_C_OQPSK delivery system selected w/fec %d", __func__, cmd[9]);
-		cmd[8] = ADV_MOD_DCII_C_OQPSK;
-		switch (c->fec_inner) {
-		/* 5/11 FEC is cmd[9] = 0 but not added to the API */
+		case FEC_5_11: cmd[9] = 0; break;
 		case FEC_1_2:  cmd[9] = 1; break;
 		case FEC_3_5:  cmd[9] = 2; break;
 		case FEC_2_3:  cmd[9] = 3; break;
@@ -549,9 +512,9 @@ static int gp8psk_fe_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_sp
 }
 
 static struct dvb_frontend_ops gp8psk_fe_ops = {
-	.delsys = { SYS_DCII_C_QPSK, SYS_DCII_I_QPSK, SYS_DCII_Q_QPSK, SYS_DCII_C_OQPSK, SYS_DSS, SYS_DVBS2, SYS_TURBO, SYS_DVBS },
-	.delmod = { PSK_8, QPSK },
-	.delfec = { FEC_1_2, FEC_2_3, FEC_3_4, FEC_4_5, FEC_5_6, FEC_6_7, FEC_7_8, FEC_8_9, FEC_3_5, FEC_9_10, FEC_AUTO },
+	.delsys = { SYS_TURBO, SYS_DCII, SYS_DSS, SYS_DVBS },
+	.delmod = { PSK_8, QPSK, C_QPSK, I_QPSK, Q_QPSK, C_OQPSK },
+	.delfec = { FEC_1_2, FEC_2_3, FEC_3_4, FEC_4_5, FEC_5_11, FEC_5_6, FEC_6_7, FEC_7_8, FEC_8_9, FEC_3_5, FEC_9_10, FEC_AUTO },
 	.info = {
 		.name			= "Genpix DVB-S",
 		.frequency_min		= 800000,

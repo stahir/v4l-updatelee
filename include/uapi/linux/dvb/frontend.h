@@ -167,12 +167,12 @@ typedef enum fe_code_rate {
 	FEC_3_5,
 	FEC_9_10,
 	FEC_2_5,
-        FEC_5_11,
+	FEC_5_11,
 } fe_code_rate_t;
 
 
 typedef enum fe_modulation {
-        NOMOD = 0,
+	NOMOD = 0,
 	QPSK,
 	QAM_16,
 	QAM_32,
@@ -187,6 +187,10 @@ typedef enum fe_modulation {
 	APSK_32,
 	DQPSK,
 	QAM_4_NR,
+	C_QPSK,
+	I_QPSK,
+	Q_QPSK,
+	C_OQPSK,
 } fe_modulation_t;
 
 typedef enum fe_transmit_mode {
@@ -419,10 +423,7 @@ typedef enum fe_delivery_system {
 	SYS_DVBT2,
 	SYS_TURBO,
 	SYS_DVBC_ANNEX_C,
-        SYS_DCII_C_QPSK,
-        SYS_DCII_I_QPSK,
-        SYS_DCII_Q_QPSK,
-        SYS_DCII_C_OQPSK,
+	SYS_DCII,
 } fe_delivery_system_t;
 
 /* backward compatibility */
