@@ -997,8 +997,6 @@ EXPORT_SYMBOL(s5h1409_attach);
 
 static struct dvb_frontend_ops s5h1409_ops = {
 	.delsys = { SYS_DVBC_ANNEX_B, SYS_ATSC },
-	.delmod = { QAM_256, QAM_64, VSB_8 },
-	.delfec = { FEC_NONE },
 	.info = {
 		.name			= "Samsung S5H1409 QAM/8VSB Frontend",
 		.frequency_min		= 54000000,

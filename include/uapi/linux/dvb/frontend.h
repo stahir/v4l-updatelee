@@ -172,7 +172,6 @@ typedef enum fe_code_rate {
 
 
 typedef enum fe_modulation {
-	NOMOD = 0,
 	QPSK,
 	QAM_16,
 	QAM_32,
@@ -383,10 +382,7 @@ struct dvb_frontend_event {
 #define DTV_STAT_POST_TOTAL_BIT_COUNT	67
 #define DTV_STAT_ERROR_BLOCK_COUNT	68
 #define DTV_STAT_TOTAL_BLOCK_COUNT	69
-
-#define DTV_ENUM_DELMOD		70
-#define DTV_ENUM_DELFEC		71
-#define DTV_MATYPE              72
+#define DTV_MATYPE              70
 
 #define DTV_MAX_COMMAND				DTV_MATYPE
 

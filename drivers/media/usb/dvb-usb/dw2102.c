@@ -24,9 +24,12 @@
 #include "zl10039.h"
 #include "ts2020.h"
 #include "ds3000.h"
+#include "stv6110x.h"
+#include "stv090x.h"
 #include "stv0900.h"
 #include "stv6110.h"
 #include "stb6100.h"
+#include "stb6100_cfg.h"
 #include "stb6100_proc.h"
 #include "m88rs2000.h"
 
@@ -999,17 +1002,26 @@ static struct stv6110_config dw2104_stv6110_config = {
 	.clk_div = 1,
 };
 
-static struct stv0900_config prof_7500_stv0900_config = {
-	.demod_address = 0x6a,
-	.demod_mode = 0,
-	.xtal = 27000000,
-	.clkmode = 3,/* 0-CLKI, 2-XTALI, else AUTO */
-	.diseqc_mode = 2,/* 2/3 PWM */
-	.tun1_maddress = 0,/* 0x60 */
-	.tun1_adc = 0,/* 2 Vpp */
-	.path1_mode = 3,
-	.tun1_type = 3,
-	.set_lock_led = dw210x_led_ctrl,
+static struct stv090x_config prof_7500_stv090x_config = {
+	.device                 = STV0900,
+	.demod_mode             = STV090x_SINGLE,
+	.clk_mode               = STV090x_CLK_EXT,
+	.xtal                   = 27000000,
+	.address                = 0x6A,
+	.ts1_mode               = STV090x_TSMODE_PARALLEL_PUNCTURED,
+	.repeater_level         = STV090x_RPTLEVEL_16,
+	.adc1_range             = STV090x_ADC_2Vpp,
+	.diseqc_envelope_mode   = false,
+
+	.tuner_get_frequency    = stb6100_get_frequency,
+	.tuner_set_frequency    = stb6100_set_frequency,
+	.tuner_set_bandwidth    = stb6100_set_bandwidth,
+	.tuner_get_bandwidth    = stb6100_get_bandwidth,
+};
+
+static struct stb6100_config prof_7500_stb6100_config = {
+	.tuner_address = 0x60,
+	.refclock = 27000000,
 };
 
 static struct ds3000_config su3000_ds3000_config = {
@@ -1230,17 +1242,24 @@ static int prof_7500_frontend_attach(struct dvb_usb_adapter *d)
 {
 	u8 obuf[] = {7, 1};
 
-	d->fe_adap[0].fe = dvb_attach(stv0900_attach, &prof_7500_stv0900_config,
-					&d->dev->i2c_adap, 0);
-	if (d->fe_adap[0].fe == NULL)
+	d->fe_adap[0].fe = dvb_attach(stv090x_attach, &prof_7500_stv090x_config, &d->dev->i2c_adap, STV090x_DEMODULATOR_0);
+	if (d->fe_adap[0].fe) {
+		info("Found STV0900 @0x%02x", prof_7500_stv090x_config.address);
+	} else {
+		info("stv090x_attach failed");
 		return -EIO;
-
+	}
+	
+	if (dvb_attach(stb6100_attach, d->fe_adap[0].fe, &prof_7500_stb6100_config, &d->dev->i2c_adap)) {
+		info("Found STB6100 @0x%02x", prof_7500_stb6100_config.tuner_address);
+	} else {
+		info("stb6100_attach failed");
+		return -EIO;
+	}
 	d->fe_adap[0].fe->ops.set_voltage	= dw210x_set_voltage;
 	d->fe_adap[0].fe->ops.set_frame_ops	= dw210x_set_frame_ops;
 
 	dw210x_op_rw(d->dev->udev, 0x8a, 0, 0, obuf, 2, DW210X_WRITE_MSG);
-
-	info("Attached STV0900+STB6100A!\n");
 
 	return 0;
 }

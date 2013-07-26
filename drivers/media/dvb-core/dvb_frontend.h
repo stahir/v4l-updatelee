@@ -47,8 +47,6 @@
  * should be smaller or equal to 32
  */
 #define MAX_DELSYS	8
-#define MAX_DELMOD	8
-#define MAX_DELFEC	32
 
 struct dvb_frontend_tune_settings {
 	int min_delay_ms;
@@ -272,8 +270,6 @@ struct dvb_frontend_ops {
 	struct dvb_frontend_info info;
 
 	u8 delsys[MAX_DELSYS];
-	u8 delmod[MAX_DELMOD];
-	u8 delfec[MAX_DELFEC];
 
 	void (*release)(struct dvb_frontend* fe);
 	void (*release_sec)(struct dvb_frontend* fe);

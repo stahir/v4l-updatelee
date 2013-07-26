@@ -2051,8 +2051,6 @@ static int stv0900_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 
 static struct dvb_frontend_ops stv0900_ops = {
 	.delsys = { SYS_DSS, SYS_DVBS, SYS_DVBS2 },
-	.delmod = { APSK_32, APSK_16, PSK_8, QPSK },
-	.delfec = { FEC_1_2, FEC_2_3, FEC_3_4, FEC_4_5, FEC_5_6, FEC_6_7, FEC_7_8, FEC_8_9, FEC_3_5, FEC_9_10, FEC_AUTO },
 	.info = {
 		.name			= "STV0900 frontend",
 		.frequency_min		= 950000,

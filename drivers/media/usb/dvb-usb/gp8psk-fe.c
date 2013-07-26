@@ -513,8 +513,6 @@ static int gp8psk_fe_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_sp
 
 static struct dvb_frontend_ops gp8psk_fe_ops = {
 	.delsys = { SYS_TURBO, SYS_DCII, SYS_DSS, SYS_DVBS },
-	.delmod = { PSK_8, QPSK, C_QPSK, I_QPSK, Q_QPSK, C_OQPSK },
-	.delfec = { FEC_1_2, FEC_2_3, FEC_3_4, FEC_4_5, FEC_5_11, FEC_5_6, FEC_6_7, FEC_7_8, FEC_8_9, FEC_3_5, FEC_9_10, FEC_AUTO },
 	.info = {
 		.name			= "Genpix DVB-S",
 		.frequency_min		= 800000,

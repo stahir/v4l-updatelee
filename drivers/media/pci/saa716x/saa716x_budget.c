@@ -533,10 +533,8 @@ static int tbs6925_frontend_attach(struct saa716x_adapter *adapter,
 		msleep(100);
 
 		adapter->fe = dvb_attach(stv090x_attach, &tbs6925_stv090x_config, &i2c->i2c_adapter, STV090x_DEMODULATOR_0);
-
 		if (adapter->fe) {
-			dprintk(SAA716x_NOTICE, 1, "found STV0900 @0x%02x",
-				tbs6925_stv090x_config.address);
+			dprintk(SAA716x_NOTICE, 1, "found STV0900 @0x%02x", tbs6925_stv090x_config.address);
 		} else {
 			goto exit;
 		}
@@ -544,11 +542,7 @@ static int tbs6925_frontend_attach(struct saa716x_adapter *adapter,
 		adapter->fe->ops.set_voltage	= tbs6925_set_voltage;
 		adapter->fe->ops.set_frame_ops	= saa716x_set_frame_ops;
 		
-		ctl = dvb_attach(stb6100_attach,
-				 adapter->fe,
-				 &tbs6925_stb6100_config,
-				 &i2c->i2c_adapter);
-
+		ctl = dvb_attach(stb6100_attach, adapter->fe, &tbs6925_stb6100_config, &i2c->i2c_adapter);
 		if (ctl) {
 			dprintk(SAA716x_NOTICE, 1, "found STB6100");
 

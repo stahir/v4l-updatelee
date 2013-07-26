@@ -858,8 +858,6 @@ EXPORT_SYMBOL(au8522_attach);
 
 static struct dvb_frontend_ops au8522_ops = {
 	.delsys = { SYS_DVBC_ANNEX_B, SYS_ATSC },
-	.delmod = { QAM_256, QAM_64, VSB_8 },
-	.delfec = { FEC_NONE },
 	.info = {
 		.name			= "Auvitek AU8522 QAM/8VSB Frontend",
 		.frequency_min		= 54000000,

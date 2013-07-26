@@ -1039,8 +1039,6 @@ static struct dtv_cmds_h dtv_cmds[DTV_MAX_COMMAND + 1] = {
 	_DTV_CMD(DTV_API_VERSION, 0, 0),
 
 	_DTV_CMD(DTV_ENUM_DELSYS, 0, 0),
-	_DTV_CMD(DTV_ENUM_DELMOD, 0, 0),
-	_DTV_CMD(DTV_ENUM_DELFEC, 0, 0),
 
 	_DTV_CMD(DTV_ATSCMH_PARADE_ID, 1, 0),
 	_DTV_CMD(DTV_ATSCMH_RS_FRAME_ENSEMBLE, 1, 0),
@@ -1286,22 +1284,6 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 		ncaps = 0;
 		while (fe->ops.delsys[ncaps] && ncaps < MAX_DELSYS) {
 			tvp->u.buffer.data[ncaps] = fe->ops.delsys[ncaps];
-			ncaps++;
-		}
-		tvp->u.buffer.len = ncaps;
-		break;
-	case DTV_ENUM_DELMOD:
-		ncaps = 0;
-		while (fe->ops.delmod[ncaps] && ncaps < MAX_DELMOD) {
-		tvp->u.buffer.data[ncaps] = fe->ops.delmod[ncaps];
-			ncaps++;
-		}
-		tvp->u.buffer.len = ncaps;
-		break;
-	case DTV_ENUM_DELFEC:
-		ncaps = 0;
-		while (fe->ops.delfec[ncaps] && ncaps < MAX_DELFEC) {
-			tvp->u.buffer.data[ncaps] = fe->ops.delfec[ncaps];
 			ncaps++;
 		}
 		tvp->u.buffer.len = ncaps;
@@ -1971,7 +1953,6 @@ static int dvb_frontend_ioctl_get_constellation_samples(struct file *file,
 
 	if (fe->ops.get_constellation_samples)
 	{
-
 		s_user = (struct dvb_fe_constellation_samples __user *)parg;
 
 		// make sure samples are within range
@@ -1980,11 +1961,11 @@ static int dvb_frontend_ioctl_get_constellation_samples(struct file *file,
 
 		// create kernel memory structure
 		s_kernel.num = s_user->num;
-			s_kernel.samples = kmalloc(s_user->num * sizeof(struct dvb_fe_constellation_sample), GFP_KERNEL);
-
-				if (!s_kernel.samples) {
-						return -ENOMEM;
-				}
+		s_kernel.samples = kmalloc(s_user->num * sizeof(struct dvb_fe_constellation_sample), GFP_KERNEL);
+		
+		if (!s_kernel.samples) {
+			return -ENOMEM;
+		}
 
 		// call user function
 		err = fe->ops.get_constellation_samples(fe, &s_kernel);
