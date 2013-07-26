@@ -32,7 +32,7 @@
 
 	sudo reboot
 
-# make the modules
+# Good to go, in the future if you need to just recompile the modules then
 
 	cd v4l-updatelee-git
 	make modules
@@ -41,7 +41,7 @@
 
 	sudo make modules_install
 
-# reboot again
+# unload/reload your modules or reboot
 
 	sudo reboot
 
