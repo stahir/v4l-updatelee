@@ -1074,7 +1074,6 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 		 * Robert Lowery <rglowery@exemail.com.au>
 		 */
 
-#if 0
 		/*
 		 * Still need tests for XC3028L (firmware 3.2 or upper)
 		 * So, for now, let's just comment the per-firmware
@@ -1091,7 +1090,6 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 			else if (type != ATSC) /* DVB @6MHz, DTV 8 and DTV 7/8 */
 				offset += 200000;
 		}
-#endif
 	}
 
 	div = (freq - offset + DIV / 2) / DIV;
