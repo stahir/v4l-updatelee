@@ -3650,7 +3650,7 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe)
 	stv090x_set_pls(state, (props->stream_id>>26) & 0x3, (props->stream_id>>8) & 0x3FFFF);
 	stv090x_set_mis(state, props->stream_id);
 
-	dprintk(FE_DEBUG, 1, "Search started...");
+	dprintk(FE_DEBUG, 1, "Search started...");	
 	if (stv090x_algo(state) == STV090x_RANGEOK) {
 		stv090x_get_sig_params(state);
 		dprintk(FE_DEBUG, 1, "Search success!");

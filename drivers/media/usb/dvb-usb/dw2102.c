@@ -1003,7 +1003,7 @@ static struct stv6110_config dw2104_stv6110_config = {
 };
 
 static struct stv090x_config prof_7500_stv090x_config = {
-	.device                 = STV0900,
+	.device                 = STV0903,
 	.demod_mode             = STV090x_SINGLE,
 	.clk_mode               = STV090x_CLK_EXT,
 	.xtal                   = 27000000,
@@ -1013,6 +1013,7 @@ static struct stv090x_config prof_7500_stv090x_config = {
 	.adc1_range             = STV090x_ADC_2Vpp,
 	.diseqc_envelope_mode   = false,
 
+	.tuner_bbgain			= 8,
 	.tuner_get_frequency    = stb6100_get_frequency,
 	.tuner_set_frequency    = stb6100_set_frequency,
 	.tuner_set_bandwidth    = stb6100_set_bandwidth,

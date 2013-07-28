@@ -708,6 +708,7 @@ static struct stv090x_config prof_7301_stv090x_config = {
 	.adc1_range             = STV090x_ADC_2Vpp,
 	.diseqc_envelope_mode   = false,
 
+	.tuner_bbgain			= 6,
 	.tuner_get_frequency    = stb6100_get_frequency,
 	.tuner_set_frequency    = stb6100_set_frequency,
 	.tuner_set_bandwidth    = stb6100_set_bandwidth,
