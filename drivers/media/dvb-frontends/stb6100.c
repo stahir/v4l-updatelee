@@ -454,12 +454,6 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	rc = stb6100_write_reg(state, STB6100_FCCK, 0x0d);
 	if (rc < 0)
 		return rc;  /* Stop LPF calibration */
-
-	dprintk(verbose, FE_DEBUG, 1, "frequency = %d", state->frequency);
-	dprintk(verbose, FE_DEBUG, 1, "regs[STB6100_VCO]: 0x%02x", regs[STB6100_VCO]);
-	dprintk(verbose, FE_DEBUG, 1, "regs[STB6100_K]: 0x%02x", regs[STB6100_K]);
-	dprintk(verbose, FE_DEBUG, 1, "regs[STB6100_NI]: 0x%02x", regs[STB6100_NI]);
-	dprintk(verbose, FE_DEBUG, 1, "regs[STB6100_NF_LSB]: 0x%02x", regs[STB6100_NF_LSB]);	
 	
 	return 0;
 }
