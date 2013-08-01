@@ -3869,6 +3869,7 @@ static int stv090x_read_cnr(struct dvb_frontend *fe, u16 *cnr)
 	u8 lock_f;
 	s32 div;
 	u32 last;
+	u32 snr;
 
 	switch (state->delsys) {
 	case STV090x_DVBS2:
@@ -3888,7 +3889,8 @@ static int stv090x_read_cnr(struct dvb_frontend *fe, u16 *cnr)
 			last = ARRAY_SIZE(stv090x_s2cn_tab) - 1;
 			div = stv090x_s2cn_tab[0].read -
 			      stv090x_s2cn_tab[last].read;
-			*cnr = 0xFFFF - ((val * 0xFFFF) / div);
+			snr = stv090x_table_lookup(stv090x_s2cn_tab, ARRAY_SIZE(stv090x_s2cn_tab) - 1, val);
+			*cnr = snr << 8;
 		}
 		break;
 
@@ -3910,7 +3912,8 @@ static int stv090x_read_cnr(struct dvb_frontend *fe, u16 *cnr)
 			last = ARRAY_SIZE(stv090x_s1cn_tab) - 1;
 			div = stv090x_s1cn_tab[0].read -
 			      stv090x_s1cn_tab[last].read;
-			*cnr = 0xFFFF - ((val * 0xFFFF) / div);
+			snr = stv090x_table_lookup(stv090x_s1cn_tab, ARRAY_SIZE(stv090x_s1cn_tab) - 1, val);
+			*cnr = snr << 8;
 		}
 		break;
 	default:
