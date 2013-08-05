@@ -37,7 +37,21 @@ module_param(verbose, int, 0644);
 #define FE_INFO			2
 #define FE_DEBUG		3
 
-#define dprintk(x, y, z, format, arg...) printk("%s: " format "\n", __func__ , ##arg)
+#define dprintk(x, y, z, format, arg...) do {						\
+	if (z) {									\
+		if	((x > FE_ERROR) && (x > y))					\
+			printk(KERN_ERR "%s: " format "\n", __func__ , ##arg);		\
+		else if	((x > FE_NOTICE) && (x > y))					\
+			printk(KERN_NOTICE "%s: " format "\n", __func__ , ##arg);	\
+		else if ((x > FE_INFO) && (x > y))					\
+			printk(KERN_INFO "%s: " format "\n", __func__ , ##arg);		\
+		else if ((x > FE_DEBUG) && (x > y))					\
+			printk(KERN_DEBUG "%s: " format "\n", __func__ , ##arg);	\
+	} else {									\
+		if (x > y)								\
+			printk(format, ##arg);						\
+	}										\
+} while (0)
 
 struct stb6100_lkup {
 	u32 val_low;
@@ -293,12 +307,6 @@ static int stb6100_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	if (rc < 0)
 		return rc;
 
-	dprintk(verbose, FE_DEBUG, 1, "frequency = %d", state->frequency);
-	dprintk(verbose, FE_DEBUG, 1, "regs[STB6100_VCO]: 0x%02x", regs[STB6100_VCO]);
-	dprintk(verbose, FE_DEBUG, 1, "regs[STB6100_K]: 0x%02x", regs[STB6100_K]);
-	dprintk(verbose, FE_DEBUG, 1, "regs[STB6100_NI]: 0x%02x", regs[STB6100_NI]);
-	dprintk(verbose, FE_DEBUG, 1, "regs[STB6100_NF_LSB]: 0x%02x", regs[STB6100_NF_LSB]);	
-	
 	odiv = (regs[STB6100_VCO] & STB6100_VCO_ODIV) >> STB6100_VCO_ODIV_SHIFT;
 	psd2 = (regs[STB6100_K] & STB6100_K_PSD2) >> STB6100_K_PSD2_SHIFT;
 	nint = regs[STB6100_NI];
@@ -324,8 +332,6 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	u8 regs[STB6100_NUMREGS];
 	u8 g, psd2, odiv;
 
-	dprintk(verbose, FE_DEBUG, 1, "frequency = %d", frequency);
-	
 	if (fe->ops.get_frontend) {
 		fe->ops.get_frontend(fe);
 	}
@@ -454,7 +460,7 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	rc = stb6100_write_reg(state, STB6100_FCCK, 0x0d);
 	if (rc < 0)
 		return rc;  /* Stop LPF calibration */
-	
+
 	return 0;
 }
 
@@ -513,7 +519,6 @@ static int stb6100_set_state(struct dvb_frontend *fe,
 
 	switch (param) {
 	case DVBFE_TUNER_FREQUENCY:
-		dprintk(verbose, FE_DEBUG, 1, "frequency = %d", state->frequency);
 		stb6100_set_frequency(fe, state->frequency);
 		tstate->frequency = state->frequency;
 		break;
