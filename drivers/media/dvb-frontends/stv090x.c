@@ -1979,6 +1979,7 @@ static int stv090x_get_dmdlock(struct stv090x_state *state, s32 timeout)
 
 		timer += 10;
 	}
+	dprintk(FE_DEBUG, 1, "lock: %s", lock ? "true" : "false");	
 	return lock;
 }
 
@@ -3255,11 +3256,13 @@ static int stv090x_get_feclock(struct stv090x_state *state, s32 timeout)
 			break;
 
 		case 2: /* DVB-S2 mode */
+			dprintk(FE_DEBUG, 1, "DVBS2");			
 			reg = STV090x_READ_DEMOD(state, PDELSTATUS1);
 			lock = STV090x_GETFIELD_Px(reg, PKTDELIN_LOCK_FIELD);
 			break;
 
 		case 3: /* DVB-S1/legacy mode */
+			dprintk(FE_DEBUG, 1, "DVBS");			
 			reg = STV090x_READ_DEMOD(state, VSTATUSVIT);
 			lock = STV090x_GETFIELD_Px(reg, LOCKEDVIT_FIELD);
 			break;
@@ -3269,6 +3272,7 @@ static int stv090x_get_feclock(struct stv090x_state *state, s32 timeout)
 			timer += 10;
 		}
 	}
+	dprintk(FE_DEBUG, 1, "lock: %s", lock ? "true" : "false");	
 	return lock;
 }
 
@@ -3293,6 +3297,7 @@ static int stv090x_get_lock(struct stv090x_state *state, s32 timeout_dmd, s32 ti
 		}
 	}
 
+	dprintk(FE_DEBUG, 1, "lock: %s", lock ? "true" : "false");
 	return lock;
 }
 
@@ -3518,8 +3523,6 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 		stv090x_optimize_track(state);
 
 		if (state->delsys == STV090x_DVBS2) {
-			dprintk(FE_DEBUG, 1, "DVBS2");
-
 			reg = stv090x_read_reg(state, STV090x_TSTRES0);
 			STV090x_SETFIELD(reg, FRESFEC_FIELD, 0xA0);
 			if (stv090x_write_reg(state, STV090x_TSTRES0, reg) < 0)
@@ -3549,27 +3552,25 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0);
 			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
 				goto err;
+		} else if (state->internal->dev_ver >= 0x20) {
+			/* >= Cut 2.0 :release TS reset after
+			 * demod lock and optimized Tracking
+			 */
+			reg = STV090x_READ_DEMOD(state, TSCFGH);
+			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0); /* release merger reset */
+			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
+				goto err;
+
+			msleep(3);
+
+			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 1); /* merger reset */
+			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
+				goto err;
+
+			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0); /* release merger reset */
+			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
+				goto err;
 		}
-		
-//		if (state->internal->dev_ver >= 0x20) {
-//			/* >= Cut 2.0 :release TS reset after
-//			 * demod lock and optimized Tracking
-//			 */
-//			reg = STV090x_READ_DEMOD(state, TSCFGH);
-//			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0); /* release merger reset */
-//			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
-//				goto err;
-
-//			msleep(3);
-
-//			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 1); /* merger reset */
-//			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
-//				goto err;
-
-//			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0); /* release merger reset */
-//			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
-//				goto err;
-//		}
 
 		lock = stv090x_get_lock(state, state->FecTimeout,
 				state->FecTimeout);
