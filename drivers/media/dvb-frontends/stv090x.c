@@ -1352,10 +1352,6 @@ static int stv090x_delivery_search(struct stv090x_state *state)
 	default:
 		/* enable DVB-S2 and DVB-S2 in Auto MODE */
 		reg = STV090x_READ_DEMOD(state, DMDCFGMD);
-		STV090x_SETFIELD_Px(reg, DVBS1_ENABLE_FIELD, 0);
-		STV090x_SETFIELD_Px(reg, DVBS2_ENABLE_FIELD, 0);
-		if (STV090x_WRITE_DEMOD(state, DMDCFGMD, reg) < 0)
-			goto err;
 		STV090x_SETFIELD_Px(reg, DVBS1_ENABLE_FIELD, 1);
 		STV090x_SETFIELD_Px(reg, DVBS2_ENABLE_FIELD, 1);
 		if (STV090x_WRITE_DEMOD(state, DMDCFGMD, reg) < 0)
@@ -1390,8 +1386,13 @@ static int stv090x_delivery_search(struct stv090x_state *state)
 				goto err;
 		}
 
-		if (stv090x_set_vit_thacq(state) < 0)
-			goto err;
+		if (state->srate >= 2000000) {
+			if (stv090x_set_vit_thacq(state) < 0)
+				goto err;
+		} else {
+			if (stv090x_set_vit_thtracq(state) < 0)
+				goto err;
+		}
 
 		if (stv090x_set_viterbi(state) < 0)
 			goto err;
@@ -1963,10 +1964,12 @@ static int stv090x_get_dmdlock(struct stv090x_state *state, s32 timeout)
 		case 0: /* searching */
 		case 1: /* first PLH detected */
 		default:
+			dprintk(FE_DEBUG, 1, "searching...");
 			lock = 0;
 			break;
 		case 2: /* DVB-S2 mode */
 		case 3: /* DVB-S1/legacy mode */
+			dprintk(FE_DEBUG, 1, "DVBS/DVBS2");
 			reg = STV090x_READ_DEMOD(state, DSTATUS);
 			lock = STV090x_GETFIELD_Px(reg, LOCK_DEFINITIF_FIELD);
 			break;
@@ -3500,6 +3503,23 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 	if (signal_state == STV090x_NOAGC1)
 		return signal_state;
 
+	reg = STV090x_READ_DEMOD(state, TSCFGH);
+	STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0);
+	if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
+		goto err;
+	
+	msleep(3);
+	
+	reg = STV090x_READ_DEMOD(state, TSCFGH);
+	STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 1);
+	if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
+		goto err;
+	
+	reg = STV090x_READ_DEMOD(state, TSCFGH);
+	STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0);
+	if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
+		goto err;
+	
 	if (state->algo == STV090x_BLIND_SEARCH)
 		lock = stv090x_blind_search(state);
 

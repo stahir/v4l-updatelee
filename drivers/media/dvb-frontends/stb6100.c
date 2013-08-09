@@ -117,6 +117,8 @@ static const struct stb6100_regmask stb6100_template[] = {
 	[STB6100_TEST3]		= { 0x00, 0xde },
 };
 
+u32 stb6100_frequency = 0;
+
 /*
  * Currently unused. Some boards might need it in the future
  */
@@ -493,7 +495,8 @@ static int stb6100_get_state(struct dvb_frontend *fe,
 {
 	switch (param) {
 	case DVBFE_TUNER_FREQUENCY:
-		stb6100_get_frequency(fe, &state->frequency);
+		// stb6100_get_frequency(fe, &state->frequency);
+		state->frequency = stb6100_frequency;
 		break;
 	case DVBFE_TUNER_TUNERSTEP:
 		break;
@@ -519,6 +522,7 @@ static int stb6100_set_state(struct dvb_frontend *fe,
 
 	switch (param) {
 	case DVBFE_TUNER_FREQUENCY:
+		stb6100_frequency = state->frequency;
 		stb6100_set_frequency(fe, state->frequency);
 		tstate->frequency = state->frequency;
 		break;
