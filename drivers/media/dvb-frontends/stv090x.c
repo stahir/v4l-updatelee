@@ -5206,15 +5206,19 @@ static int stv090x_get_consellation_samples(struct dvb_frontend *fe, struct dvb_
 	u32 x;
 	u8 buf[2];
 
-	STV0900_DVBFE_ALGO = DVBFE_ALGO_NOTUNE;
+	if (stv090x_write_reg(state, STV090x_P1_IQCONST, 0x00) < 0)
+		goto err;
 
 	for (x = 0 ; x < s->num ; x++)
 	{
 		stv090x_read_reg2(state, STV090x_P1_ISYMB, buf, 2);
-		s->samples[x].imaginary = buf[0] << 8;
-		s->samples[x].real = buf[1] << 8;
+		s->samples[x].imaginary = buf[0];
+		s->samples[x].real = buf[1];
 	}
 	return 0;
+err:
+	dprintk(FE_ERROR, 1, "I/O error");
+	return -1;
 }
 
 static int stv090x_read_signal_strength2(struct dvb_frontend *fe, u16 *strength)

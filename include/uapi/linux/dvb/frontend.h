@@ -566,8 +566,8 @@ struct dtv_properties {
 #define FE_GET_PROPERTY		   _IOR('o', 83, struct dtv_properties)
 
 struct dvb_fe_constellation_sample {
-        __s16           real;
-        __s16           imaginary;
+        __s8           real;
+        __s8           imaginary;
 };
 
 struct dvb_fe_constellation_samples {
