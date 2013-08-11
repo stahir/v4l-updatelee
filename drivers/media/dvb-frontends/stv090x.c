@@ -813,16 +813,8 @@ static void stv090x_get_lock_tmg(struct stv090x_state *state)
 	switch (state->algo) {
 	case STV090x_BLIND_SEARCH:
 		dprintk(FE_DEBUG, 1, "Blind Search");
-		if (state->srate <= 1500000) {  /*10Msps< SR <=15Msps*/
-			state->DemodTimeout = 1500;
-			state->FecTimeout = 400;
-		} else if (state->srate <= 5000000) {  /*10Msps< SR <=15Msps*/
-			state->DemodTimeout = 1000;
-			state->FecTimeout = 300;
-		} else {  /*SR >20Msps*/
-			state->DemodTimeout = 700;
-			state->FecTimeout = 100;
-		}
+		state->DemodTimeout = 100;
+		state->FecTimeout = 40;
 		break;
 
 	case STV090x_COLD_SEARCH:
@@ -3688,8 +3680,6 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe)
 	struct dvb_frame frame_ops;
 	struct dvb_frontend_ops *frontend_ops = &fe->ops;
 
-	u32 reg;
-
 	if (props->frequency == 0)
 		return DVBFE_ALGO_SEARCH_INVALID;
 
@@ -3736,9 +3726,6 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe)
 	} else {
 		dprintk(FE_DEBUG, 1, "Search failed!");
 		STV0900_DVBFE_ALGO = DVBFE_ALGO_NOTUNE;
-//		reg = STV090x_READ_DEMOD(state, DMDISTATE);
-//		STV090x_SETFIELD_Px(reg, I2C_DEMOD_MODE_FIELD, 0x1c);
-//		STV090x_WRITE_DEMOD(state, DMDISTATE, reg);
 		return DVBFE_ALGO_SEARCH_FAILED;
 	}
 
