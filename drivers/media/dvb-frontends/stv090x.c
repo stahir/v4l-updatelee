@@ -3736,9 +3736,9 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe)
 	} else {
 		dprintk(FE_DEBUG, 1, "Search failed!");
 		STV0900_DVBFE_ALGO = DVBFE_ALGO_NOTUNE;
-		reg = STV090x_READ_DEMOD(state, DMDISTATE);
-		STV090x_SETFIELD_Px(reg, I2C_DEMOD_MODE_FIELD, 0x1c);
-		STV090x_WRITE_DEMOD(state, DMDISTATE, reg);
+//		reg = STV090x_READ_DEMOD(state, DMDISTATE);
+//		STV090x_SETFIELD_Px(reg, I2C_DEMOD_MODE_FIELD, 0x1c);
+//		STV090x_WRITE_DEMOD(state, DMDISTATE, reg);
 		return DVBFE_ALGO_SEARCH_FAILED;
 	}
 
