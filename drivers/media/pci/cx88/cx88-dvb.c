@@ -55,7 +55,6 @@
 #include "stb6000.h"
 #include "cx24116.h"
 #include "stv090x.h"
-#include "stv0900.h"
 #include "stb6100.h"
 #include "stb6100_cfg.h"
 #include "mb86a16.h"
