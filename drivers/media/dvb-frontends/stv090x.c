@@ -45,8 +45,6 @@ struct stv090x_dev {
 	struct stv090x_dev		*next_dev;
 };
 
-enum dvbfe_algo STV0900_DVBFE_ALGO = DVBFE_ALGO_CUSTOM;
-
 /* first internal params */
 static struct stv090x_dev *stv090x_first_dev;
 
@@ -3698,7 +3696,7 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe)
 		return DVBFE_ALGO_SEARCH_SUCCESS;
 	} else {
 		dprintk(FE_DEBUG, 1, "Search failed!");
-		STV0900_DVBFE_ALGO = DVBFE_ALGO_NOTUNE;
+		state->algo = STV090x_NOTUNE;
 		return DVBFE_ALGO_SEARCH_FAILED;
 	}
 
@@ -3713,7 +3711,7 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	*status = 0;
 
-	if (STV0900_DVBFE_ALGO == DVBFE_ALGO_NOTUNE) {
+	if (state->algo == STV090x_NOTUNE) {
 		*status = FE_TIMEDOUT;
 		return 0;
 	}
@@ -4007,20 +4005,38 @@ err:
 
 static enum dvbfe_algo stv090x_frontend_algo(struct dvb_frontend *fe)
 {
-	return STV0900_DVBFE_ALGO;
+	struct stv090x_state *state = fe->demodulator_priv;
+	if (state->algo == STV090x_NOTUNE) {
+		return DVBFE_ALGO_NOTUNE;
+	} else {
+		return DVBFE_ALGO_CUSTOM;
+	}
 }
 
 static int stv090x_set_property(struct dvb_frontend *fe,
 				struct dtv_property *tvp)
 {
-	STV0900_DVBFE_ALGO = DVBFE_ALGO_CUSTOM;
-
+	struct stv090x_state *state = fe->demodulator_priv;
+	if (tvp->cmd == DTV_TUNE) {
+		dprintk(FE_DEBUG, 1, "state->algo = STV090x_BLIND_SEARCH");
+		state->algo = STV090x_BLIND_SEARCH;
+	}
+	
 	return 0;
 }
 
 static int stv090x_get_property(struct dvb_frontend *fe,
 				struct dtv_property *tvp)
 {
+	return 0;
+}
+
+static int stv090x_set_frontend(struct dvb_frontend *fe)
+{
+	struct stv090x_state *state = fe->demodulator_priv;
+	dprintk(FE_DEBUG, 1, "state->algo = STV090x_BLIND_SEARCH");
+	state->algo = STV090x_BLIND_SEARCH;
+	
 	return 0;
 }
 
@@ -4159,7 +4175,7 @@ static int stv090x_sleep(struct dvb_frontend *fe)
 	u32 reg;
 	u8 full_standby = 0;
 
-	STV0900_DVBFE_ALGO = DVBFE_ALGO_CUSTOM;
+	state->algo = STV090x_NOTUNE;
 
 	if (stv090x_i2c_gate_ctrl(state, 1) < 0)
 		goto err;
@@ -4296,7 +4312,7 @@ static int stv090x_wakeup(struct dvb_frontend *fe)
 	struct stv090x_state *state = fe->demodulator_priv;
 	u32 reg;
 
-	STV0900_DVBFE_ALGO = DVBFE_ALGO_CUSTOM;
+	state->algo = STV090x_NOTUNE;
 
 	dprintk(FE_DEBUG, 1, "Wake %s(%d) from standby",
 		state->device == STV0900 ? "STV0900" : "STV0903",
@@ -5210,7 +5226,7 @@ static int stv090x_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 	if (bw < 2000000)
 		bw = 2000000;
 
-	STV0900_DVBFE_ALGO = DVBFE_ALGO_NOTUNE;
+	state->algo = STV090x_NOTUNE;
 
 	if (&fe->ops)
 		frontend_ops = &fe->ops;
@@ -5295,6 +5311,7 @@ static struct dvb_frontend_ops stv090x_ops = {
 	.set_tone			= stv090x_set_tone,
 	.set_property			= stv090x_set_property,
 	.get_property			= stv090x_get_property,
+	.set_frontend			= stv090x_set_frontend,
 
 	.search				= stv090x_search,
 	.read_status			= stv090x_read_status,

@@ -171,7 +171,8 @@ enum stv090x_search {
 enum stv090x_algo {
 	STV090x_BLIND_SEARCH,
 	STV090x_COLD_SEARCH,
-	STV090x_WARM_SEARCH
+	STV090x_WARM_SEARCH,
+	STV090x_NOTUNE
 };
 
 enum stv090x_delsys {
