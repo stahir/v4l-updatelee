@@ -2695,20 +2695,9 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 	}
 	state->delsys = stv090x_get_std(state);
 
-	if (stv090x_i2c_gate_ctrl(state, 1) < 0)
-		goto err;
-
-	if (state->config->tuner_get_frequency) {
-		if (state->config->tuner_get_frequency(fe, &state->frequency) < 0)
-			goto err_gateoff;
-	}
-
-	if (stv090x_i2c_gate_ctrl(state, 0) < 0)
-		goto err;
-
 	offst_freq = stv090x_get_car_freq(state, state->internal->mclk) / 1000;
-	dprintk(FE_DEBUG, 1, "state->frequency = %d, offst_freq = %d", state->frequency, offst_freq);
-	state->frequency += offst_freq;
+	props->frequency = state->frequency + offst_freq;
+	dprintk(FE_DEBUG, 1, "props->frequency = %d, state->frequency = %d, offst_freq = %d", props->frequency, state->frequency, offst_freq);
 
 	if (stv090x_get_viterbi(state) < 0)
 		goto err;
@@ -2772,7 +2761,6 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 		break;
 	}
 
-	props->frequency		= state->frequency;
 	props->symbol_rate		= state->srate;
 	if (state->delsys == 2)
 		props->fec_inner	= fe_stv0900_modcod_return_dvbs2[state->modcod];
@@ -2786,18 +2774,6 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 	props->matype			= state->matype;
 
 	if ((state->algo == STV090x_BLIND_SEARCH) || (state->srate < 10000000)) {
-
-		if (stv090x_i2c_gate_ctrl(state, 1) < 0)
-			goto err;
-
-		if (state->config->tuner_get_frequency) {
-			if (state->config->tuner_get_frequency(fe, &state->frequency) < 0)
-				goto err_gateoff;
-		}
-
-		if (stv090x_i2c_gate_ctrl(state, 0) < 0)
-			goto err;
-
 		if (abs(offst_freq) <= ((state->search_range / 2000) + 500))
 			return STV090x_RANGEOK;
 		else if (abs(offst_freq) <= (stv090x_car_width(state->srate, state->rolloff) / 2000))
@@ -2812,9 +2788,6 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 	}
 
 	return STV090x_OUTOFRANGE;
-
-err_gateoff:
-	stv090x_i2c_gate_ctrl(state, 0);
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
 	return -1;
