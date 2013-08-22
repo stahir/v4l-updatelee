@@ -47,7 +47,7 @@
 
 # To update just the include headers
 
-	sudo make headers_install INSTALL_HDR_PATH=/usr/include
+	sudo make headers_install INSTALL_HDR_PATH=/usr
 
 #
 # Tested with
