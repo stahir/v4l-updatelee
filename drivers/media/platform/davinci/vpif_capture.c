@@ -1799,19 +1799,15 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 
 	/* Configure video port timings */
 
-	std_info->eav2sav = bt->hbackporch + bt->hfrontporch +
-		bt->hsync - 8;
+	std_info->eav2sav = V4L2_DV_BT_BLANKING_WIDTH(bt) - 8;
 	std_info->sav2eav = bt->width;
 
 	std_info->l1 = 1;
 	std_info->l3 = bt->vsync + bt->vbackporch + 1;
 
+	std_info->vsize = V4L2_DV_BT_FRAME_HEIGHT(bt);
 	if (bt->interlaced) {
 		if (bt->il_vbackporch || bt->il_vfrontporch || bt->il_vsync) {
-			std_info->vsize = bt->height * 2 +
-				bt->vfrontporch + bt->vsync + bt->vbackporch +
-				bt->il_vfrontporch + bt->il_vsync +
-				bt->il_vbackporch;
 			std_info->l5 = std_info->vsize/2 -
 				(bt->vfrontporch - 1);
 			std_info->l7 = std_info->vsize/2 + 1;
@@ -1825,8 +1821,6 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 			return -EINVAL;
 		}
 	} else {
-		std_info->vsize = bt->height + bt->vfrontporch +
-			bt->vsync + bt->vbackporch;
 		std_info->l5 = std_info->vsize - (bt->vfrontporch - 1);
 	}
 	strncpy(std_info->name, "Custom timings BT656/1120", VPIF_MAX_NAME);
@@ -2160,6 +2154,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 
 			if (!vpif_obj.sd[i]) {
 				vpif_err("Error registering v4l2 subdevice\n");
+				err = -ENOMEM;
 				goto probe_subdev_out;
 			}
 			v4l2_info(&vpif_obj.v4l2_dev,
@@ -2168,7 +2163,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 		}
 		vpif_probe_complete();
 	} else {
-		vpif_obj.notifier.subdev = vpif_obj.config->asd;
+		vpif_obj.notifier.subdevs = vpif_obj.config->asd;
 		vpif_obj.notifier.num_subdevs = vpif_obj.config->asd_sizes[0];
 		vpif_obj.notifier.bound = vpif_async_bound;
 		vpif_obj.notifier.complete = vpif_async_complete;
