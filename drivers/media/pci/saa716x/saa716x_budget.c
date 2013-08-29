@@ -120,9 +120,9 @@ static int saa716x_budget_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	*/
 
 	/* set default port mapping */
-	SAA716x_EPWR(GREG, GREG_VI_CTRL, 0x04080FA9);
+	SAA716x_EPWR(GREG, GREG_VI_CTRL, 0x2C688F0A);
 	/* enable FGPI3 and FGPI1 for TS input from Port 2 and 6 */
-	SAA716x_EPWR(GREG, GREG_FGPI_CTRL, 0x321);
+	SAA716x_EPWR(GREG, GREG_FGPI_CTRL, 0x322);
 
 	err = saa716x_dvb_init(saa716x);
 	if (err) {
