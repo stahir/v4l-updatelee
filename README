@@ -13,8 +13,8 @@
 
 # Then download the repository 
 
-	git clone https://bitbucket.org/updatelee/v4l-updatelee-git
-	cd v4l-updatelee-git
+	git clone https://bitbucket.org/updatelee/v4l-updatelee
+	cd v4l-updatelee
 
 # To compile and install first select any additional media drivers you want compiled.
 
@@ -34,7 +34,7 @@
 
 # Good to go, in the future if you need to just recompile the modules then
 
-	cd v4l-updatelee-git
+	cd v4l-updatelee
 	make modules
 	
 # and install modules
