@@ -174,7 +174,7 @@ static struct em28xx_reg_seq evga_indtube_digital[] = {
 };
 
 /*
- * KWorld PlusTV 340U and UB435-Q (ATSC) GPIOs map:
+ * KWorld PlusTV 340U, UB435-Q and UB435-Q V2 (ATSC) GPIOs map:
  * EM_GPIO_0 - currently unknown
  * EM_GPIO_1 - LED disable/enable (1 = off, 0 = on)
  * EM_GPIO_2 - currently unknown
@@ -186,6 +186,13 @@ static struct em28xx_reg_seq evga_indtube_digital[] = {
  */
 static struct em28xx_reg_seq kworld_a340_digital[] = {
 	{EM2820_R08_GPIO_CTRL,	0x6d,		~EM_GPIO_4,	10},
+	{ -1,			-1,		-1,		-1},
+};
+
+static struct em28xx_reg_seq kworld_ub435q_v3[] = {
+	{EM2874_R80_GPIO_P0_CTRL,	0xff,	EM_GPIO_2,	100},
+	{EM2874_R80_GPIO_P0_CTRL,	0xff,	EM_GPIO_4,	100},
+	{EM2874_R80_GPIO_P0_CTRL,	0xff,	EM_GPIO_6,	100},
 	{ -1,			-1,		-1,		-1},
 };
 
@@ -2030,17 +2037,24 @@ struct em28xx_board em28xx_boards[] = {
 		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE |
 				EM28XX_I2C_FREQ_400_KHZ,
 	},
-	/* 1b80:e34c KWorld 435-Q v3
-	 * Empia EM2874B + LG DT3305 + NXP TDA18272/M */
-	[EM2874_BOARD_KWORLD_E34C] = {
-		.name          = "KWorld 435-Q v3",
-		.tuner_type    = TUNER_ABSENT,
-		.tuner_gpio    = maxmedia_ub425_tc,
-		.has_dvb       = 1,
-		.ir_codes      = RC_MAP_REDDO,
-		.def_i2c_bus   = 1,
-		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE |
-				EM28XX_I2C_FREQ_400_KHZ,
+	/* 1b80:e346 KWorld USB ATSC TV Stick UB435-Q V2
+	* Empia EM2874B + LG DT3305 + NXP TDA18271HDC2 */
+	[EM2874_BOARD_KWORLD_UB435Q_V2] = {
+		.name       = "KWorld USB ATSC TV Stick UB435-Q V2",
+		.tuner_type = TUNER_ABSENT,
+		.has_dvb    = 1,
+		.dvb_gpio   = kworld_a340_digital,
+		.tuner_gpio = default_tuner_gpio,
+		.def_i2c_bus  = 1,
+	},
+	/* 1b80:e34c KWorld USB ATSC TV Stick UB435-Q V3
+	* Empia EM2874B + LG DT3305 + NXP TDA18272/M */
+	[EM2874_BOARD_KWORLD_UB435Q_V3] = {
+		.name       = "KWorld USB ATSC TV Stick UB435-Q V3",
+		.tuner_type = TUNER_ABSENT,
+		.has_dvb    = 1,
+		.tuner_gpio = kworld_ub435q_v3,
+		.def_i2c_bus  = 1,
 	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
@@ -2205,8 +2219,10 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2884_BOARD_PCTV_520E },
 	{ USB_DEVICE(0x1b80, 0xe1cc),
 			.driver_info = EM2874_BOARD_DELOCK_61959 },
+	{ USB_DEVICE(0x1b80, 0xe346),
+			.driver_info = EM2874_BOARD_KWORLD_UB435Q_V2 },
 	{ USB_DEVICE(0x1b80, 0xe34c),
-			.driver_info = EM2874_BOARD_KWORLD_E34C },
+			.driver_info = EM2874_BOARD_KWORLD_UB435Q_V3 },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);

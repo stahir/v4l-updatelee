@@ -131,7 +131,8 @@
 #define EM2884_BOARD_TERRATEC_HTC_USB_XS	  87
 #define EM2884_BOARD_C3TECH_DIGITAL_DUO		  88
 #define EM2874_BOARD_DELOCK_61959		  89
-#define EM2874_BOARD_KWORLD_E34C		  90
+#define EM2874_BOARD_KWORLD_UB435Q_V2            90
+#define EM2874_BOARD_KWORLD_UB435Q_V3            91
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4

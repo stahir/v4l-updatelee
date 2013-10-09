@@ -811,10 +811,20 @@ static void stv090x_get_lock_tmg(struct stv090x_state *state)
 	switch (state->algo) {
 	case STV090x_BLIND_SEARCH:
 		dprintk(FE_DEBUG, 1, "Blind Search");
-		state->DemodTimeout = 100;
-		state->FecTimeout = 40;
+		if (state->srate <= 1000000) {  /*SR <=1Msps*/
+			state->DemodTimeout = 4500;
+			state->FecTimeout = 1700;
+		} else if (state->srate <= 1500000) {  /*10Msps< SR <=15Msps*/
+			state->DemodTimeout = 1500;
+			state->FecTimeout = 400;
+		} else if (state->srate <= 5000000) {  /*10Msps< SR <=15Msps*/
+			state->DemodTimeout = 1000;
+			state->FecTimeout = 300;
+		} else {  /*SR >20Msps*/
+			state->DemodTimeout = 700;
+			state->FecTimeout = 100;
+		}
 		break;
-
 	case STV090x_COLD_SEARCH:
 	case STV090x_WARM_SEARCH:
 	default:
@@ -3105,18 +3115,6 @@ static int stv090x_optimize_track(struct stv090x_state *state)
 				goto err;
 	}
 
-	if (state->internal->dev_ver >= 0x20) {
-		if ((state->search_mode == STV090x_SEARCH_DVBS1)	||
-		    (state->search_mode == STV090x_SEARCH_DSS)		||
-		    (state->search_mode == STV090x_SEARCH_AUTO)) {
-
-			if (STV090x_WRITE_DEMOD(state, VAVSRVIT, 0x0a) < 0)
-				goto err;
-			if (STV090x_WRITE_DEMOD(state, VITSCALE, 0x00) < 0)
-				goto err;
-		}
-	}
-
 	if (STV090x_WRITE_DEMOD(state, AGC2REF, 0x38) < 0)
 		goto err;
 
@@ -3192,9 +3190,21 @@ static int stv090x_optimize_track(struct stv090x_state *state)
 		if (STV090x_WRITE_DEMOD(state, CARFREQ, 0x49) < 0)
 			goto err;
 	}
-
-	if ((state->delsys == STV090x_DVBS1) || (state->delsys == STV090x_DSS))
+	
+	if ((state->delsys == STV090x_DVBS1) || (state->delsys == STV090x_DSS)) {
 		stv090x_set_vit_thtracq(state);
+		if (state->internal->dev_ver >= 0x20) {
+			if (STV090x_WRITE_DEMOD(state, VAVSRVIT, 0x0a) < 0)
+				goto err;
+			if (STV090x_WRITE_DEMOD(state, VITSCALE, 0x00) < 0)
+				goto err;
+		}
+	}
+
+	if (state->internal->dev_ver >= 0x30) {
+		if (STV090x_WRITE_DEMOD(state, CARHDR, 0x10) < 0)
+			goto err;
+	}
 
 	return 0;
 
@@ -3298,10 +3308,18 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 	u32 reg;
 	s32 agc1_power, power_iq = 0, i;
 	int lock = 0, low_sr = 0;
-
+	
 	reg = STV090x_READ_DEMOD(state, TSCFGH);
 	STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 1); /* Stop path 1 stream merger */
 	if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
+		goto err;
+
+	reg = STV090x_READ_DEMOD(state, PDELCTRL1);
+	STV090x_SETFIELD_Px(reg, ALGOSWRST_FIELD, 0x01);
+	if (STV090x_WRITE_DEMOD(state, PDELCTRL1, reg) < 0)
+		goto err;
+
+	if (STV090x_WRITE_DEMOD(state, AGC2O, 0x5b) < 0)
 		goto err;
 
 	if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x5c) < 0) /* Demod stop */
@@ -3466,23 +3484,6 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 	if (signal_state == STV090x_NOAGC1)
 		return signal_state;
 
-	reg = STV090x_READ_DEMOD(state, TSCFGH);
-	STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0);
-	if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
-		goto err;
-	
-	msleep(3);
-	
-	reg = STV090x_READ_DEMOD(state, TSCFGH);
-	STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 1);
-	if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
-		goto err;
-	
-	reg = STV090x_READ_DEMOD(state, TSCFGH);
-	STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0);
-	if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
-		goto err;
-	
 	if (state->algo == STV090x_BLIND_SEARCH)
 		lock = stv090x_blind_search(state);
 
@@ -3505,6 +3506,25 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 	if ((lock) && (signal_state == STV090x_RANGEOK)) { /* signal within Range */
 		stv090x_optimize_track(state);
 
+		if (state->internal->dev_ver >= 0x20) {
+			/* >= Cut 2.0 :release TS reset after
+			 * demod lock and optimized Tracking
+			 */
+			reg = STV090x_READ_DEMOD(state, TSCFGH);
+			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0); /* release merger reset */
+			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
+				goto err;
+
+			msleep(3);
+
+			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 1); /* merger reset */
+			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
+				goto err;
+
+			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0); /* release merger reset */
+			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
+				goto err;
+		}
 		if (state->delsys == STV090x_DVBS2) {
 			reg = stv090x_read_reg(state, STV090x_TSTRES0);
 			STV090x_SETFIELD(reg, FRESFEC_FIELD, 0xA0);
@@ -3533,24 +3553,6 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 			
 			reg = STV090x_READ_DEMOD(state, TSCFGH);
 			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0);
-			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
-				goto err;
-		} else if (state->internal->dev_ver >= 0x20) {
-			/* >= Cut 2.0 :release TS reset after
-			 * demod lock and optimized Tracking
-			 */
-			reg = STV090x_READ_DEMOD(state, TSCFGH);
-			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0); /* release merger reset */
-			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
-				goto err;
-
-			msleep(3);
-
-			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 1); /* merger reset */
-			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
-				goto err;
-
-			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0); /* release merger reset */
 			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
 				goto err;
 		}
@@ -3662,10 +3664,11 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe)
 	state->fec = STV090x_PRERR;
 	state->search_range = 0;
 
+	dprintk(FE_DEBUG, 1, "Search started...");	
+			
 	stv090x_set_pls(state, (props->stream_id>>26) & 0x3, (props->stream_id>>8) & 0x3FFFF);
 	stv090x_set_mis(state, props->stream_id);
 
-	dprintk(FE_DEBUG, 1, "Search started...");	
 	if (stv090x_algo(state) == STV090x_RANGEOK) {
 		stv090x_get_sig_params(state);
 		dprintk(FE_DEBUG, 1, "Search success!");

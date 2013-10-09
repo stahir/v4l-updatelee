@@ -1257,6 +1257,7 @@ static int prof_7500_frontend_attach(struct dvb_usb_adapter *d)
 		info("stb6100_attach failed");
 		return -EIO;
 	}
+	
 	d->fe_adap[0].fe->ops.set_voltage	= dw210x_set_voltage;
 	d->fe_adap[0].fe->ops.set_frame_ops	= dw210x_set_frame_ops;
 
