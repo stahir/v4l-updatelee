@@ -756,6 +756,8 @@ static int tda18272_rd_regs(struct tda18272_state *tda18272, u8 reg, u8 *data, i
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
 	ret = i2c_transfer(tda18272->i2c, msg, 2);
+	dprintk(FE_ERROR, 1, "I2C ret = %d", ret);
+	
 	if (ret != 2) {
 		dprintk(FE_ERROR, 1, "I/O Error");
 		ret = -EREMOTEIO;

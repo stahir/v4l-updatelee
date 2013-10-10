@@ -300,7 +300,7 @@ static struct lgdt3305_config em2870_lgdt3304_dev = {
 };
 
 static struct lgdt3305_config em2874_lgdt3305_dev = {
-	.i2c_addr           = 0x0e,
+	.i2c_addr           = (0x1c >> 1),
 	.demod_chip         = LGDT3305,
 	.spectral_inversion = 1,
 	.deny_i2c_rptr      = 0,
@@ -344,8 +344,8 @@ static struct tda18271_config kworld_ub435q_v2_config = {
 };
 
 static struct tda18272_config kworld_ub435q_v3_config = {
-	.addr		= 0xc0,
-	.mode		= TDA18272_SINGLE,
+	.addr		= (0xc0 >> 1),
+	.mode		= TDA18272_MASTER,
 };
 
 static struct tda18271_config kworld_a340_config = {

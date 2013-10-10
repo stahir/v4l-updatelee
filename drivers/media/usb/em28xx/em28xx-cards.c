@@ -189,7 +189,11 @@ static struct em28xx_reg_seq kworld_a340_digital[] = {
 	{ -1,			-1,		-1,		-1},
 };
 
+/*
+ * GPIO_0 ON = 3305 wont attach 
+ */
 static struct em28xx_reg_seq kworld_ub435q_v3[] = {
+	{EM2874_R80_GPIO_P0_CTRL,	0x00,	0xff,	100},
 	{EM2874_R80_GPIO_P0_CTRL,	0xff,	EM_GPIO_2,	100},
 	{EM2874_R80_GPIO_P0_CTRL,	0xff,	EM_GPIO_4,	100},
 	{EM2874_R80_GPIO_P0_CTRL,	0xff,	EM_GPIO_6,	100},
