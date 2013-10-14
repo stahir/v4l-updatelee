@@ -5342,6 +5342,9 @@ struct dvb_frontend *stv090x_attach(const struct stv090x_config *config,
 	state->config				= config;
 	state->i2c				= i2c;
 	state->frontend.ops			= stv090x_ops;
+	if (strlen(config->name)) {
+		strcpy(state->frontend.ops.info.name, config->name);
+	}
 	state->frontend.demodulator_priv	= state;
 	state->demod				= demod;
 	state->demod_mode 			= config->demod_mode; /* Single or Dual mode */

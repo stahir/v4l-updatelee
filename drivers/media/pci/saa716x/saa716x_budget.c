@@ -474,6 +474,7 @@ static struct stv090x_config tbs6925_stv090x_config = {
 	.tuner_set_frequency	= stb6100_set_frequency,
 	.tuner_set_bandwidth	= stb6100_set_bandwidth,
 	.tuner_get_bandwidth	= stb6100_get_bandwidth,
+	.name					= "STV090x TBS 6925",	
 };
 
 static struct stb6100_config tbs6925_stb6100_config = {
@@ -609,6 +610,7 @@ static struct stv090x_config skystar2_stv090x_config = {
 	.tuner_get_bbgain	= NULL,
 	.tuner_set_refclk	= NULL,
 	.tuner_get_status	= NULL,
+	.name					= "STV090x Skystar 2 Express HD",	
 };
 
 static int skystar2_set_voltage(struct dvb_frontend *fe,

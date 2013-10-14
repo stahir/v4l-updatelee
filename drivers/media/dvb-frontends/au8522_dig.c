@@ -835,6 +835,9 @@ struct dvb_frontend *au8522_attach(const struct au8522_config *config,
 	/* create dvb_frontend */
 	memcpy(&state->frontend.ops, &au8522_ops,
 	       sizeof(struct dvb_frontend_ops));
+	if (strlen(config->name)) {
+		strcpy(state->frontend.ops.info.name, config->name);
+	}
 	state->frontend.demodulator_priv = state;
 
 	state->frontend.ops.analog_ops.i2c_gate_ctrl = au8522_analog_i2c_gate_ctrl;

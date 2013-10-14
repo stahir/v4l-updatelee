@@ -167,6 +167,7 @@ static struct stv090x_config stv0900_config = {
 	.tuner_set_frequency    = stb6100_set_frequency,
 	.tuner_set_bandwidth    = stb6100_set_bandwidth,
 	.tuner_get_bandwidth    = stb6100_get_bandwidth,
+	.name					= "STV090x TBS 5925",	
 };
 
 static struct stb6100_config stb6100_config = {

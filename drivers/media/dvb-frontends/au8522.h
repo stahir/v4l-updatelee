@@ -59,6 +59,7 @@ struct au8522_config {
 
 	enum au8522_if_freq vsb_if;
 	enum au8522_if_freq qam_if;
+	char name[128];
 };
 
 #if IS_ENABLED(CONFIG_DVB_AU8522_DTV)

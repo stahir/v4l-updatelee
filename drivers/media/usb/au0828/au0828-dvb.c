@@ -64,6 +64,7 @@ static struct au8522_config hauppauge_hvr950q_config = {
 	.qam_if        = AU8522_IF_6MHZ,
 	.vsb_if        = AU8522_IF_6MHZ,
 	.led_cfg       = &hauppauge_hvr950q_led_cfg,
+	.name		   = "AU8522 Hauppauge HVR950Q"
 };
 
 static struct au8522_config fusionhdtv7usb_config = {
