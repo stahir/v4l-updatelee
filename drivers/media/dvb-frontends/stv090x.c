@@ -3714,11 +3714,6 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	*status = 0;
 
-	if (state->algo == STV090x_NOTUNE) {
-		*status = FE_TIMEDOUT;
-		return 0;
-	}
-
 	dstatus = STV090x_READ_DEMOD(state, DSTATUS);
 	if (STV090x_GETFIELD_Px(dstatus, CAR_LOCK_FIELD))
 		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER;
@@ -3761,6 +3756,9 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		break;
 	}
 
+	if (state->algo == STV090x_NOTUNE) {
+		*status |= FE_TIMEDOUT;
+	}
 	return 0;
 }
 
