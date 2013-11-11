@@ -90,7 +90,7 @@ struct dvb_usb_device *d = i2c_get_adapdata(adap);
 					buf6, 4, TBS5925_WRITE_MSG);
 		//msleep(5);
 		tbs5925_op_rw(d->udev, 0x91, 0, 0,
-					inbuf, 1, TBS5925_READ_MSG);
+					inbuf, msg[1].len, TBS5925_READ_MSG);
 		memcpy(msg[1].buf, inbuf, msg[1].len);
 		break;
 	case 1:
