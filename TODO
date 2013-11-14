@@ -1,0 +1,3 @@
+- Look at changing the IQ plot function call to incorperate Andy's changes
+- Should the spectrum scan function call be changed too? I think so
+-- instead of sending start/steps just send an array of freq to scan. This will make ATSC/QAM scanning much faster
