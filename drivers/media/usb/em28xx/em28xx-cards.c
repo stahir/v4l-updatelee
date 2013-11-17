@@ -2225,8 +2225,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2874_BOARD_DELOCK_61959 },
 	{ USB_DEVICE(0x1b80, 0xe346),
 			.driver_info = EM2874_BOARD_KWORLD_UB435Q_V2 },
-	{ USB_DEVICE(0x1b80, 0xe34c),
-			.driver_info = EM2874_BOARD_KWORLD_UB435Q_V3 },
+//	{ USB_DEVICE(0x1b80, 0xe34c),
+//			.driver_info = EM2874_BOARD_KWORLD_UB435Q_V3 },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);

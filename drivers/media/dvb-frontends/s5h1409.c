@@ -995,6 +995,36 @@ error:
 }
 EXPORT_SYMBOL(s5h1409_attach);
 
+static int s5h1409_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spectrum_scan *s)
+{
+	u16 reg;
+	int x;
+	fe->dtv_property_cache.bandwidth_hz = 1000000;
+	fe->dtv_property_cache.delivery_system = SYS_ATSC;
+
+	dprintk("%s", __func__);
+
+	if (fe->ops.tuner_ops.set_params) {
+		for (x = 0 ; x < s->num_steps ; x++)
+		{
+			fe->dtv_property_cache.frequency = s->start_frequency + (x * s->step_size);
+			if (fe->ops.i2c_gate_ctrl)
+				fe->ops.i2c_gate_ctrl(fe, 1);
+			fe->ops.tuner_ops.set_params(fe);
+			if (fe->ops.i2c_gate_ctrl)
+				fe->ops.i2c_gate_ctrl(fe, 0);
+			
+			s5h1409_read_snr(fe, &reg);
+			if (reg < 135) {
+				reg = 135;
+			}
+			*(s->rf_level + x) = reg;
+		}
+	}
+
+	return 0;
+}
+
 static struct dvb_frontend_ops s5h1409_ops = {
 	.delsys = { SYS_DVBC_ANNEX_B, SYS_ATSC },
 	.info = {
@@ -1002,7 +1032,7 @@ static struct dvb_frontend_ops s5h1409_ops = {
 		.frequency_min		= 54000000,
 		.frequency_max		= 858000000,
 		.frequency_stepsize	= 62500,
-		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
+		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB | FE_CAN_SPECTRUMSCAN
 	},
 
 	.init                 = s5h1409_init,
@@ -1016,6 +1046,7 @@ static struct dvb_frontend_ops s5h1409_ops = {
 	.read_snr             = s5h1409_read_snr,
 	.read_ucblocks        = s5h1409_read_ucblocks,
 	.release              = s5h1409_release,
+	.get_spectrum_scan    = s5h1409_get_spectrum_scan,	
 };
 
 MODULE_DESCRIPTION("Samsung S5H1409 QAM-B/ATSC Demodulator driver");
