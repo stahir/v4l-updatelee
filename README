@@ -22,7 +22,7 @@
 
 # Then compile
 
-	make deb-pkg
+	sudo make deb-pkg
 
 # Install the kernel
 
