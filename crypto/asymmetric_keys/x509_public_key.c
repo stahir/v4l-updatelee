@@ -18,58 +18,10 @@
 #include <linux/asn1_decoder.h>
 #include <keys/asymmetric-subtype.h>
 #include <keys/asymmetric-parser.h>
-#include <keys/system_keyring.h>
 #include <crypto/hash.h>
 #include "asymmetric_keys.h"
 #include "public_key.h"
 #include "x509_parser.h"
-
-/*
- * Find a key in the given keyring by issuer and authority.
- */
-static struct key *x509_request_asymmetric_key(
-	struct key *keyring,
-	const char *signer, size_t signer_len,
-	const char *authority, size_t auth_len)
-{
-	key_ref_t key;
-	char *id;
-
-	/* Construct an identifier. */
-	id = kmalloc(signer_len + 2 + auth_len + 1, GFP_KERNEL);
-	if (!id)
-		return ERR_PTR(-ENOMEM);
-
-	memcpy(id, signer, signer_len);
-	id[signer_len + 0] = ':';
-	id[signer_len + 1] = ' ';
-	memcpy(id + signer_len + 2, authority, auth_len);
-	id[signer_len + 2 + auth_len] = 0;
-
-	pr_debug("Look up: \"%s\"\n", id);
-
-	key = keyring_search(make_key_ref(keyring, 1),
-			     &key_type_asymmetric, id);
-	if (IS_ERR(key))
-		pr_debug("Request for module key '%s' err %ld\n",
-			 id, PTR_ERR(key));
-	kfree(id);
-
-	if (IS_ERR(key)) {
-		switch (PTR_ERR(key)) {
-			/* Hide some search errors */
-		case -EACCES:
-		case -ENOTDIR:
-		case -EAGAIN:
-			return ERR_PTR(-ENOKEY);
-		default:
-			return ERR_CAST(key);
-		}
-	}
-
-	pr_devel("<==%s() = 0 [%x]\n", __func__, key_serial(key_ref_to_ptr(key)));
-	return key_ref_to_ptr(key);
-}
 
 /*
  * Set up the signature parameters in an X.509 certificate.  This involves
@@ -149,33 +101,6 @@ int x509_check_signature(const struct public_key *pub,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(x509_check_signature);
-
-/*
- * Check the new certificate against the ones in the trust keyring.  If one of
- * those is the signing key and validates the new certificate, then mark the
- * new certificate as being trusted.
- *
- * Return 0 if the new certificate was successfully validated, 1 if we couldn't
- * find a matching parent certificate in the trusted list and an error if there
- * is a matching certificate but the signature check fails.
- */
-static int x509_validate_trust(struct x509_certificate *cert,
-			       struct key *trust_keyring)
-{
-	const struct public_key *pk;
-	struct key *key;
-	int ret = 1;
-
-	key = x509_request_asymmetric_key(trust_keyring,
-					  cert->issuer, strlen(cert->issuer),
-					  cert->authority,
-					  strlen(cert->authority));
-	if (!IS_ERR(key))  {
-		pk = key->payload.data;
-		ret = x509_check_signature(pk, cert);
-	}
-	return ret;
-}
 
 /*
  * Attempt to parse a data blob for a key as an X509 certificate.
