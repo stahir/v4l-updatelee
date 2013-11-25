@@ -30,6 +30,7 @@
 #include "xc5000.h"
 #include "s5h1432.h"
 #include "tda18271.h"
+#include "tda18272.h"
 #include "s5h1411.h"
 #include "lgdt3305.h"
 #include "mb86a20s.h"
@@ -150,6 +151,12 @@ static struct tda18271_config pv_tda18271_config = {
 	.gate    = TDA18271_GATE_DIGITAL,
 	.small_i2c = TDA18271_03_BYTE_CHUNK_INIT,
 };
+
+static struct tda18272_config kworld_ub445_v3_config = {
+	.addr		= (0xc0 >> 1),
+	.mode		= TDA18272_MASTER,
+};
+
 
 static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 {
@@ -679,6 +686,29 @@ static int dvb_init(struct cx231xx *dev)
 			result = -EINVAL;
 			goto out_free;
 		}
+		break;
+	case CX231XX_BOARD_KWORLD_UB445_V3:
+
+		printk(KERN_INFO "%s: looking for tuner / demod on i2c bus: %d\n",
+		       __func__, i2c_adapter_id(&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap));
+
+		dev->dvb->frontend = dvb_attach(lgdt3305_attach,
+						&hcw_lgdt3305_config,
+						&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap);
+
+		if (dev->dvb->frontend == NULL) {
+			printk(DRIVER_NAME
+			       ": Failed to attach LG3305 front end\n");
+			result = -EINVAL;
+			goto out_free;
+		}
+
+		/* define general-purpose callback pointer */
+		dvb->frontend->callback = cx231xx_tuner_callback;
+
+		dvb_attach(tda18272_attach, dev->dvb->frontend,
+			   &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+			   &kworld_ub445_v3_config);
 		break;
 	case CX231XX_BOARD_HAUPPAUGE_EXETER:
 

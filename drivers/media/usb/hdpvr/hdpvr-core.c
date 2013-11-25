@@ -78,7 +78,8 @@ void hdpvr_delete(struct hdpvr_device *dev)
 
 static void challenge(u8 *bytes)
 {
-	u64 *i64P, tmp64;
+	__le64 *i64P;
+	u64 tmp64;
 	uint i, idx;
 
 	for (idx = 0; idx < 32; ++idx) {
@@ -106,10 +107,10 @@ static void challenge(u8 *bytes)
 			for (i = 0; i < 3; i++)
 				bytes[1] *= bytes[6] + 1;
 			for (i = 0; i < 3; i++) {
-				i64P = (u64 *)bytes;
+				i64P = (__le64 *)bytes;
 				tmp64 = le64_to_cpup(i64P);
-				tmp64 <<= bytes[7] & 0x0f;
-				*i64P += cpu_to_le64(tmp64);
+				tmp64 = tmp64 + (tmp64 << (bytes[7] & 0x0f));
+				*i64P = cpu_to_le64(tmp64);
 			}
 			break;
 		}
@@ -301,7 +302,10 @@ static int hdpvr_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	dev->workqueue = 0;
+	/* init video transfer queues first of all */
+	/* to prevent oops in hdpvr_delete() on error paths */
+	INIT_LIST_HEAD(&dev->free_buff_list);
+	INIT_LIST_HEAD(&dev->rec_buff_list);
 
 	/* register v4l2_device early so it can be used for printks */
 	if (v4l2_device_register(&interface->dev, &dev->v4l2_dev)) {
@@ -324,10 +328,6 @@ static int hdpvr_probe(struct usb_interface *interface,
 	dev->workqueue = create_singlethread_workqueue("hdpvr_buffer");
 	if (!dev->workqueue)
 		goto error;
-
-	/* init video transfer queues */
-	INIT_LIST_HEAD(&dev->free_buff_list);
-	INIT_LIST_HEAD(&dev->rec_buff_list);
 
 	dev->options = hdpvr_default_options;
 
@@ -405,7 +405,7 @@ static int hdpvr_probe(struct usb_interface *interface,
 				    video_nr[atomic_inc_return(&dev_nr)]);
 	if (retval < 0) {
 		v4l2_err(&dev->v4l2_dev, "registering videodev failed\n");
-		goto error;
+		goto reg_fail;
 	}
 
 	/* let the user know what node this device is now attached to */

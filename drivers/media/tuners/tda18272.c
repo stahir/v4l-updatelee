@@ -28,7 +28,7 @@
 #include "tda18272.h"
 #include "tda18272_reg.h"
 
-static unsigned int verbose;
+static unsigned int verbose = 1;
 module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "Set Verbosity level");
 

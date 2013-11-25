@@ -57,7 +57,7 @@ MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
 MODULE_LICENSE("GPL");
 
-static unsigned int debug;
+static unsigned int debug = 1;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages [dvb]");
 
@@ -300,7 +300,7 @@ static struct lgdt3305_config em2870_lgdt3304_dev = {
 };
 
 static struct lgdt3305_config em2874_lgdt3305_dev = {
-	.i2c_addr           = (0x1c >> 1),
+	.i2c_addr           = 0x0e,
 	.demod_chip         = LGDT3305,
 	.spectral_inversion = 1,
 	.deny_i2c_rptr      = 0,
@@ -407,7 +407,10 @@ static struct drxk_config maxmedia_ub425_tc_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
 	.no_i2c_bridge = 1,
+	.microcode_name = "dvb-demod-drxk-01.fw",
+	.chunk_size = 62,
 	.load_firmware_sync = true,
+	.qam_demod_parameter_count = 2,
 };
 
 static struct drxk_config pctv_520e_drxk = {
@@ -447,7 +450,7 @@ static void hauppauge_hvr930c_init(struct em28xx *dev)
 		{EM2874_R80_GPIO_P0_CTRL,	0xff,	0xff,	0x65},
 		{EM2874_R80_GPIO_P0_CTRL,	0xfb,	0xff,	0x32},
 		{EM2874_R80_GPIO_P0_CTRL,	0xff,	0xff,	0xb8},
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 	struct em28xx_reg_seq hauppauge_hvr930c_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xef,	0xff,	0x01},
@@ -462,7 +465,7 @@ static void hauppauge_hvr930c_init(struct em28xx *dev)
 		{EM2874_R80_GPIO_P0_CTRL,	0xcf,	0xff,	0x0b},
 		{EM2874_R80_GPIO_P0_CTRL,	0xef,	0xff,	0x65},
 
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 
 	struct {
@@ -514,13 +517,13 @@ static void terratec_h5_init(struct em28xx *dev)
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf2,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 	struct em28xx_reg_seq terratec_h5_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xa6,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	100},
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 	struct {
 		unsigned char r[4];
@@ -570,12 +573,12 @@ static void terratec_htc_stick_init(struct em28xx *dev)
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 	struct em28xx_reg_seq terratec_htc_stick_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xb6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	50},
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 
 	/*
@@ -617,13 +620,13 @@ static void terratec_htc_usb_xs_init(struct em28xx *dev)
 		{EM2874_R80_GPIO_P0_CTRL,	0xb2,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xb2,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xb6,	0xff,	100},
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 	struct em28xx_reg_seq terratec_htc_usb_xs_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xa6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xa6,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	100},
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 
 	/*
@@ -1250,18 +1253,14 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			dvb->fe[0]->ops.i2c_gate_ctrl = NULL;
 
 			/* attach tuner */
-			if (!dvb_attach(tda18271c2dd_attach, dvb->fe[0],
-					&dev->i2c_adap[dev->def_i2c_bus], 0x60)) {
+			if (!dvb_attach(tda18271_attach, dvb->fe[0], 0x60,
+					&dev->i2c_adap[dev->def_i2c_bus],
+					&em28xx_cxd2820r_tda18271_config)) {
 				dvb_frontend_detach(dvb->fe[0]);
 				result = -EINVAL;
 				goto out_free;
 			}
 		}
-
-		/* TODO: we need drx-3913k firmware in order to support DVB-T */
-		em28xx_info("MaxMedia UB425-TC/Delock 61959: only DVB-C " \
-				"supported by that driver version\n");
-
 		break;
 	case EM2884_BOARD_PCTV_510E:
 	case EM2884_BOARD_PCTV_520E:
@@ -1321,17 +1320,38 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		}
 		break;
 	case EM2874_BOARD_KWORLD_UB435Q_V2:
-		dvb->fe[0] = dvb_attach(lgdt3305_attach, &em2874_lgdt3305_dev, &dev->i2c_adap[dev->def_i2c_bus]);
-		if (dvb->fe[0] != NULL)
-			dvb_attach(tda18271_attach, dvb->fe[0], 0x60, &dev->i2c_adap[dev->def_i2c_bus], &kworld_ub435q_v2_config);
+		dvb->fe[0] = dvb_attach(lgdt3305_attach,
+					&em2874_lgdt3305_dev,
+					&dev->i2c_adap[dev->def_i2c_bus]);
+		if (!dvb->fe[0]) {
+			result = -EINVAL;
+			goto out_free;
+		}
+
+		/* Attach the demodulator. */
+		if (!dvb_attach(tda18271_attach, dvb->fe[0], 0x60,
+				&dev->i2c_adap[dev->def_i2c_bus],
+				&kworld_ub435q_v2_config)) {
+			result = -EINVAL;
+			goto out_free;
+		}
 		break;
 	case EM2874_BOARD_KWORLD_UB435Q_V3:
-		dvb->fe[0] = dvb_attach(lgdt3305_attach, &em2874_lgdt3305_dev, &dev->i2c_adap[dev->def_i2c_bus]);
-		if (dvb->fe[0] != NULL)
-			if ( !dvb_attach(tda18272_attach, dvb->fe[0], &dev->i2c_adap[dev->def_i2c_bus], &kworld_ub435q_v3_config) ) {
-				result = -EINVAL;
-				goto out_free;
-			}
+		dvb->fe[0] = dvb_attach(lgdt3305_attach,
+					&em2874_lgdt3305_dev,
+					&dev->i2c_adap[dev->def_i2c_bus]);
+		if (!dvb->fe[0]) {
+			result = -EINVAL;
+			goto out_free;
+		}
+
+		/* Attach the demodulator. */
+		if (!dvb_attach(tda18272_attach, dvb->fe[0],
+				&dev->i2c_adap[dev->def_i2c_bus],
+				&kworld_ub435q_v3_config)) {
+			result = -EINVAL;
+			goto out_free;
+		}
 		break;
 	default:
 		em28xx_errdev("/2: The frontend of your DVB/ATSC card"
