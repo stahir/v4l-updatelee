@@ -402,7 +402,7 @@ static int tbsqbox2ci_i2c_transfer(struct i2c_adapter *adap,
 					buf6, 4, TBSQBOX_WRITE_MSG);
 		//msleep(5);
 		tbsqbox2ci_op_rw(d->udev, 0x91, 0, 0,
-					inbuf, 1, TBSQBOX_READ_MSG);
+					inbuf, msg[1].len, TBSQBOX_READ_MSG);
 		memcpy(msg[1].buf, inbuf, msg[1].len);
 		break;
 	case 1:
