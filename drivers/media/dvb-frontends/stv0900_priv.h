@@ -46,7 +46,11 @@
 #define FALSE (!TRUE)
 #endif
 
-#define dprintk(args...) printk(args)
+#define dprintk(args...) \
+	do { \
+		if (stvdebug) \
+			printk(KERN_DEBUG args); \
+	} while (0)
 
 #define STV0900_MAXLOOKUPSIZE 500
 #define STV0900_BLIND_SEARCH_AGC2_TH 700
@@ -278,7 +282,6 @@ struct stv0900_signal_info {
 	int	locked;/* Transponder locked */
 	u32	frequency;/* Transponder frequency (in KHz) */
 	u32	symbol_rate;/* Transponder symbol rate  (in Mbds) */
-	u32 matype;
 
 	enum fe_stv0900_tracking_standard	standard;
 	enum fe_stv0900_fec			fec;
@@ -401,7 +404,5 @@ stv0900_get_freq_auto(struct stv0900_internal *intp, int demod);
 extern void
 stv0900_set_tuner_auto(struct stv0900_internal *intp, u32 Frequency,
 						u32 Bandwidth, int demod);
-
-extern enum fe_stv0900_signal_type stv0900_get_signal_params(struct dvb_frontend *fe);
 
 #endif

@@ -1912,14 +1912,13 @@ static int dvb_frontend_ioctl_get_spectrum_scan(struct file *file,
 	{
 		s_user = (struct dvb_fe_spectrum_scan __user *)parg;
 		// make sure samples are within range
-		if ((s_user->num_steps == 0) || (s_user->num_steps > DTV_MAX_SPECTRUM_SCAN_STEPS))
+		if ((s_user->num_freq == 0) || (s_user->num_freq > DTV_MAX_SPECTRUM_SCAN_STEPS))
 			return -EINVAL;
 
 		// create kernel memory structure
-		s_kernel.start_frequency = s_user->start_frequency;
-		s_kernel.step_size = s_user->step_size;
-		s_kernel.num_steps = s_user->num_steps;
-		s_kernel.rf_level = kmalloc(s_user->num_steps * sizeof(__u16), GFP_KERNEL);
+		s_kernel.freq = s_user->freq;
+		s_kernel.num_freq = s_user->num_freq;
+		s_kernel.rf_level = kmalloc(s_user->num_freq * sizeof(__u16), GFP_KERNEL);
 
 		if (!s_kernel.rf_level) {
 				return -ENOMEM;
@@ -1929,7 +1928,7 @@ static int dvb_frontend_ioctl_get_spectrum_scan(struct file *file,
 		err = fe->ops.get_spectrum_scan(fe, &s_kernel);
 
 		// copy results to userspace
-		if (copy_to_user(s_user->rf_level, s_kernel.rf_level, s_kernel.num_steps * sizeof(__u16))) {
+		if (copy_to_user(s_user->rf_level, s_kernel.rf_level, s_kernel.num_freq * sizeof(__u16))) {
 			err = -EFAULT;
 		}
 
@@ -1961,6 +1960,7 @@ static int dvb_frontend_ioctl_get_constellation_samples(struct file *file,
 
 		// create kernel memory structure
 		s_kernel.num = s_user->num;
+		s_kernel.options = s_user->options;
 		s_kernel.samples = kmalloc(s_user->num * sizeof(struct dvb_fe_constellation_sample), GFP_KERNEL);
 		
 		if (!s_kernel.samples) {

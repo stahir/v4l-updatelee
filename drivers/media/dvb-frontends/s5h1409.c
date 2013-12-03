@@ -55,7 +55,7 @@ struct s5h1409_state {
 	u8  qam_state;
 };
 
-static int debug;
+static int debug = 1;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Enable verbose debug messages");
 
@@ -436,8 +436,6 @@ static int s5h1409_enable_modulation(struct dvb_frontend *fe,
 static int s5h1409_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct s5h1409_state *state = fe->demodulator_priv;
-
-	dprintk("%s(%d)\n", __func__, enable);
 
 	if (enable)
 		return s5h1409_writereg(state, 0xf3, 1);
@@ -868,6 +866,29 @@ static int s5h1409_read_snr(struct dvb_frontend *fe, u16 *snr)
 		return s5h1409_qam256_lookup_snr(fe, snr, reg);
 	case VSB_8:
 		reg = s5h1409_readreg(state, 0xf1) & 0x3ff;
+		s5h1409_vsb_lookup_snr(fe, snr, reg);
+		dprintk("%s() snr reg:%d, snr db:%d\n", __func__, reg, *snr);
+		
+		msleep(20);
+		reg = s5h1409_readreg(state, 0xf1) & 0x3ff;
+		s5h1409_vsb_lookup_snr(fe, snr, reg);
+		dprintk("%s() snr reg:%d, snr db:%d\n", __func__, reg, *snr);
+		
+		msleep(20);
+		reg = s5h1409_readreg(state, 0xf1) & 0x3ff;
+		s5h1409_vsb_lookup_snr(fe, snr, reg);
+		dprintk("%s() snr reg:%d, snr db:%d\n", __func__, reg, *snr);
+		
+		msleep(20);
+		reg = s5h1409_readreg(state, 0xf1) & 0x3ff;
+		s5h1409_vsb_lookup_snr(fe, snr, reg);
+		dprintk("%s() snr reg:%d, snr db:%d\n", __func__, reg, *snr);
+		
+		msleep(20);
+		reg = s5h1409_readreg(state, 0xf1) & 0x3ff;
+		s5h1409_vsb_lookup_snr(fe, snr, reg);
+		dprintk("%s() snr reg:%d, snr db:%d\n", __func__, reg, *snr);
+		
 		return s5h1409_vsb_lookup_snr(fe, snr, reg);
 	default:
 		break;
@@ -976,6 +997,9 @@ struct dvb_frontend *s5h1409_attach(const struct s5h1409_config *config,
 	/* create dvb_frontend */
 	memcpy(&state->frontend.ops, &s5h1409_ops,
 	       sizeof(struct dvb_frontend_ops));
+	if (strlen(config->name)) {
+		strcpy(state->frontend.ops.info.name, config->name);
+	}
 	state->frontend.demodulator_priv = state;
 
 	if (s5h1409_init(&state->frontend) != 0) {
@@ -997,27 +1021,32 @@ EXPORT_SYMBOL(s5h1409_attach);
 
 static int s5h1409_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spectrum_scan *s)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	struct s5h1409_state *state = fe->demodulator_priv;
+	
 	u16 reg;
 	int x;
-	fe->dtv_property_cache.bandwidth_hz = 1000000;
-	fe->dtv_property_cache.delivery_system = SYS_ATSC;
+	p->bandwidth_hz = 1000000;
+	p->delivery_system = SYS_ATSC;
+	p->modulation = VSB_8;
 
 	dprintk("%s", __func__);
 
 	if (fe->ops.tuner_ops.set_params) {
-		for (x = 0 ; x < s->num_steps ; x++)
+		for (x = 0 ; x < s->num_freq ; x++)
 		{
-			fe->dtv_property_cache.frequency = s->start_frequency + (x * s->step_size);
+			p->frequency = *(s->freq + x);
 			if (fe->ops.i2c_gate_ctrl)
 				fe->ops.i2c_gate_ctrl(fe, 1);
 			fe->ops.tuner_ops.set_params(fe);
 			if (fe->ops.i2c_gate_ctrl)
 				fe->ops.i2c_gate_ctrl(fe, 0);
 			
-			s5h1409_read_snr(fe, &reg);
-			if (reg < 135) {
-				reg = 135;
+			reg = s5h1409_readreg(state, 0xf1) & 0x3ff;
+			if (reg < 520) {
+				reg = 520;
 			}
+			
 			*(s->rf_level + x) = reg;
 		}
 	}

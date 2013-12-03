@@ -65,6 +65,9 @@ struct s5h1409_config {
 #define S5H1409_HVR1600_NOOPTIMIZE 0
 #define S5H1409_HVR1600_OPTIMIZE   1
 	u8 hvr1600_opt;
+	
+	/* Device brand/model */
+	char name[128];	
 };
 
 #if IS_ENABLED(CONFIG_DVB_S5H1409)

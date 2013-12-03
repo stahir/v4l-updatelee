@@ -768,7 +768,7 @@ static int au8522_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spect
 	fe->dtv_property_cache.frequency = 0;
 	fe->dtv_property_cache.delivery_system = SYS_ATSC;
 
-	dprintk("%s", __func__);
+	dprintk("%s\n", __func__);
 
 	if (fe->ops.tuner_ops.set_params) {
 		if (fe->ops.i2c_gate_ctrl)
@@ -784,10 +784,10 @@ static int au8522_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spect
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
 	if (fe->ops.tuner_ops.set_frequency && fe->ops.tuner_ops.get_rf_strength) {
-		for (x = 0 ; x < s->num_steps ; x++)
+		for (x = 0; x < s->num_freq; x++)
 		{
-			fe->ops.tuner_ops.set_frequency(fe, s->start_frequency + (x * s->step_size));
-			msleep(20);
+			fe->ops.tuner_ops.set_frequency(fe, *(s->freq + x));
+			msleep(10);
 			fe->ops.tuner_ops.get_rf_strength(fe, (s->rf_level + x));
 		}
 	}

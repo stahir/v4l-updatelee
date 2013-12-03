@@ -835,7 +835,6 @@ static void stv0900_track_optimization(struct dvb_frontend *fe)
 		blind_tun_sw = 0,
 		modulation;
 
-	enum fe_stv0900_rolloff rolloff;
 	enum fe_stv0900_modcode foundModcod;
 
 	dprintk("%s\n", __func__);
@@ -940,7 +939,6 @@ static void stv0900_track_optimization(struct dvb_frontend *fe)
 
 	freq1 = stv0900_read_reg(intp, CFR2);
 	freq0 = stv0900_read_reg(intp, CFR1);
-	rolloff = stv0900_get_bits(intp, ROLLOFF_STATUS);
 	if (intp->srch_algo[demod] == STV0900_BLIND_SEARCH) {
 		stv0900_write_reg(intp, SFRSTEP, 0x00);
 		stv0900_write_bits(intp, SCAN_ENABLE, 0);
@@ -1040,8 +1038,9 @@ static int stv0900_get_fec_lock(struct stv0900_internal *intp,
 
 	dprintk("%s\n", __func__);
 
+	dmd_state = stv0900_get_bits(intp, HEADER_MODE);
+
 	while ((timer < time_out) && (lock == 0)) {
-		dmd_state = stv0900_get_bits(intp, HEADER_MODE);
 		switch (dmd_state) {
 		case STV0900_SEARCH:
 		case STV0900_PLH_DETECTED:
@@ -1182,102 +1181,14 @@ static u32 stv0900_get_tuner_freq(struct dvb_frontend *fe)
 	return freq;
 }
 
-enum fe_stv0900_signal_type stv0900_get_signal_params(struct dvb_frontend *fe)
+static enum
+fe_stv0900_signal_type stv0900_get_signal_params(struct dvb_frontend *fe)
 {
 	struct stv0900_state *state = fe->demodulator_priv;
 	struct stv0900_internal *intp = state->internal;
 	enum fe_stv0900_demod_num demod = state->demod;
 	enum fe_stv0900_signal_type range = STV0900_OUTOFRANGE;
 	struct stv0900_signal_info *result = &intp->result[demod];
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-
-	int fe_stv0900_tracking_standard_return[] = {
-		SYS_DVBS,
-		SYS_DVBS2,
-		SYS_DSS,
-		SYS_DVBS2
-	};
-
-	int fe_stv0900_rolloff_return[] = {
-		ROLLOFF_35,
-		ROLLOFF_25,
-		ROLLOFF_20,
-		ROLLOFF_AUTO
-	};
-
-	int fe_stv0900_modulation_return[] = {
-		QPSK,
-		PSK_8,
-		APSK_16,
-		APSK_32
-	};
-
-	int fe_stv0900_modcod_return_dvbs[] = {
-		FEC_NONE,
-		FEC_AUTO,
-		FEC_AUTO,
-		FEC_AUTO,
-		FEC_1_2,
-		FEC_3_5,
-		FEC_2_3,
-		FEC_3_4,
-		FEC_4_5,
-		FEC_5_6,
-		FEC_6_7,
-		FEC_7_8,
-		FEC_3_5,
-		FEC_2_3,
-		FEC_3_4,
-		FEC_5_6,
-		FEC_8_9,
-		FEC_9_10,
-		FEC_2_3,
-		FEC_3_4,
-		FEC_4_5,
-		FEC_5_6,
-		FEC_8_9,
-		FEC_9_10,
-		FEC_3_4,
-		FEC_4_5,
-		FEC_5_6,
-		FEC_8_9,
-		FEC_9_10,
-		FEC_AUTO
-	};
-
-	int fe_stv0900_modcod_return_dvbs2[] = {
-		FEC_NONE,
-		FEC_AUTO,
-		FEC_AUTO,
-		FEC_AUTO,
-		FEC_1_2,
-		FEC_3_5,
-		FEC_2_3,
-		FEC_3_4,
-		FEC_4_5,
-		FEC_5_6,
-		FEC_8_9,
-		FEC_9_10,
-		FEC_3_5,
-		FEC_2_3,
-		FEC_3_4,
-		FEC_5_6,
-		FEC_8_9,
-		FEC_9_10,
-		FEC_2_3,
-		FEC_3_4,
-		FEC_4_5,
-		FEC_5_6,
-		FEC_8_9,
-		FEC_9_10,
-		FEC_3_4,
-		FEC_4_5,
-		FEC_5_6,
-		FEC_8_9,
-		FEC_9_10,
-		FEC_AUTO
-	};
-
 	s32	offsetFreq,
 		srate_offset;
 	int	i = 0,
@@ -1313,8 +1224,9 @@ enum fe_stv0900_signal_type stv0900_get_signal_params(struct dvb_frontend *fe)
 	result->modcode = stv0900_get_bits(intp, DEMOD_MODCOD);
 	result->pilot = stv0900_get_bits(intp, DEMOD_TYPE) & 0x01;
 	result->frame_len = ((u32)stv0900_get_bits(intp, DEMOD_TYPE)) >> 1;
-	result->rolloff = stv0900_get_bits(intp, MATYPE_ROLLOFF1);
-	result->matype = (stv0900_read_reg(intp, MATSTR1) << 8) + stv0900_read_reg(intp, MATSTR0);
+	result->rolloff = stv0900_get_bits(intp, ROLLOFF_STATUS);
+
+	dprintk("%s: modcode=0x%x \n", __func__, result->modcode);
 
 	switch (result->standard) {
 	case STV0900_DVBS2_STANDARD:
@@ -1357,18 +1269,7 @@ enum fe_stv0900_signal_type stv0900_get_signal_params(struct dvb_frontend *fe)
 	} else if (ABS(offsetFreq) <= ((intp->srch_range[d] / 2000) + 500))
 		range = STV0900_RANGEOK;
 
-	c->frequency		= result->frequency;
-	c->symbol_rate		= result->symbol_rate;
-	if (result->standard == 2)
-		c->fec_inner	= fe_stv0900_modcod_return_dvbs2[result->modcode];
-	else
-		c->fec_inner	= fe_stv0900_modcod_return_dvbs[result->modcode];
-	c->pilot			= result->pilot;
-	c->rolloff			= fe_stv0900_rolloff_return[result->rolloff];
-	c->modulation		= fe_stv0900_modulation_return[result->modulation];
-	c->inversion		= result->spectrum;
-	c->delivery_system	= fe_stv0900_tracking_standard_return[result->standard];
-	c->matype			= result->matype;
+	dprintk("%s: range %d\n", __func__, range);
 
 	return range;
 }

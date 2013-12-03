@@ -44,8 +44,6 @@ struct stv0900_inode {
 	struct stv0900_inode		*next_inode;
 };
 
-enum dvbfe_algo STV0900_DVBFE_ALGO = DVBFE_ALGO_CUSTOM;
-
 /* first internal params */
 static struct stv0900_inode *stv0900_first_inode;
 
@@ -386,7 +384,6 @@ static void stv0900_set_ts_parallel_serial(struct stv0900_internal *intp,
 			case STV0900_SERIAL_PUNCT_CLOCK:
 			case STV0900_SERIAL_CONT_CLOCK:
 			default:
-				stv0900_write_bits(intp, F0900_P1_TSFIFO_MANSPEED, 0);
 				stv0900_write_reg(intp, R0900_TSGENERAL,
 							0x00);
 				break;
@@ -417,7 +414,6 @@ static void stv0900_set_ts_parallel_serial(struct stv0900_internal *intp,
 				break;
 			case STV0900_PARALLEL_PUNCT_CLOCK:
 			case STV0900_DVBCI_CLOCK:
-				stv0900_write_bits(intp, F0900_P2_TSFIFO_MANSPEED, 0);
 				stv0900_write_reg(intp,
 						R0900_TSGENERAL, 0x0A);
 				dprintk("%s: 0x0a\n", __func__);
@@ -433,7 +429,6 @@ static void stv0900_set_ts_parallel_serial(struct stv0900_internal *intp,
 			case STV0900_SERIAL_PUNCT_CLOCK:
 			case STV0900_SERIAL_CONT_CLOCK:
 			default:
-				stv0900_write_bits(intp, F0900_P1_TSFIFO_MANSPEED, 0);
 				stv0900_write_reg(intp, R0900_TSGENERAL1X,
 							0x10);
 				break;
@@ -465,7 +460,6 @@ static void stv0900_set_ts_parallel_serial(struct stv0900_internal *intp,
 				break;
 			case STV0900_PARALLEL_PUNCT_CLOCK:
 			case STV0900_DVBCI_CLOCK:
-				stv0900_write_bits(intp, F0900_P2_TSFIFO_MANSPEED, 0);
 				stv0900_write_reg(intp, R0900_TSGENERAL1X,
 							0x12);
 				dprintk("%s: 0x12\n", __func__);
@@ -536,11 +530,17 @@ void stv0900_set_tuner(struct dvb_frontend *fe, u32 frequency,
 	if (tuner_ops->set_frequency) {
 		if ((tuner_ops->set_frequency(fe, frequency)) < 0)
 			dprintk("%s: Invalid parameter\n", __func__);
+		else
+			dprintk("%s: Frequency=%d\n", __func__, frequency);
+
 	}
 
 	if (tuner_ops->set_bandwidth) {
 		if ((tuner_ops->set_bandwidth(fe, bandwidth)) < 0)
 			dprintk("%s: Invalid parameter\n", __func__);
+		else
+			dprintk("%s: Bandwidth=%d\n", __func__, bandwidth);
+
 	}
 }
 
@@ -842,10 +842,11 @@ int stv0900_get_demod_lock(struct stv0900_internal *intp,
 	s32 timer = 0,
 		lock = 0;
 
-	enum fe_stv0900_search_state dmd_state = STV0900_SEARCH;
+	enum fe_stv0900_search_state	dmd_state;
 
 	while ((timer < time_out) && (lock == 0)) {
 		dmd_state = stv0900_get_bits(intp, HEADER_MODE);
+		dprintk("Demod State = %d\n", dmd_state);
 		switch (dmd_state) {
 		case STV0900_SEARCH:
 		case STV0900_PLH_DETECTED:
@@ -863,7 +864,6 @@ int stv0900_get_demod_lock(struct stv0900_internal *intp,
 
 		timer += 10;
 	}
-	dprintk("%s: dmd_state = %d\n", __func__, dmd_state);
 
 	if (lock)
 		dprintk("DEMOD LOCK OK\n");
@@ -878,6 +878,8 @@ void stv0900_stop_all_s2_modcod(struct stv0900_internal *intp,
 {
 	s32 regflist,
 	i;
+
+	dprintk("%s\n", __func__);
 
 	regflist = MODCODLST0;
 
@@ -962,24 +964,7 @@ void stv0900_activate_s2_modcod_single(struct stv0900_internal *intp,
 
 static enum dvbfe_algo stv0900_frontend_algo(struct dvb_frontend *fe)
 {
-	return STV0900_DVBFE_ALGO;
-}
-
-static int stb0900_set_property(struct dvb_frontend *fe,
-				struct dtv_property *tvp)
-{
-	dprintk("%s(..)\n", __func__);
-	STV0900_DVBFE_ALGO = DVBFE_ALGO_CUSTOM;
-
-	return 0;
-}
-
-static int stb0900_get_property(struct dvb_frontend *fe,
-				struct dtv_property *tvp)
-{
-	dprintk("%s(..)\n", __func__);
-
-	return 0;
+	return DVBFE_ALGO_CUSTOM;
 }
 
 void stv0900_start_search(struct stv0900_internal *intp,
@@ -1274,6 +1259,7 @@ u8 stv0900_get_optim_short_carr_loop(s32 srate,
 			aclc_value = s2scl[mod_index].car_loop_cut12_20;
 		else
 			aclc_value = s2scl[mod_index].car_loop_cut12_30;
+
 	}
 
 	return aclc_value;
@@ -1566,25 +1552,14 @@ static int stv0900_status(struct stv0900_internal *intp,
 	return locked;
 }
 
-static int stv0900_set_pls(struct stv0900_internal *intp,
-				enum fe_stv0900_demod_num demod, u8 pls_mode, u32 pls_code)
-{
-	enum fe_stv0900_error error = STV0900_NO_ERROR;
-
-	dprintk("Set PLS code %d (mode %d)\n", pls_code, pls_mode);
-	stv0900_write_reg(intp, PLROOT2, (pls_mode<<2) | (pls_code>>16));
-	stv0900_write_reg(intp, PLROOT1, pls_code>>8);
-	stv0900_write_reg(intp, PLROOT0, pls_code);
-
-	return error;
-}
-
 static int stv0900_set_mis(struct stv0900_internal *intp,
 				enum fe_stv0900_demod_num demod, int mis)
 {
 	enum fe_stv0900_error error = STV0900_NO_ERROR;
 
-	if (mis == NO_STREAM_ID_FILTER) {
+	dprintk("%s\n", __func__);
+
+	if (mis < 0 || mis > 255) {
 		dprintk("Disable MIS filtering\n");
 		stv0900_write_bits(intp, FILTER_EN, 0);
 	} else {
@@ -1596,6 +1571,7 @@ static int stv0900_set_mis(struct stv0900_internal *intp,
 
 	return error;
 }
+
 
 static enum dvbfe_search stv0900_search(struct dvb_frontend *fe)
 {
@@ -1609,9 +1585,6 @@ static enum dvbfe_search stv0900_search(struct dvb_frontend *fe)
 
 	enum fe_stv0900_error error = STV0900_NO_ERROR;
 
-	struct dvb_frame frame_ops;
-	struct dvb_frontend_ops *frontend_ops = &fe->ops;
-
 	dprintk("%s: ", __func__);
 
 	if (!(INRANGE(100000, c->symbol_rate, 70000000)))
@@ -1620,18 +1593,20 @@ static enum dvbfe_search stv0900_search(struct dvb_frontend *fe)
 	if (state->config->set_ts_params)
 		state->config->set_ts_params(fe, 0);
 
-	stv0900_set_pls(intp, demod, (c->stream_id>>26) & 0x3, (c->stream_id>>8) & 0x3FFFF);
 	stv0900_set_mis(intp, demod, c->stream_id);
 
 	p_result.locked = FALSE;
 	p_search.path = demod;
 	p_search.frequency = c->frequency;
 	p_search.symbol_rate = c->symbol_rate;
-	p_search.search_range = 0;
+	p_search.search_range = 10000000;
 	p_search.fec = STV0900_FEC_UNKNOWN;
 	p_search.standard = STV0900_AUTO_SEARCH;
 	p_search.iq_inversion = STV0900_IQ_AUTO;
 	p_search.search_algo = STV0900_BLIND_SEARCH;
+	/* Speeds up DVB-S searching */
+	if (c->delivery_system == SYS_DVBS)
+		p_search.standard = STV0900_SEARCH_DVBS1;
 
 	intp->srch_standard[demod] = p_search.standard;
 	intp->symbol_rate[demod] = p_search.symbol_rate;
@@ -1653,32 +1628,6 @@ static enum dvbfe_search stv0900_search(struct dvb_frontend *fe)
 		p_result.spectrum = intp->result[demod].spectrum;
 		p_result.rolloff = intp->result[demod].rolloff;
 		p_result.modulation = intp->result[demod].modulation;
-		p_result.matype = intp->result[demod].matype;
-		stv0900_get_signal_params(fe);
-		dprintk("%s: frequency       = %d \n", __func__, c->frequency);
-		dprintk("%s: symbol_rate     = %d \n", __func__, c->symbol_rate);
-		dprintk("%s: fec_inner       = %d \n", __func__, c->fec_inner);
-		dprintk("%s: pilot           = %d \n", __func__, c->pilot);
-		dprintk("%s: rolloff         = %d \n", __func__, c->rolloff);
-		dprintk("%s: modulation      = %d \n", __func__, c->modulation);
-		dprintk("%s: inversion       = %d \n", __func__, c->inversion);
-		dprintk("%s: delivery_system = %d \n", __func__, c->delivery_system);
-		dprintk("%s: matype          = 0x%04X\n", __func__, c->matype);
-
-		if (frontend_ops->set_frame_ops) {
-			if (c->delivery_system == SYS_DSS) {
-				frame_ops.frame_size	= 131;
-				frame_ops.packet_size	= 131;
-				frame_ops.sync_byte		= 0x1D;
-				frontend_ops->set_frame_ops(fe, frame_ops);
-			} else {
-				frame_ops.frame_size	= 188;
-				frame_ops.packet_size	= 188;
-				frame_ops.sync_byte		= 0x47;
-				frontend_ops->set_frame_ops(fe, frame_ops);
-			}
-			dprintk("%s: frame_ops.frame_size = %d\n", __func__, frame_ops.frame_size);
-		}
 	} else {
 		p_result.locked = FALSE;
 		switch (intp->err[demod]) {
@@ -1697,9 +1646,9 @@ static enum dvbfe_search stv0900_search(struct dvb_frontend *fe)
 		return DVBFE_ALGO_SEARCH_SUCCESS;
 	} else {
 		dprintk("Search Fail\n");
-		STV0900_DVBFE_ALGO = DVBFE_ALGO_NOTUNE;
 		return DVBFE_ALGO_SEARCH_FAILED;
 	}
+
 }
 
 static int stv0900_read_status(struct dvb_frontend *fe, enum fe_status *status)
@@ -1707,11 +1656,6 @@ static int stv0900_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	struct stv0900_state *state = fe->demodulator_priv;
 
 	dprintk("%s: ", __func__);
-
-	if (STV0900_DVBFE_ALGO == DVBFE_ALGO_NOTUNE) {
-		*status = FE_TIMEDOUT;
-		return 0;
-	}
 
 	if ((stv0900_status(state->internal, state->demod)) == TRUE) {
 		dprintk("DEMOD LOCK OK\n");
@@ -1721,11 +1665,10 @@ static int stv0900_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			| FE_HAS_LOCK;
 		if (state->config->set_lock_led)
 			state->config->set_lock_led(fe, 1);
-		stv0900_get_signal_params(fe);
 	} else {
+		*status = 0;
 		if (state->config->set_lock_led)
 			state->config->set_lock_led(fe, 0);
-		*status = 0;
 		dprintk("DEMOD LOCK FAIL\n");
 	}
 
@@ -1766,8 +1709,6 @@ static int stv0900_init(struct dvb_frontend *fe)
 
 	stv0900_stop_ts(fe, 1);
 	stv0900_diseqc_init(fe);
-
-	STV0900_DVBFE_ALGO = DVBFE_ALGO_CUSTOM;
 
 	return 0;
 }
@@ -1916,8 +1857,6 @@ static int stv0900_sleep(struct dvb_frontend *fe)
 	if (state->config->set_lock_led)
 		state->config->set_lock_led(fe, 0);
 
-	STV0900_DVBFE_ALGO = DVBFE_ALGO_CUSTOM;
-
 	return 0;
 }
 
@@ -1934,123 +1873,8 @@ static int stv0900_get_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-u8 stv0900_read_reg2(struct stv0900_internal *intp, u16 reg, u8* out, u8 len)
-{
-	int ret;
-	u8 b0[] = { MSB(reg), LSB(reg) };
-	struct i2c_msg msg[] = {
-		{
-			.addr	= intp->i2c_addr,
-			.flags	= 0,
-			.buf = b0,
-			.len = 2,
-		},
-		{
-			.addr	= intp->i2c_addr,
-			.flags	= I2C_M_RD,
-			.buf = out,
-			.len = len,
-		},
-	};
-
-	ret = i2c_transfer(intp->i2c_adap, msg, 2);
-	if (ret != 2)
-		dprintk("%s: i2c error %d, reg[0x%02x]\n", __func__, ret, reg);
-	return 0;
-}
-
-static int stv0900_get_consellation_samples(struct dvb_frontend *fe, struct dvb_fe_constellation_samples *s)
-{
-	struct stv0900_state *state = fe->demodulator_priv;
-	struct stv0900_internal *intp = state->internal;
-	enum fe_stv0900_demod_num demod = state->demod;
-	u32 x;
-	u8 buf[2];
-
-	STV0900_DVBFE_ALGO = DVBFE_ALGO_NOTUNE;
-
-	for (x = 0 ; x < s->num ; x++)
-	{
-		stv0900_read_reg2(intp, ISYMB, buf, 2);
-		s->samples[x].imaginary = buf[0] << 8;
-		s->samples[x].real = buf[1] << 8;
-	}
-	return 0;
-}
-
-static int stv0900_read_signal_strength2(struct dvb_frontend *fe, u16 *strength)
-{
-	struct stv0900_state *state = fe->demodulator_priv;
-	struct stv0900_internal *intp = state->internal;
-	enum fe_stv0900_demod_num demod = state->demod;
-
-	s32 agc_gain = MAKEWORD(stv0900_get_bits(intp, AGCIQ_VALUE1), stv0900_get_bits(intp, AGCIQ_VALUE0));
-
-	*strength = agc_gain;
-	return 0;
-}
-
-static int stv0900_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spectrum_scan *s)
-{
-	struct stv0900_state *state = fe->demodulator_priv;
-	struct stv0900_internal *intp = state->internal;
-	enum fe_stv0900_demod_num demod = state->demod;
-
-	struct dvb_frontend_ops *frontend_ops = NULL;
-	struct dvb_tuner_ops *tuner_ops = NULL;
-
-	u32 x;
-	u32 tunerFrequency;
-	u32 bw = s->step_size * 1000;
-	if (bw < 2000000)
-		bw = 2000000;
-
-	STV0900_DVBFE_ALGO = DVBFE_ALGO_NOTUNE;
-
-	if (&fe->ops)
-		frontend_ops = &fe->ops;
-
-	if (&frontend_ops->tuner_ops)
-		tuner_ops = &frontend_ops->tuner_ops;
-
-	// reset hardware
-	stv0900_write_bits(intp, RST_HWARE, 1);
-	stv0900_write_bits(intp, DEMOD_MODE, 0x1f);
-	stv0900_write_reg(intp, AGC2REF, 0x38);
-
-	if (tuner_ops->set_bandwidth) {
-		if (tuner_ops->set_bandwidth(fe, bw) < 0)
-			dprintk("%s: Invalid parameter\n", __func__);
-	} else {
-		/* Low Pass Filter = BW /2 (MHz)*/
-		stv0900_write_bits(intp, TUN_BW, bw / 2000000);
-	}
-
-	// stop demod
-	stv0900_write_reg(intp, DMDISTATE, 0x5c);
-	msleep(100);
-	for (x = 0 ; x < s->num_steps ; x++)
-	{
-		stv0900_write_bits(intp, DEMOD_MODE, 0x1c);
-		if (tuner_ops->set_frequency) {
-			if (tuner_ops->set_frequency(fe, s->start_frequency + (x * s->step_size)) < 0)
-				dprintk("%s: Invalid parameter\n", __func__);
-		} else {
-			tunerFrequency = ((s->start_frequency + (x * s->step_size)) * 64) / 1000;
-			stv0900_write_bits(intp, TUN_RFFREQ2, (tunerFrequency >> 10));
-			stv0900_write_bits(intp, TUN_RFFREQ1, (tunerFrequency >> 2) & 0xff);
-			stv0900_write_bits(intp, TUN_RFFREQ0, (tunerFrequency & 0x03));
-			stv0900_write_reg(intp, TNRLD, 1);
-
-			msleep(10);
-		}
-		stv0900_read_signal_strength2(fe,(s->rf_level + x));
-	}
-	return 0;
-}
-
 static struct dvb_frontend_ops stv0900_ops = {
-	.delsys = { SYS_DSS, SYS_DVBS, SYS_DVBS2 },
+	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
 	.info = {
 		.name			= "STV0900 frontend",
 		.frequency_min		= 950000,
@@ -2063,12 +1887,8 @@ static struct dvb_frontend_ops stv0900_ops = {
 		.caps			= FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 |
 					  FE_CAN_FEC_3_4 | FE_CAN_FEC_5_6 |
 					  FE_CAN_FEC_7_8 | FE_CAN_QPSK    |
-			     	  FE_CAN_FEC_AUTO       |
-					  FE_CAN_2G_MODULATION  |
-		              FE_CAN_SPECTRUMSCAN   |
-		              FE_CAN_IQ             |
-		              FE_CAN_BLINDSEARCH
-
+					  FE_CAN_2G_MODULATION |
+					  FE_CAN_FEC_AUTO
 	},
 	.release			= stv0900_release,
 	.init				= stv0900_init,
@@ -2080,16 +1900,12 @@ static struct dvb_frontend_ops stv0900_ops = {
 	.diseqc_send_burst		= stv0900_send_burst,
 	.diseqc_recv_slave_reply	= stv0900_recv_slave_reply,
 	.set_tone			= stv0900_set_tone,
-	.set_property			= stb0900_set_property,
-	.get_property			= stb0900_get_property,
 	.search				= stv0900_search,
 	.read_status			= stv0900_read_status,
 	.read_ber			= stv0900_read_ber,
 	.read_signal_strength		= stv0900_read_signal_strength,
 	.read_snr			= stv0900_read_snr,
 	.read_ucblocks                  = stv0900_read_ucblocks,
-	.get_constellation_samples	= stv0900_get_consellation_samples,
-	.get_spectrum_scan			= stv0900_get_spectrum_scan,
 };
 
 struct dvb_frontend *stv0900_attach(const struct stv0900_config *config,

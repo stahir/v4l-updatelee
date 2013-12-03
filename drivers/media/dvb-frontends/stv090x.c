@@ -5193,7 +5193,7 @@ static int stv090x_get_consellation_samples(struct dvb_frontend *fe, struct dvb_
 	u32 x;
 	u8 buf[2];
 
-	if (stv090x_write_reg(state, STV090x_P1_IQCONST, 0x00) < 0)
+	if (stv090x_write_reg(state, STV090x_P1_IQCONST, s->options) < 0)
 		goto err;
 
 	for (x = 0 ; x < s->num ; x++)
@@ -5233,9 +5233,7 @@ static int stv090x_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 	struct dvb_tuner_ops *tuner_ops = NULL;
 
 	u32 x, reg;
-	u32 bw = s->step_size * 1000;
-	if (bw < 2000000)
-		bw = 2000000;
+	u32 bw = 2000000;
 
 	state->algo = STV090x_NOTUNE;
 
@@ -5270,7 +5268,7 @@ static int stv090x_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 
 	// stop demod
 	stv090x_write_reg(state, STV090x_P1_DMDISTATE, 0x5c);
-	for (x = 0 ; x < s->num_steps ; x++)
+	for (x = 0 ; x < s->num_freq ; x++)
 	{
 		reg = STV090x_READ_DEMOD(state, DMDISTATE);
 		STV090x_SETFIELD_Px(reg, I2C_DEMOD_MODE_FIELD, 0x1c);
@@ -5280,7 +5278,7 @@ static int stv090x_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 			printk("%s: ERROR stv090x_i2c_gate_ctrl(1)\n", __func__);
 			return 0;
 		}
-		state->config->tuner_set_frequency(fe, s->start_frequency + (x * s->step_size));
+		state->config->tuner_set_frequency(fe, *(s->freq + x));
 		if (stv090x_i2c_gate_ctrl(state, 0) < 0) {
 			printk("%s: ERROR stv090x_i2c_gate_ctrl(1)\n", __func__);
 			return 0;

@@ -572,6 +572,7 @@ struct dvb_fe_constellation_sample {
 
 struct dvb_fe_constellation_samples {
         __u32           num;
+		__u8			options;
         struct dvb_fe_constellation_sample *samples;
 };
 
@@ -579,10 +580,9 @@ struct dvb_fe_constellation_samples {
 #define FE_GET_CONSTELLATION_SAMPLES    _IOR('o',84, struct dvb_fe_constellation_samples)
 
 struct dvb_fe_spectrum_scan {
-        __u32           start_frequency;
-        __u32           step_size;
-        __u32           num_steps;
-        __u16           *rf_level;
+		__u32			*freq;
+		__u16			num_freq;
+		__u16			*rf_level;
 };
 
 #define DTV_MAX_SPECTRUM_SCAN_STEPS     2000
