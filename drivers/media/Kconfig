@@ -199,5 +199,6 @@ source "drivers/media/i2c/Kconfig"
 source "drivers/media/tuners/Kconfig"
 source "drivers/media/dvb-frontends/Kconfig"
 source "drivers/media/pci/saa716x/Kconfig"
+source "drivers/media/pci/saa7231/Kconfig"
 
 endif # MEDIA_SUPPORT

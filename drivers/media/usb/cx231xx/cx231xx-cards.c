@@ -496,10 +496,10 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 2,
-		.demod_i2c_master = 1,
+		.tuner_i2c_master = 1,
+		.demod_i2c_master = 2,
 		.has_dvb = 1,
-		.demod_addr = 0x60,
+		.demod_addr = 0x0e,
 		.norm = V4L2_STD_NTSC,
 
 		.input = {{

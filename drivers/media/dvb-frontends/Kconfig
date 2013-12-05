@@ -35,6 +35,27 @@ config DVB_STV6110x
 	help
 	  A Silicon tuner that supports DVB-S and DVB-S2 modes
 
+config DVB_CXD2817
+        tristate "Sony CXD2817"
+        depends on DVB_CORE && I2C
+        default m if DVB_FE_CUSTOMISE
+        help
+          Say Y when you want to support this frontend.
+
+config DVB_CXD2861
+        tristate "Sony CXD2861"
+        depends on DVB_CORE && I2C
+        default m if DVB_FE_CUSTOMISE
+        help
+          Say Y when you want to support this tuner
+
+config DVB_CXD2850
+        tristate "Sony CXD2850"
+        depends on DVB_CORE && I2C
+        default m if DVB_FE_CUSTOMISE
+        help
+          Say Y when you want to support this frontend.
+
 comment "Multistandard (cable + terrestrial) frontends"
 	depends on DVB_CORE
 
@@ -685,6 +706,13 @@ config DVB_A8293
 	tristate "Allegro A8293"
 	depends on DVB_CORE && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
+
+config DVB_A8290
+        tristate "Allegro A8290 SEC controller"
+        depends on DVB_CORE && I2C
+        default m if DVB_FE_CUSTOMISE
+        help
+          A SEC controller.
 
 config DVB_LGS8GL5
 	tristate "Silicon Legend LGS-8GL5 demodulator (OFDM)"
