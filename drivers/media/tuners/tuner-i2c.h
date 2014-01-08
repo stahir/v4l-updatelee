@@ -105,8 +105,7 @@ static inline int tuner_i2c_xfer_send_recv(struct tuner_i2c_props *props,
 	} while (0)
 
 #define __tuner_dbg(i2cprops, fmt, arg...) do {				\
-	if ((debug))							\
-		tuner_printk(KERN_DEBUG, i2cprops, fmt, ##arg);		\
+	tuner_printk(KERN_DEBUG, i2cprops, fmt, ##arg);		\
 	} while (0)
 
 #define tuner_warn(fmt, arg...) __tuner_warn(priv->i2c_props, fmt, ##arg)

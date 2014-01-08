@@ -866,29 +866,6 @@ static int s5h1409_read_snr(struct dvb_frontend *fe, u16 *snr)
 		return s5h1409_qam256_lookup_snr(fe, snr, reg);
 	case VSB_8:
 		reg = s5h1409_readreg(state, 0xf1) & 0x3ff;
-		s5h1409_vsb_lookup_snr(fe, snr, reg);
-		dprintk("%s() snr reg:%d, snr db:%d\n", __func__, reg, *snr);
-		
-		msleep(20);
-		reg = s5h1409_readreg(state, 0xf1) & 0x3ff;
-		s5h1409_vsb_lookup_snr(fe, snr, reg);
-		dprintk("%s() snr reg:%d, snr db:%d\n", __func__, reg, *snr);
-		
-		msleep(20);
-		reg = s5h1409_readreg(state, 0xf1) & 0x3ff;
-		s5h1409_vsb_lookup_snr(fe, snr, reg);
-		dprintk("%s() snr reg:%d, snr db:%d\n", __func__, reg, *snr);
-		
-		msleep(20);
-		reg = s5h1409_readreg(state, 0xf1) & 0x3ff;
-		s5h1409_vsb_lookup_snr(fe, snr, reg);
-		dprintk("%s() snr reg:%d, snr db:%d\n", __func__, reg, *snr);
-		
-		msleep(20);
-		reg = s5h1409_readreg(state, 0xf1) & 0x3ff;
-		s5h1409_vsb_lookup_snr(fe, snr, reg);
-		dprintk("%s() snr reg:%d, snr db:%d\n", __func__, reg, *snr);
-		
 		return s5h1409_vsb_lookup_snr(fe, snr, reg);
 	default:
 		break;
@@ -1030,7 +1007,7 @@ static int s5h1409_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 	p->delivery_system = SYS_ATSC;
 	p->modulation = VSB_8;
 
-	dprintk("%s", __func__);
+	dprintk("%s\n", __func__);
 
 	if (fe->ops.tuner_ops.set_params) {
 		for (x = 0 ; x < s->num_freq ; x++)

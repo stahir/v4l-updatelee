@@ -821,10 +821,7 @@ static void stv090x_get_lock_tmg(struct stv090x_state *state)
 	switch (state->algo) {
 	case STV090x_BLIND_SEARCH:
 		dprintk(FE_DEBUG, 1, "Blind Search");
-		if (state->srate <= 1000000) {  /*SR <=1Msps*/
-			state->DemodTimeout = 4500;
-			state->FecTimeout = 1700;
-		} else if (state->srate <= 1500000) {  /*10Msps< SR <=15Msps*/
+		if (state->srate <= 1500000) {  /*10Msps< SR <=15Msps*/
 			state->DemodTimeout = 1500;
 			state->FecTimeout = 400;
 		} else if (state->srate <= 5000000) {  /*10Msps< SR <=15Msps*/
@@ -832,17 +829,14 @@ static void stv090x_get_lock_tmg(struct stv090x_state *state)
 			state->FecTimeout = 300;
 		} else {  /*SR >20Msps*/
 			state->DemodTimeout = 700;
-			state->FecTimeout = 100;
+			state->FecTimeout = 300;
 		}
 		break;
 	case STV090x_COLD_SEARCH:
 	case STV090x_WARM_SEARCH:
 	default:
 		dprintk(FE_DEBUG, 1, "Normal Search");
-		if (state->srate <= 1000000) {  /*SR <=1Msps*/
-			state->DemodTimeout = 4500;
-			state->FecTimeout = 1700;
-		} else if (state->srate <= 2000000) { /*1Msps < SR <= 2Msps */
+		if (state->srate <= 2000000) { /*1Msps < SR <= 2Msps */
 			state->DemodTimeout = 2500;
 			state->FecTimeout = 1100;
 		} else if (state->srate <= 5000000) { /*2Msps < SR <= 5Msps */
@@ -1711,7 +1705,7 @@ static u32 stv090x_srate_srch_coarse(struct stv090x_state *state)
 		agc2th = 0x1f00;
 
 	reg = STV090x_READ_DEMOD(state, DMDISTATE);
-	STV090x_SETFIELD_Px(reg, I2C_DEMOD_MODE_FIELD, 0x1f); /* Demod RESET */
+	STV090x_SETFIELD_Px(reg, I2C_DEMOD_MODE_FIELD, 0x5f); /* Demod RESET */
 	if (STV090x_WRITE_DEMOD(state, DMDISTATE, reg) < 0)
 		goto err;
 	if (STV090x_WRITE_DEMOD(state, TMGCFG, 0x12) < 0)

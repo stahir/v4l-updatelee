@@ -1540,8 +1540,8 @@ struct dvb_frontend *tda18272_attach(struct dvb_frontend *fe,
 	fe->ops.tuner_ops	= tda18272_ops;
 
 	ret = tda18272_rd_regs(tda18272, TDA18272_ID_BYTE_1, &tda18272->regs[TDA18272_ID_BYTE_1], 3);
-//	if (ret)
-//		goto err;
+	if (ret)
+		goto err;
 
 	id    = (TDA18272_GETFIELD(ID_BYTE_1_IDENT, tda18272->regs[TDA18272_ID_BYTE_1]) << 8) |
 		 TDA18272_GETFIELD(ID_BYTE_2_IDENT, tda18272->regs[TDA18272_ID_BYTE_2]);
@@ -1550,8 +1550,7 @@ struct dvb_frontend *tda18272_attach(struct dvb_frontend *fe,
 	minor = TDA18272_GETFIELD(ID_BYTE_3_MINOR_REV, tda18272->regs[TDA18272_ID_BYTE_3]);
 	mode  = TDA18272_GETFIELD(ID_BYTE_1_MASTER_SLAVE, tda18272->regs[TDA18272_ID_BYTE_1]);
 
-//	if (id == TDA18272_CHIP_ID) {
-	if (1) {
+	if (id == TDA18272_CHIP_ID) {
 		dprintk(FE_ERROR, 1, "Found TDA%d %s Rev:%d.%d", id, mode ? "Master" : "Slave", major, minor);
 		if ((major != TDA18272_MAJOR_REV) || (minor != TDA18272_MINOR_REV))
 			dprintk(FE_ERROR, 1, "Unknown Version:%d.%d, trying anyway ..", major, minor);
