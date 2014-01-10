@@ -30,8 +30,9 @@
 
 #include "em28xx.h"
 
-#define EM28XX_SNAPSHOT_KEY KEY_CAMERA
-#define EM28XX_BUTTONS_QUERY_INTERVAL 500
+#define EM28XX_SNAPSHOT_KEY				KEY_CAMERA
+#define EM28XX_BUTTONS_DEBOUNCED_QUERY_INTERVAL		500 /* [ms] */
+#define EM28XX_BUTTONS_VOLATILE_QUERY_INTERVAL		100 /* [ms] */
 
 static unsigned int ir_debug;
 module_param(ir_debug, int, 0644);
@@ -442,6 +443,7 @@ static int em28xx_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_type)
 	case CHIP_ID_EM2884:
 	case CHIP_ID_EM2874:
 	case CHIP_ID_EM28174:
+	case CHIP_ID_EM28178:
 		return em2874_ir_change_protocol(rc_dev, rc_type);
 	default:
 		printk("Unrecognized em28xx chip id 0x%02x: IR not supported\n",
@@ -545,7 +547,7 @@ static void em28xx_query_buttons(struct work_struct *work)
 	}
 	/* Schedule next poll */
 	schedule_delayed_work(&dev->buttons_query_work,
-			      msecs_to_jiffies(EM28XX_BUTTONS_QUERY_INTERVAL));
+			      msecs_to_jiffies(dev->button_polling_interval));
 }
 
 static int em28xx_register_snapshot_button(struct em28xx *dev)
@@ -555,10 +557,8 @@ static int em28xx_register_snapshot_button(struct em28xx *dev)
 
 	em28xx_info("Registering snapshot button...\n");
 	input_dev = input_allocate_device();
-	if (!input_dev) {
-		em28xx_errdev("input_allocate_device failed\n");
+	if (!input_dev)
 		return -ENOMEM;
-	}
 
 	usb_make_path(dev->udev, dev->snapshot_button_path,
 		      sizeof(dev->snapshot_button_path));
@@ -593,6 +593,7 @@ static void em28xx_init_buttons(struct em28xx *dev)
 	u8  i = 0, j = 0;
 	bool addr_new = 0;
 
+	dev->button_polling_interval = EM28XX_BUTTONS_DEBOUNCED_QUERY_INTERVAL;
 	while (dev->board.buttons[i].role >= 0 &&
 			 dev->board.buttons[i].role < EM28XX_NUM_BUTTON_ROLES) {
 		struct em28xx_button *button = &dev->board.buttons[i];
@@ -608,18 +609,18 @@ static void em28xx_init_buttons(struct em28xx *dev)
 		if (addr_new && dev->num_button_polling_addresses
 					   >= EM28XX_NUM_BUTTON_ADDRESSES_MAX) {
 			WARN_ONCE(1, "BUG: maximum number of button polling addresses exceeded.");
-			addr_new = 0;
+			goto next_button;
 		}
 		/* Button role specific checks and actions */
 		if (button->role == EM28XX_BUTTON_SNAPSHOT) {
 			/* Register input device */
 			if (em28xx_register_snapshot_button(dev) < 0)
-				addr_new = 0;
+				goto next_button;
 		} else if (button->role == EM28XX_BUTTON_ILLUMINATION) {
 			/* Check sanity */
 			if (!em28xx_find_led(dev, EM28XX_LED_ILLUMINATION)) {
 				em28xx_errdev("BUG: illumination button defined, but no illumination LED.\n");
-				addr_new = 0;
+				goto next_button;
 			}
 		}
 		/* Add read address to list of polling addresses */
@@ -628,6 +629,11 @@ static void em28xx_init_buttons(struct em28xx *dev)
 			dev->button_polling_addresses[index] = button->reg_r;
 			dev->num_button_polling_addresses++;
 		}
+		/* Reduce polling interval if necessary */
+		if (!button->reg_clearing)
+			dev->button_polling_interval =
+					 EM28XX_BUTTONS_VOLATILE_QUERY_INTERVAL;
+next_button:
 		/* Next button */
 		i++;
 	}
@@ -639,7 +645,7 @@ static void em28xx_init_buttons(struct em28xx *dev)
 		INIT_DELAYED_WORK(&dev->buttons_query_work,
 							  em28xx_query_buttons);
 		schedule_delayed_work(&dev->buttons_query_work,
-			       msecs_to_jiffies(EM28XX_BUTTONS_QUERY_INTERVAL));
+			       msecs_to_jiffies(dev->button_polling_interval));
 	}
 }
 
@@ -665,6 +671,11 @@ static int em28xx_ir_init(struct em28xx *dev)
 	u64 rc_type;
 	u16 i2c_rc_dev_addr = 0;
 
+	if (dev->is_audio_only) {
+		/* Shouldn't initialize IR for this interface */
+		return 0;
+	}
+
 	if (dev->board.buttons)
 		em28xx_init_buttons(dev);
 
@@ -683,6 +694,8 @@ static int em28xx_ir_init(struct em28xx *dev)
 				"this card.\n");
 		return 0;
 	}
+
+	em28xx_info("Registering input extension\n");
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	rc = rc_allocate_device();
@@ -734,6 +747,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 		case CHIP_ID_EM2884:
 		case CHIP_ID_EM2874:
 		case CHIP_ID_EM28174:
+		case CHIP_ID_EM28178:
 			ir->get_key = em2874_polling_getkey;
 			rc->allowed_protos = RC_BIT_RC5 | RC_BIT_NEC |
 					     RC_BIT_RC6_0;
@@ -776,6 +790,8 @@ static int em28xx_ir_init(struct em28xx *dev)
 	if (err)
 		goto error;
 
+	em28xx_info("Input extension successfully initalized\n");
+
 	return 0;
 
 error:
@@ -788,6 +804,11 @@ error:
 static int em28xx_ir_fini(struct em28xx *dev)
 {
 	struct em28xx_IR *ir = dev->ir;
+
+	if (dev->is_audio_only) {
+		/* Shouldn't initialize IR for this interface */
+		return 0;
+	}
 
 	em28xx_shutdown_buttons(dev);
 
@@ -823,7 +844,8 @@ static void __exit em28xx_rc_unregister(void)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
-MODULE_DESCRIPTION("Em28xx Input driver");
+MODULE_DESCRIPTION(DRIVER_DESC " - input interface");
+MODULE_VERSION(EM28XX_VERSION);
 
 module_init(em28xx_rc_register);
 module_exit(em28xx_rc_unregister);

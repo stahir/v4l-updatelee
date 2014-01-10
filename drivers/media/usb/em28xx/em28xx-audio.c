@@ -649,7 +649,8 @@ static int em28xx_audio_init(struct em28xx *dev)
 		return 0;
 	}
 
-	printk(KERN_INFO "em28xx-audio.c: probing for em28xx Audio Vendor Class\n");
+	em28xx_info("Binding audio extension\n");
+
 	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2006 Markus "
 			 "Rechberger\n");
 	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2007-2011 Mauro Carvalho Chehab\n");
@@ -702,6 +703,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 	adev->sndcard = card;
 	adev->udev = dev->udev;
 
+	em28xx_info("Audio extension successfully initialized\n");
 	return 0;
 }
 
@@ -745,7 +747,8 @@ static void __exit em28xx_alsa_unregister(void)
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Markus Rechberger <mrechberger@gmail.com>");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
-MODULE_DESCRIPTION("Em28xx Audio driver");
+MODULE_DESCRIPTION(DRIVER_DESC " - audio interface");
+MODULE_VERSION(EM28XX_VERSION);
 
 module_init(em28xx_alsa_register);
 module_exit(em28xx_alsa_unregister);

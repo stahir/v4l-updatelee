@@ -43,7 +43,7 @@
 
 #define XREG_ADC_ENV      0x0100
 
-static int debug;
+static int debug = 1;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
@@ -131,15 +131,6 @@ struct xc2028_data {
 			   _rc, (int)size);				\
 	if (priv->ctrl.msleep)						\
 		msleep(priv->ctrl.msleep);				\
-	_rc;								\
-})
-
-#define i2c_rcv(priv, buf, size) ({					\
-	int _rc;							\
-	_rc = tuner_i2c_xfer_recv(&priv->i2c_props, buf, size);		\
-	if (size != _rc)						\
-		tuner_err("i2c input error: rc = %d (should be %d)\n",	\
-			   _rc, (int)size); 				\
 	_rc;								\
 })
 

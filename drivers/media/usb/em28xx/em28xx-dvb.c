@@ -52,10 +52,14 @@
 #include "a8293.h"
 #include "qt1010.h"
 #include "mb86a20s.h"
+#include "m88ds3103.h"
+#include "m88ts2022.h"
 
-MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION(DRIVER_DESC " - digital TV interface");
+MODULE_VERSION(EM28XX_VERSION);
+
 
 static unsigned int debug = 1;
 module_param(debug, int, 0644);
@@ -88,6 +92,7 @@ struct em28xx_dvb {
 	struct semaphore      pll_mutex;
 	bool			dont_attach_fe1;
 	int			lna_gpio;
+	struct i2c_client	*i2c_client_tuner;
 };
 
 
@@ -272,7 +277,7 @@ static int em28xx_stop_feed(struct dvb_demux_feed *feed)
 static int em28xx_dvb_bus_ctrl(struct dvb_frontend *fe, int acquire)
 {
 	struct em28xx_i2c_bus *i2c_bus = fe->dvb->priv;
-        struct em28xx *dev = i2c_bus->dev;
+	struct em28xx *dev = i2c_bus->dev;
 
 	if (acquire)
 		return em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
@@ -815,6 +820,62 @@ static struct tda18271_config c3tech_duo_tda18271_config = {
 	.small_i2c = TDA18271_03_BYTE_CHUNK_INIT,
 };
 
+static const struct m88ds3103_config pctv_461e_m88ds3103_config = {
+	.i2c_addr = 0x68,
+	.clock = 27000000,
+	.i2c_wr_max = 33,
+	.clock_out = 0,
+	.ts_mode = M88DS3103_TS_PARALLEL_16,
+	.agc = 0x99,
+};
+
+static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
+{
+	memset(ctl, 0, sizeof(*ctl));
+
+	ctl->fname   = XC2028_DEFAULT_FIRMWARE;
+	ctl->max_len = 64;
+	ctl->mts = em28xx_boards[dev->model].mts_firmware;
+
+	switch (dev->model) {
+	case EM2880_BOARD_EMPIRE_DUAL_TV:
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+	case EM2882_BOARD_TERRATEC_HYBRID_XS:
+		ctl->demod = XC3028_FE_ZARLINK456;
+		break;
+	case EM2880_BOARD_TERRATEC_HYBRID_XS:
+	case EM2880_BOARD_TERRATEC_HYBRID_XS_FR:
+	case EM2881_BOARD_PINNACLE_HYBRID_PRO:
+		ctl->demod = XC3028_FE_ZARLINK456;
+		break;
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
+	case EM2882_BOARD_PINNACLE_HYBRID_PRO_330E:
+		ctl->demod = XC3028_FE_DEFAULT;
+		break;
+	case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:
+		ctl->demod = XC3028_FE_DEFAULT;
+		ctl->fname = XC3028L_DEFAULT_FIRMWARE;
+		break;
+	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850:
+	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
+	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
+		/* FIXME: Better to specify the needed IF */
+		ctl->demod = XC3028_FE_DEFAULT;
+		break;
+	case EM2883_BOARD_KWORLD_HYBRID_330U:
+	case EM2882_BOARD_DIKOM_DK300:
+	case EM2882_BOARD_KWORLD_VS_DVBT:
+		ctl->demod = XC3028_FE_CHINA;
+		ctl->fname = XC2028_DEFAULT_FIRMWARE;
+		break;
+	case EM2882_BOARD_EVGA_INDTUBE:
+		ctl->demod = XC3028_FE_CHINA;
+		ctl->fname = XC3028L_DEFAULT_FIRMWARE;
+		break;
+	default:
+		ctl->demod = XC3028_FE_OREN538;
+	}
+}
 
 /* ------------------------------------------------------------------ */
 
@@ -822,6 +883,7 @@ static int em28xx_attach_xc3028(u8 addr, struct em28xx *dev)
 {
 	struct dvb_frontend *fe;
 	struct xc2028_config cfg;
+	struct xc2028_ctrl ctl;
 
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.i2c_adap  = &dev->i2c_adap[dev->def_i2c_bus];
@@ -832,6 +894,10 @@ static int em28xx_attach_xc3028(u8 addr, struct em28xx *dev)
 				"Can't attach xc3028\n");
 		return -EINVAL;
 	}
+
+	memset(&ctl, 0, sizeof(ctl));
+	em28xx_setup_xc3028(dev, &ctl);
+	cfg.ctrl  = &ctl;
 
 	fe = dvb_attach(xc2028_attach, dev->dvb->fe[0], &cfg);
 	if (!fe) {
@@ -986,11 +1052,17 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	int result = 0, mfe_shared = 0;
 	struct em28xx_dvb *dvb;
 
-	if (!dev->board.has_dvb) {
-		/* This device does not support the extension */
-		printk(KERN_INFO "em28xx_dvb: This device does not support the extension\n");
+	if (dev->is_audio_only) {
+		/* Shouldn't initialize IR for this interface */
 		return 0;
 	}
+
+	if (!dev->board.has_dvb) {
+		/* This device does not support the extension */
+		return 0;
+	}
+
+	em28xx_info("Binding DVB extension\n");
 
 	dvb = kzalloc(sizeof(struct em28xx_dvb), GFP_KERNEL);
 
@@ -1353,6 +1425,47 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			result = -EINVAL;
 			goto out_free;
 		}
+	case EM28178_BOARD_PCTV_461E:
+		{
+			/* demod I2C adapter */
+			struct i2c_adapter *i2c_adapter;
+			struct i2c_board_info info;
+			struct m88ts2022_config m88ts2022_config = {
+				.clock = 27000000,
+			};
+			memset(&info, 0, sizeof(struct i2c_board_info));
+
+			/* attach demod */
+			dvb->fe[0] = dvb_attach(m88ds3103_attach,
+					&pctv_461e_m88ds3103_config,
+					&dev->i2c_adap[dev->def_i2c_bus],
+					&i2c_adapter);
+			if (dvb->fe[0] == NULL) {
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			/* attach tuner */
+			m88ts2022_config.fe = dvb->fe[0];
+			strlcpy(info.type, "m88ts2022", I2C_NAME_SIZE);
+			info.addr = 0x60;
+			info.platform_data = &m88ts2022_config;
+			request_module("m88ts2022");
+			dvb->i2c_client_tuner = i2c_new_device(i2c_adapter, &info);
+
+			/* delegate signal strength measurement to tuner */
+			dvb->fe[0]->ops.read_signal_strength =
+					dvb->fe[0]->ops.tuner_ops.get_rf_strength;
+
+			/* attach SEC */
+			if (!dvb_attach(a8293_attach, dvb->fe[0],
+					&dev->i2c_adap[dev->def_i2c_bus],
+					&em28xx_a8293_config)) {
+				dvb_frontend_detach(dvb->fe[0]);
+				result = -ENODEV;
+				goto out_free;
+			}
+		}
 		break;
 	default:
 		em28xx_errdev("/2: The frontend of your DVB/ATSC card"
@@ -1378,7 +1491,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	/* MFE lock */
 	dvb->adapter.mfe_shared = mfe_shared;
 
-	em28xx_info("Successfully loaded em28xx-dvb\n");
+	em28xx_info("DVB extension successfully initialized\n");
 ret:
 	em28xx_set_mode(dev, EM28XX_SUSPEND);
 	mutex_unlock(&dev->lock);
@@ -1399,6 +1512,11 @@ static inline void prevent_sleep(struct dvb_frontend_ops *ops)
 
 static int em28xx_dvb_fini(struct em28xx *dev)
 {
+	if (dev->is_audio_only) {
+		/* Shouldn't initialize IR for this interface */
+		return 0;
+	}
+
 	if (!dev->board.has_dvb) {
 		/* This device does not support the extension */
 		return 0;
@@ -1416,6 +1534,7 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 				prevent_sleep(&dvb->fe[1]->ops);
 		}
 
+		i2c_release_client(dvb->i2c_client_tuner);
 		em28xx_unregister_dvb(dvb);
 		kfree(dvb);
 		dev->dvb = NULL;
