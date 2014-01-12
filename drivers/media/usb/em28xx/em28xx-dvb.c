@@ -829,54 +829,6 @@ static const struct m88ds3103_config pctv_461e_m88ds3103_config = {
 	.agc = 0x99,
 };
 
-static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
-{
-	memset(ctl, 0, sizeof(*ctl));
-
-	ctl->fname   = XC2028_DEFAULT_FIRMWARE;
-	ctl->max_len = 64;
-	ctl->mts = em28xx_boards[dev->model].mts_firmware;
-
-	switch (dev->model) {
-	case EM2880_BOARD_EMPIRE_DUAL_TV:
-	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
-	case EM2882_BOARD_TERRATEC_HYBRID_XS:
-		ctl->demod = XC3028_FE_ZARLINK456;
-		break;
-	case EM2880_BOARD_TERRATEC_HYBRID_XS:
-	case EM2880_BOARD_TERRATEC_HYBRID_XS_FR:
-	case EM2881_BOARD_PINNACLE_HYBRID_PRO:
-		ctl->demod = XC3028_FE_ZARLINK456;
-		break;
-	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
-	case EM2882_BOARD_PINNACLE_HYBRID_PRO_330E:
-		ctl->demod = XC3028_FE_DEFAULT;
-		break;
-	case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:
-		ctl->demod = XC3028_FE_DEFAULT;
-		ctl->fname = XC3028L_DEFAULT_FIRMWARE;
-		break;
-	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850:
-	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
-	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
-		/* FIXME: Better to specify the needed IF */
-		ctl->demod = XC3028_FE_DEFAULT;
-		break;
-	case EM2883_BOARD_KWORLD_HYBRID_330U:
-	case EM2882_BOARD_DIKOM_DK300:
-	case EM2882_BOARD_KWORLD_VS_DVBT:
-		ctl->demod = XC3028_FE_CHINA;
-		ctl->fname = XC2028_DEFAULT_FIRMWARE;
-		break;
-	case EM2882_BOARD_EVGA_INDTUBE:
-		ctl->demod = XC3028_FE_CHINA;
-		ctl->fname = XC3028L_DEFAULT_FIRMWARE;
-		break;
-	default:
-		ctl->demod = XC3028_FE_OREN538;
-	}
-}
-
 /* ------------------------------------------------------------------ */
 
 static int em28xx_attach_xc3028(u8 addr, struct em28xx *dev)
@@ -889,15 +841,15 @@ static int em28xx_attach_xc3028(u8 addr, struct em28xx *dev)
 	cfg.i2c_adap  = &dev->i2c_adap[dev->def_i2c_bus];
 	cfg.i2c_addr  = addr;
 
+	memset(&ctl, 0, sizeof(ctl));
+	em28xx_setup_xc3028(dev, &ctl);
+	cfg.ctrl  = &ctl;
+
 	if (!dev->dvb->fe[0]) {
 		em28xx_errdev("/2: dvb frontend not attached. "
 				"Can't attach xc3028\n");
 		return -EINVAL;
 	}
-
-	memset(&ctl, 0, sizeof(ctl));
-	em28xx_setup_xc3028(dev, &ctl);
-	cfg.ctrl  = &ctl;
 
 	fe = dvb_attach(xc2028_attach, dev->dvb->fe[0], &cfg);
 	if (!fe) {
