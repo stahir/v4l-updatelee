@@ -506,6 +506,8 @@ struct em28xx_audio {
 	unsigned int hwptr_done_capture;
 	struct snd_card            *sndcard;
 
+	size_t period;
+
 	int users;
 	spinlock_t slock;
 };
@@ -547,8 +549,6 @@ struct em28xx {
 	unsigned int has_audio_class:1;
 	unsigned int has_alsa_audio:1;
 	unsigned int is_audio_only:1;
-
-	int audio_ifnum;
 
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -663,6 +663,7 @@ struct em28xx {
 
 	/* usb transfer */
 	struct usb_device *udev;	/* the usb device */
+	u8 ifnum;		/* number of the assigned usb interface */
 	u8 analog_ep_isoc;	/* address of isoc endpoint for analog */
 	u8 analog_ep_bulk;	/* address of bulk endpoint for analog */
 	u8 dvb_ep_isoc;		/* address of isoc endpoint for DVB */

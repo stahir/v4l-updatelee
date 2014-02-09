@@ -155,13 +155,9 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 	/* Check the signature on the key if it appears to be self-signed */
 	if (!cert->authority ||
 	    strcmp(cert->fingerprint, cert->authority) == 0) {
-		ret = x509_check_signature(cert->pub, cert); /* self-signed */
+		ret = x509_check_signature(cert->pub, cert);
 		if (ret < 0)
 			goto error_free_cert;
-	} else {
-		ret = x509_validate_trust(cert, system_trusted_keyring);
-		if (!ret)
-			prep->trusted = 1;
 	}
 
 	/* Propose a description */

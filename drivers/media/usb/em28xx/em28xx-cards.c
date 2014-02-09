@@ -36,7 +36,6 @@
 #include <media/tvaudio.h>
 #include <media/i2c-addr.h>
 #include <media/tveeprom.h>
-#include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
 
 #include "em28xx.h"
@@ -67,7 +66,7 @@ MODULE_PARM_DESC(usb_xfer_mode,
 
 
 /* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS - 1 */
-static unsigned long em28xx_devused;
+static DECLARE_BITMAP(em28xx_devused, EM28XX_MAXBOARDS);
 
 struct em28xx_hash_table {
 	unsigned long hash;
@@ -2794,50 +2793,50 @@ static void em28xx_card_setup(struct em28xx *dev)
 
 void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 {
-	   memset(ctl, 0, sizeof(*ctl));
+	memset(ctl, 0, sizeof(*ctl));
 
-	   ctl->fname   = XC2028_DEFAULT_FIRMWARE;
-	   ctl->max_len = 64;
-	   ctl->mts = em28xx_boards[dev->model].mts_firmware;
+	ctl->fname   = XC2028_DEFAULT_FIRMWARE;
+	ctl->max_len = 64;
+	ctl->mts = em28xx_boards[dev->model].mts_firmware;
 
-	   switch (dev->model) {
-	   case EM2880_BOARD_EMPIRE_DUAL_TV:
-	   case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
-	   case EM2882_BOARD_TERRATEC_HYBRID_XS:
-			   ctl->demod = XC3028_FE_ZARLINK456;
-			   break;
-	   case EM2880_BOARD_TERRATEC_HYBRID_XS:
-	   case EM2880_BOARD_TERRATEC_HYBRID_XS_FR:
-	   case EM2881_BOARD_PINNACLE_HYBRID_PRO:
-			   ctl->demod = XC3028_FE_ZARLINK456;
-			   break;
-	   case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
-	   case EM2882_BOARD_PINNACLE_HYBRID_PRO_330E:
-			   ctl->demod = XC3028_FE_DEFAULT;
-			   break;
-	   case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:
-			   ctl->demod = XC3028_FE_DEFAULT;
-			   ctl->fname = XC3028L_DEFAULT_FIRMWARE;
-			   break;
-	   case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850:
-	   case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
-	   case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
-			   /* FIXME: Better to specify the needed IF */
-			   ctl->demod = XC3028_FE_DEFAULT;
-			   break;
-	   case EM2883_BOARD_KWORLD_HYBRID_330U:
-	   case EM2882_BOARD_DIKOM_DK300:
-	   case EM2882_BOARD_KWORLD_VS_DVBT:
-			   ctl->demod = XC3028_FE_CHINA;
-			   ctl->fname = XC2028_DEFAULT_FIRMWARE;
-			   break;
-	   case EM2882_BOARD_EVGA_INDTUBE:
-			   ctl->demod = XC3028_FE_CHINA;
-			   ctl->fname = XC3028L_DEFAULT_FIRMWARE;
-			   break;
-	   default:
-			   ctl->demod = XC3028_FE_OREN538;
-	   }
+	switch (dev->model) {
+	case EM2880_BOARD_EMPIRE_DUAL_TV:
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+	case EM2882_BOARD_TERRATEC_HYBRID_XS:
+		ctl->demod = XC3028_FE_ZARLINK456;
+		break;
+	case EM2880_BOARD_TERRATEC_HYBRID_XS:
+	case EM2880_BOARD_TERRATEC_HYBRID_XS_FR:
+	case EM2881_BOARD_PINNACLE_HYBRID_PRO:
+		ctl->demod = XC3028_FE_ZARLINK456;
+		break;
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
+	case EM2882_BOARD_PINNACLE_HYBRID_PRO_330E:
+		ctl->demod = XC3028_FE_DEFAULT;
+		break;
+	case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:
+		ctl->demod = XC3028_FE_DEFAULT;
+		ctl->fname = XC3028L_DEFAULT_FIRMWARE;
+		break;
+	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850:
+	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
+	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
+		/* FIXME: Better to specify the needed IF */
+		ctl->demod = XC3028_FE_DEFAULT;
+		break;
+	case EM2883_BOARD_KWORLD_HYBRID_330U:
+	case EM2882_BOARD_DIKOM_DK300:
+	case EM2882_BOARD_KWORLD_VS_DVBT:
+		ctl->demod = XC3028_FE_CHINA;
+		ctl->fname = XC2028_DEFAULT_FIRMWARE;
+		break;
+	case EM2882_BOARD_EVGA_INDTUBE:
+		ctl->demod = XC3028_FE_CHINA;
+		ctl->fname = XC3028L_DEFAULT_FIRMWARE;
+		break;
+	default:
+		ctl->demod = XC3028_FE_OREN538;
+	}
 }
 EXPORT_SYMBOL_GPL(em28xx_setup_xc3028);
 
@@ -2901,16 +2900,18 @@ void em28xx_release_resources(struct em28xx *dev)
 {
 	/*FIXME: I2C IR should be disconnected */
 
+	mutex_lock(&dev->lock);
+
 	if (dev->def_i2c_bus)
 		em28xx_i2c_unregister(dev, 1);
 	em28xx_i2c_unregister(dev, 0);
-	if (dev->clk)
-		v4l2_clk_unregister_fixed(dev->clk);
 
 	usb_put_dev(dev->udev);
 
 	/* Mark device as unused */
-	clear_bit(dev->devno, &em28xx_devused);
+	clear_bit(dev->devno, em28xx_devused);
+
+	mutex_unlock(&dev->lock);
 };
 EXPORT_SYMBOL_GPL(em28xx_release_resources);
 
@@ -3117,7 +3118,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	/* Check to see next free device and mark as used */
 	do {
-		nr = find_first_zero_bit(&em28xx_devused, EM28XX_MAXBOARDS);
+		nr = find_first_zero_bit(em28xx_devused, EM28XX_MAXBOARDS);
 		if (nr >= EM28XX_MAXBOARDS) {
 			/* No free device slots */
 			printk(DRIVER_NAME ": Supports only %i em28xx boards.\n",
@@ -3125,7 +3126,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			retval = -ENOMEM;
 			goto err_no_slot;
 		}
-	} while (test_and_set_bit(nr, &em28xx_devused));
+	} while (test_and_set_bit(nr, em28xx_devused));
 
 	/* Don't register audio interfaces */
 	if (interface->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
@@ -3297,7 +3298,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	dev->has_alsa_audio = has_audio;
 	dev->audio_mode.has_audio = has_audio;
 	dev->has_video = has_video;
-	dev->audio_ifnum = ifnum;
+	dev->ifnum = ifnum;
 
 	/* Checks if audio is provided by some interface */
 	for (i = 0; i < udev->config->desc.bNumInterfaces; i++) {
@@ -3363,26 +3364,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 		em28xx_info("dvb set to %s mode.\n",
 			    dev->dvb_xfer_bulk ? "bulk" : "isoc");
-
-		/* pre-allocate DVB usb transfer buffers */
-		if (dev->dvb_xfer_bulk) {
-			retval = em28xx_alloc_urbs(dev, EM28XX_DIGITAL_MODE,
-					    dev->dvb_xfer_bulk,
-					    EM28XX_DVB_NUM_BUFS,
-					    512,
-					    EM28XX_DVB_BULK_PACKET_MULTIPLIER);
-		} else {
-			retval = em28xx_alloc_urbs(dev, EM28XX_DIGITAL_MODE,
-					    dev->dvb_xfer_bulk,
-					    EM28XX_DVB_NUM_BUFS,
-					    dev->dvb_max_pkt_size_isoc,
-					    EM28XX_DVB_NUM_ISOC_PACKETS);
-		}
-		if (retval) {
-			printk(DRIVER_NAME
-			       ": Failed to pre-allocate USB transfer buffers for DVB.\n");
-			goto err_free;
-		}
 	}
 
 	request_modules(dev);
@@ -3398,7 +3379,7 @@ err_free:
 	kfree(dev);
 
 err:
-	clear_bit(nr, &em28xx_devused);
+	clear_bit(nr, em28xx_devused);
 
 err_no_slot:
 	usb_put_dev(udev);
@@ -3422,37 +3403,13 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 
 	dev->disconnected = 1;
 
-	if (dev->is_audio_only) {
-		em28xx_close_extension(dev);
-		return;
-	}
-
-	em28xx_info("disconnecting %s\n", dev->vdev->name);
+	em28xx_info("Disconnecting %s\n", dev->name);
 
 	flush_request_modules(dev);
 
-	mutex_lock(&dev->lock);
-
-	v4l2_device_disconnect(&dev->v4l2_dev);
-
-	if (dev->users) {
-		em28xx_warn("device %s is open! Deregistration and memory deallocation are deferred on close.\n",
-			    video_device_node_name(dev->vdev));
-
-		em28xx_uninit_usb_xfer(dev, EM28XX_ANALOG_MODE);
-		em28xx_uninit_usb_xfer(dev, EM28XX_DIGITAL_MODE);
-	}
-	mutex_unlock(&dev->lock);
-
 	em28xx_close_extension(dev);
 
-	/* NOTE: must be called BEFORE the resources are released */
-
-	mutex_lock(&dev->lock);
-	if (!dev->users)
-		em28xx_release_resources(dev);
-
-	mutex_unlock(&dev->lock);
+	em28xx_release_resources(dev);
 
 	if (!dev->users) {
 		kfree(dev->alt_max_pkt_size_isoc);
