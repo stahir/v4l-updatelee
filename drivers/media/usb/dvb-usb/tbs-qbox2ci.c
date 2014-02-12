@@ -18,10 +18,6 @@
 
 #include "dvb_ca_en50221.h"
 
-#ifndef USB_PID_TBSQBOX
-#define USB_PID_TBSQBOX 0x5980
-#endif
-
 #define TBSQBOX_READ_MSG 0
 #define TBSQBOX_WRITE_MSG 1
 
@@ -53,12 +49,16 @@ static int tbsqbox2ci_op_rw(struct usb_device *dev, u8 request, u16 value,
 				u16 index, u8 * data, u16 len, int flags)
 {
 	int ret;
-	u8 u8buf[len];
+	u8 *u8buf;
 
 	unsigned int pipe = (flags == TBSQBOX_READ_MSG) ?
 			usb_rcvctrlpipe(dev, 0) : usb_sndctrlpipe(dev, 0);
 	u8 request_type = (flags == TBSQBOX_READ_MSG) ? USB_DIR_IN : 
 								USB_DIR_OUT;
+
+	u8buf = kmalloc(len, GFP_KERNEL);
+	if (!u8buf)
+		return -ENOMEM;
 
 	if (flags == TBSQBOX_WRITE_MSG)
 		memcpy(u8buf, data, len);
@@ -445,7 +445,6 @@ static int tbsqbox2ci_i2c_transfer(struct i2c_adapter *adap,
 			buf6[1] = msg[0].buf[0];
 			tbsqbox2ci_op_rw(d->udev, 0x8a, 0, 0,
 					buf6, 2, TBSQBOX_WRITE_MSG);
-			
 			break;
 		}
 
@@ -482,6 +481,7 @@ static struct stv090x_config earda_config = {
 	.tuner_set_bandwidth    = stb6100_set_bandwidth,
 	.tuner_get_bandwidth    = stb6100_get_bandwidth,
 	.name					= "STV090x TBS QBox2 CI",
+	.offset					= 1,
 };
 
 static struct stb6100_config qbox2_stb6100_config = {
@@ -496,7 +496,7 @@ static struct i2c_algorithm tbsqbox2ci_i2c_algo = {
 
 static int tbsqbox2ci_earda_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	if (!dvb_attach(stb6100_attach, adap->fe_adap->fe, &qbox2_stb6100_config,
+	if (!dvb_attach(stb6100_attach, adap->fe_adap[0].fe, &qbox2_stb6100_config,
 		&adap->dev->i2c_adap))
 		return -EIO;
 
@@ -565,10 +565,10 @@ static int tbsqbox2ci_frontend_attach(struct dvb_usb_adapter *d)
 	mutex_init(&state->ca_mutex);
 
 	if (tbsqbox2ci_properties.adapter->fe->tuner_attach == &tbsqbox2ci_earda_tuner_attach) {
-		d->fe_adap->fe = dvb_attach(stv090x_attach, &earda_config,
+		d->fe_adap[0].fe = dvb_attach(stv090x_attach, &earda_config,
 				&d->dev->i2c_adap, STV090x_DEMODULATOR_0);
-		if (d->fe_adap->fe != NULL) {
-			d->fe_adap->fe->ops.set_voltage = tbsqbox2ci_set_voltage;
+		if (d->fe_adap[0].fe != NULL) {
+			d->fe_adap[0].fe->ops.set_voltage = tbsqbox2ci_set_voltage;
 			info("Attached stv0903!\n");
 
 			buf[0] = 7;
@@ -692,14 +692,13 @@ static int tbsqbox2ci_load_firmware(struct usb_device *dev,
 	int ret = 0, i;
 	u8 reset;
 	const struct firmware *fw;
-	const char *filename = "dvb-usb-tbsqbox-id5980.fw";
 	switch (dev->descriptor.idProduct) {
 	case 0x5980:
-		ret = request_firmware(&fw, filename, &dev->dev);
+		ret = request_firmware(&fw, tbsqbox2ci_properties.firmware, &dev->dev);
 		if (ret != 0) {
 			err("did not find the firmware file. (%s) "
 			"Please see linux/Documentation/dvb/ for more details "
-			"on firmware-problems.", filename);
+			"on firmware-problems.", tbsqbox2ci_properties.firmware);
 			return ret;
 		}
 		break;
@@ -780,9 +779,8 @@ static struct dvb_usb_device_properties tbsqbox2ci_properties = {
 					}
 				}
 			},
-		} },
-	} },
-
+		}},
+	}},
 	.num_device_descs = 1,
 	.devices = {
 		{"TBS Qbox DVB-S2 CI USB2.0",

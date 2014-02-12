@@ -262,6 +262,7 @@ struct stv090x_state {
 	s32				DemodTimeout;
 	s32				FecTimeout;
 	u32				matype;
+	int				offset;
 };
 
 #endif /* __STV090x_PRIV_H */

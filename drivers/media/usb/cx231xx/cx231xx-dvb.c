@@ -152,6 +152,17 @@ static struct tda18271_config pv_tda18271_config = {
 	.small_i2c = TDA18271_03_BYTE_CHUNK_INIT,
 };
 
+static struct lgdt3305_config kworld_ub445_u2_lgdt3305_config = {
+	   .i2c_addr           = 0x0e,
+	   .mpeg_mode          = LGDT3305_MPEG_SERIAL,
+	   .tpclk_edge         = LGDT3305_TPCLK_FALLING_EDGE,
+	   .tpvalid_polarity   = LGDT3305_TP_VALID_HIGH,
+	   .deny_i2c_rptr      = 1,
+	   .spectral_inversion = 1,
+	   .qam_if_khz         = 3600,
+	   .vsb_if_khz         = 3250,
+};
+
 static struct tda18272_config kworld_ub445_v3_config = {
 	.addr		= (0xc0 >> 1),
 	.mode		= TDA18272_MASTER,
@@ -693,7 +704,7 @@ static int dvb_init(struct cx231xx *dev)
 		       __func__, i2c_adapter_id(&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap));
 
 		dev->dvb->frontend = dvb_attach(lgdt3305_attach,
-						&hcw_lgdt3305_config,
+						&kworld_ub445_u2_lgdt3305_config,
 						&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap);
 
 		if (dev->dvb->frontend == NULL) {

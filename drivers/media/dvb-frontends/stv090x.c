@@ -2708,8 +2708,8 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 	state->delsys = stv090x_get_std(state);
 
 	offst_freq = stv090x_get_car_freq(state, state->internal->mclk) / 1000;
-	props->frequency = state->frequency + offst_freq;
-	dprintk(FE_DEBUG, 1, "props->frequency = %d, state->frequency = %d, offst_freq = %d", props->frequency, state->frequency, offst_freq);
+	props->frequency = state->frequency + (offst_freq * state->offset); // Ugly fix for TBS5925/6925's reversed offset sign
+	dprintk(FE_DEBUG, 1, "props->frequency = %d, state->frequency = %d, offst_freq = %d, state->offset = %d", props->frequency, state->frequency, offst_freq, state->offset);
 
 	if (stv090x_get_viterbi(state) < 0)
 		goto err;
@@ -3750,6 +3750,8 @@ static u64 stv090x_read_tbc(struct dvb_frontend *fe)
 	count |= (STV090x_READ_DEMOD(state, FBERCPT3) & 0xff) << 24;
 	count |= (STV090x_READ_DEMOD(state, FBERCPT2) & 0xff) << 16;
 	count |= (STV090x_READ_DEMOD(state, FBERCPT1) & 0xff) << 8;
+	dprintk(FE_ERROR, 1, "%02x %02x %02x %02x", STV090x_READ_DEMOD(state, FBERCPT4), STV090x_READ_DEMOD(state, FBERCPT3), STV090x_READ_DEMOD(state, FBERCPT2), STV090x_READ_DEMOD(state, FBERCPT1));
+
 	return count;
 }
 
@@ -3911,7 +3913,9 @@ static int stv090x_read_cnr(struct dvb_frontend *fe, u16 *cnr)
 	default:
 		break;
 	}
-	*cnr = 0xFFFF - ((val * 0xFFFF) / div);
+	if (div != 0) {
+		*cnr = 0xFFFF - ((val * 0xFFFF) / div);
+	}
 
 	return 0;
 }
@@ -3943,9 +3947,11 @@ static int stv090x_get_stats(struct dvb_frontend *fe, fe_status_t stat)
 
 	c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
 	c->post_bit_error.stat[0].uvalue = stv090x_read_tbe(fe);
+	dprintk(FE_ERROR, 1, "post_bit_error = %d", stv090x_read_tbe(fe));
 
 	c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 	c->post_bit_count.stat[0].uvalue = stv090x_read_tbc(fe);
+	dprintk(FE_ERROR, 1, "post_bit_count = %lu", stv090x_read_tbc(fe));
 
 	return 0;
 }
@@ -5408,6 +5414,7 @@ struct dvb_frontend *stv090x_attach(const struct stv090x_config *config,
 	state->demod_mode 			= config->demod_mode; /* Single or Dual mode */
 	state->device				= config->device;
 	state->rolloff				= STV090x_RO_35; /* default */
+	state->offset				= config->offset;
 
 	temp_int = find_dev(state->i2c,
 				state->config->address);

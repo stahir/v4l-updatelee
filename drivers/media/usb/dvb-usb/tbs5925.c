@@ -16,10 +16,6 @@
 #include "stb6100.h"
 #include "stb6100_cfg.h"
 
-#ifndef USB_PID_TBS5925
-#define USB_PID_TBS5925 0x5925
-#endif
-
 #define TBS5925_READ_MSG 0
 #define TBS5925_WRITE_MSG 1
 
@@ -167,7 +163,8 @@ static struct stv090x_config stv0900_config = {
 	.tuner_set_frequency    = stb6100_set_frequency,
 	.tuner_set_bandwidth    = stb6100_set_bandwidth,
 	.tuner_get_bandwidth    = stb6100_get_bandwidth,
-	.name					= "STV090x TBS 5925",	
+	.name					= "STV090x TBS 5925",
+	.offset					= -1,
 };
 
 static struct stb6100_config stb6100_config = {
@@ -182,7 +179,7 @@ static struct i2c_algorithm tbs5925_i2c_algo = {
 
 static int tbs5925_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	if (!dvb_attach(stb6100_attach, adap->fe_adap->fe, &stb6100_config,
+	if (!dvb_attach(stb6100_attach, adap->fe_adap[0].fe, &stb6100_config,
 		&adap->dev->i2c_adap))
 		return -EIO;
 
@@ -247,10 +244,10 @@ static int tbs5925_frontend_attach(struct dvb_usb_adapter *d)
 	u8 buf[20];
 
 	if (tbs5925_properties.adapter->fe->tuner_attach == &tbs5925_tuner_attach) {
-		d->fe_adap->fe = dvb_attach(stv090x_attach, &stv0900_config,
+		d->fe_adap[0].fe = dvb_attach(stv090x_attach, &stv0900_config,
 					&d->dev->i2c_adap, STV090x_DEMODULATOR_0);
-		if (d->fe_adap->fe != NULL) {
-			d->fe_adap->fe->ops.set_voltage = tbs5925_set_voltage;
+		if (d->fe_adap[0].fe != NULL) {
+			d->fe_adap[0].fe->ops.set_voltage = tbs5925_set_voltage;
 			info("Attached stv0900!\n");
 
 			buf[0] = 6;
@@ -365,14 +362,13 @@ static int tbs5925_load_firmware(struct usb_device *dev,
 	int ret = 0, i;
 	u8 reset;
 	const struct firmware *fw;
-	const char *filename = "dvb-usb-tbsqbox-id5925.fw";
 	switch (dev->descriptor.idProduct) {
 	case 0x5925:
-		ret = request_firmware(&fw, filename, &dev->dev);
+		ret = request_firmware(&fw, tbs5925_properties.firmware, &dev->dev);
 		if (ret != 0) {
 			err("did not find the firmware file. (%s) "
 			"Please see linux/Documentation/dvb/ for more details "
-			"on firmware-problems.", filename);
+			"on firmware-problems.", tbs5925_properties.firmware);
 			return ret;
 		}
 		break;
