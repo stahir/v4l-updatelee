@@ -164,7 +164,8 @@ static struct stv090x_config stv0900_config = {
 	.tuner_set_bandwidth    = stb6100_set_bandwidth,
 	.tuner_get_bandwidth    = stb6100_get_bandwidth,
 	.name					= "STV090x TBS 5925",
-	.offset					= -1,
+	.tun1_iqswap			= 1,
+	.tun2_iqswap			= 1,
 };
 
 static struct stb6100_config stb6100_config = {
@@ -184,6 +185,12 @@ static int tbs5925_tuner_attach(struct dvb_usb_adapter *adap)
 		return -EIO;
 
 	info("Attached stb6100!\n");
+
+	/* call the init function once to initialize
+	   tuner's clock output divider and demod's
+	   master clock */
+	if (adap->fe_adap[0].fe->ops.init)
+		adap->fe_adap[0].fe->ops.init(adap->fe_adap[0].fe);
 
 	return 0;
 }

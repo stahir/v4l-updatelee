@@ -104,7 +104,8 @@ struct stv090x_config {
 	int (*tuner_get_status) (struct dvb_frontend *fe, u32 *status);
 	void (*tuner_i2c_lock) (struct dvb_frontend *fe, int lock);
 	char name[128];
-	int offset;
+	u8 tun1_iqswap:1;
+	u8 tun2_iqswap:1;
 };
 
 #if IS_ENABLED(CONFIG_DVB_STV090x)

@@ -2708,8 +2708,8 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 	state->delsys = stv090x_get_std(state);
 
 	offst_freq = stv090x_get_car_freq(state, state->internal->mclk) / 1000;
-	props->frequency = state->frequency + (offst_freq * state->offset); // Ugly fix for TBS5925/6925's reversed offset sign
-	dprintk(FE_DEBUG, 1, "props->frequency = %d, state->frequency = %d, offst_freq = %d, state->offset = %d", props->frequency, state->frequency, offst_freq, state->offset);
+	props->frequency = state->frequency + offst_freq;
+	dprintk(FE_DEBUG, 1, "props->frequency = %d, state->frequency = %d, offst_freq = %d", props->frequency, state->frequency, offst_freq);
 
 	if (stv090x_get_viterbi(state) < 0)
 		goto err;
@@ -5058,9 +5058,14 @@ static int stv090x_init(struct dvb_frontend *fe)
 		goto err;
 
 	reg = STV090x_READ_DEMOD(state, TNRCFG2);
-	STV090x_SETFIELD_Px(reg, TUN_IQSWAP_FIELD, state->inversion);
+	if (config->tun1_iqswap) {
+		STV090x_SETFIELD_Px(reg, TUN_IQSWAP_FIELD, !state->inversion);
+	} else {
+		STV090x_SETFIELD_Px(reg, TUN_IQSWAP_FIELD, state->inversion);
+	}
 	if (STV090x_WRITE_DEMOD(state, TNRCFG2, reg) < 0)
 		goto err;
+
 	reg = STV090x_READ_DEMOD(state, DEMOD);
 	STV090x_SETFIELD_Px(reg, ROLLOFF_CONTROL_FIELD, state->rolloff);
 	if (STV090x_WRITE_DEMOD(state, DEMOD, reg) < 0)
@@ -5414,7 +5419,6 @@ struct dvb_frontend *stv090x_attach(const struct stv090x_config *config,
 	state->demod_mode 			= config->demod_mode; /* Single or Dual mode */
 	state->device				= config->device;
 	state->rolloff				= STV090x_RO_35; /* default */
-	state->offset				= config->offset;
 
 	temp_int = find_dev(state->i2c,
 				state->config->address);

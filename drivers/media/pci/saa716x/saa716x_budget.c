@@ -467,15 +467,16 @@ static struct stv090x_config tbs6925_stv090x_config = {
 	.ts2_mode		= STV090x_TSMODE_PARALLEL_PUNCTURED,
 
 	.repeater_level		= STV090x_RPTLEVEL_16,
-	.adc1_range			= STV090x_ADC_1Vpp,
-	.tuner_bbgain		= 6,
+	.adc1_range			= STV090x_ADC_2Vpp,
+	.tuner_bbgain		= 8,
 
 	.tuner_get_frequency	= stb6100_get_frequency,
 	.tuner_set_frequency	= stb6100_set_frequency,
 	.tuner_set_bandwidth	= stb6100_set_bandwidth,
 	.tuner_get_bandwidth	= stb6100_get_bandwidth,
 	.name					= "STV090x TBS 6925",
-	.offset					= -1,
+	.tun1_iqswap			= 1,
+	.tun2_iqswap			= 1,
 };
 
 static struct stb6100_config tbs6925_stb6100_config = {
@@ -540,9 +541,6 @@ static int tbs6925_frontend_attach(struct saa716x_adapter *adapter,
 		} else {
 			goto exit;
 		}
-
-		adapter->fe->ops.set_voltage	= tbs6925_set_voltage;
-		adapter->fe->ops.set_frame_ops	= saa716x_set_frame_ops;
 		
 		ctl = dvb_attach(stb6100_attach, adapter->fe, &tbs6925_stb6100_config, &i2c->i2c_adapter);
 		if (ctl) {
@@ -556,6 +554,9 @@ static int tbs6925_frontend_attach(struct saa716x_adapter *adapter,
 		} else {
 			goto exit;
 		}
+
+		adapter->fe->ops.set_voltage	= tbs6925_set_voltage;
+		adapter->fe->ops.set_frame_ops	= saa716x_set_frame_ops;
 
 		dprintk(SAA716x_ERROR, 1, "Done!");
 		return 0;
@@ -612,7 +613,6 @@ static struct stv090x_config skystar2_stv090x_config = {
 	.tuner_set_refclk	= NULL,
 	.tuner_get_status	= NULL,
 	.name					= "STV090x Skystar 2 Express HD",
-	.offset					= 1,
 };
 
 static int skystar2_set_voltage(struct dvb_frontend *fe,
