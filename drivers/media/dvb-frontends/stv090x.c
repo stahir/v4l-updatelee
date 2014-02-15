@@ -3938,6 +3938,7 @@ static int stv090x_get_stats(struct dvb_frontend *fe, fe_status_t stat)
 	default:
 		break;
 	}
+	dprintk(FE_ERROR, 1, "cnr = %lld", c->cnr.stat[0].svalue);
 
 	c->strength.stat[0].scale = FE_SCALE_DECIBEL;
 	c->strength.stat[0].svalue = stv090x_read_dbm(fe) * 10000;
@@ -3951,7 +3952,7 @@ static int stv090x_get_stats(struct dvb_frontend *fe, fe_status_t stat)
 
 	c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 	c->post_bit_count.stat[0].uvalue = stv090x_read_tbc(fe);
-	dprintk(FE_ERROR, 1, "post_bit_count = %lu", stv090x_read_tbc(fe));
+	dprintk(FE_ERROR, 1, "post_bit_count = %llu", stv090x_read_tbc(fe));
 
 	return 0;
 }
