@@ -3904,7 +3904,7 @@ static int stv090x_read_cnr(struct dvb_frontend *fe, u16 *cnr)
 	val = stv090x_read_db_reg(fe);
 	switch (state->delsys) {
 	case STV090x_DVBS2:
-		div = stv090x_s2cn_tab[0].read - stv090x_s2cn_tab[ARRAY_SIZE(stv090x_s1cn_tab) - 1].read;
+		div = stv090x_s2cn_tab[0].read - stv090x_s2cn_tab[ARRAY_SIZE(stv090x_s2cn_tab) - 1].read;
 		break;
 	case STV090x_DVBS1:
 	case STV090x_DSS:

@@ -1,1 +1,3 @@
-saa716x: remove worker_demux
+- saa716x: remove worker_demux
+- stv090x tuning should loop 3x if there is a chance of a lock, else exit out right away
+
