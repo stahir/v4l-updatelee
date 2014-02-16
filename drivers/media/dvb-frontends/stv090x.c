@@ -3796,10 +3796,10 @@ static s32 stv090x_read_db_reg(struct dvb_frontend *fe)
 	case STV090x_DSS:
 		msleep(5);
 		for (i = 0; i < 16; i++) {
-			reg_1 = STV090x_READ_DEMOD(state, NOSDATAT1);
-			val_1 = STV090x_GETFIELD_Px(reg_1, NOSDATAT_UNNORMED_FIELD);
-			reg_0 = STV090x_READ_DEMOD(state, NOSDATAT0);
-			val_0 = STV090x_GETFIELD_Px(reg_0, NOSDATAT_UNNORMED_FIELD);
+			reg_1 = STV090x_READ_DEMOD(state, NNOSDATAT1);
+			val_1 = STV090x_GETFIELD_Px(reg_1, NOSDATAT_NORMED_FIELD);
+			reg_0 = STV090x_READ_DEMOD(state, NNOSDATAT0);
+			val_0 = STV090x_GETFIELD_Px(reg_0, NOSDATAT_NORMED_FIELD);
 			val  += MAKEWORD16(val_1, val_0);
 			msleep(1);
 		}
