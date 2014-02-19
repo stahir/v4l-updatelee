@@ -3741,37 +3741,18 @@ static int stv090x_table_lookup(const struct stv090x_tab *tab, int max, int val)
 	return res;
 }
 
-static u64 stv090x_read_tbc(struct dvb_frontend *fe)
-{
-	struct stv090x_state *state = fe->demodulator_priv;
-	u64 count;
-
-	count  = (STV090x_READ_DEMOD(state, FBERCPT4) & 0xff) << 16 << 16;
-	count |= (STV090x_READ_DEMOD(state, FBERCPT3) & 0xff) << 24;
-	count |= (STV090x_READ_DEMOD(state, FBERCPT2) & 0xff) << 16;
-	count |= (STV090x_READ_DEMOD(state, FBERCPT1) & 0xff) << 8;
-	dprintk(FE_ERROR, 1, "%02x %02x %02x %02x", STV090x_READ_DEMOD(state, FBERCPT4), STV090x_READ_DEMOD(state, FBERCPT3), STV090x_READ_DEMOD(state, FBERCPT2), STV090x_READ_DEMOD(state, FBERCPT1));
-
-	return count;
-}
-
 static u32 stv090x_read_tbe(struct dvb_frontend *fe)
 {
 	struct stv090x_state *state = fe->demodulator_priv;
 	u32 count;
 
-	count  = (STV090x_READ_DEMOD(state, ERRCNT22) & 0x7f) << 16;
-	count |= (STV090x_READ_DEMOD(state, ERRCNT21) & 0xff) << 8;
-	count |= (STV090x_READ_DEMOD(state, ERRCNT20) & 0xff);
+	dprintk(FE_ERROR, 1, "%02x %02x %02x", STV090x_READ_DEMOD(state, ERRCNT12), STV090x_READ_DEMOD(state, ERRCNT11), STV090x_READ_DEMOD(state, ERRCNT10));
+	count  = (STV090x_READ_DEMOD(state, ERRCNT12) & 0x7f) << 16;
+	count |= (STV090x_READ_DEMOD(state, ERRCNT11) & 0xff) << 8;
+	count |= (STV090x_READ_DEMOD(state, ERRCNT10) & 0xff);
+	dprintk(FE_ERROR, 1, "%06x", count);
 
-	if (STV090x_WRITE_DEMOD(state, FBERCPT4, 0) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, ERRCTRL2, 0xc1) < 0)
-		goto err;
 	return count;
-err:
-	dprintk(FE_ERROR, 1, "I/O error");
-	return -1;
 }
 
 static s32 stv090x_read_db_reg(struct dvb_frontend *fe)
@@ -3828,7 +3809,7 @@ static s32 stv090x_read_dbm(struct dvb_frontend *fe)
 		str = 0;
 	else if (agc < stv090x_rf_tab[ARRAY_SIZE(stv090x_rf_tab) - 1].read)
 		str = -100;
-	dprintk(FE_DEBUG, 1, "RFLevel = %d", str);
+//	dprintk(FE_DEBUG, 1, "RFLevel = %d", str);
 	return str;
 }
 
@@ -3938,21 +3919,12 @@ static int stv090x_get_stats(struct dvb_frontend *fe, fe_status_t stat)
 	default:
 		break;
 	}
-	dprintk(FE_ERROR, 1, "cnr = %lld", c->cnr.stat[0].svalue);
-
 	c->strength.stat[0].scale = FE_SCALE_DECIBEL;
 	c->strength.stat[0].svalue = stv090x_read_dbm(fe) * 10000;
-
 	c->block_error.stat[0].scale = FE_SCALE_COUNTER;
 	c->block_error.stat[0].uvalue = stv090x_read_ucb(fe);
-
 	c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
 	c->post_bit_error.stat[0].uvalue = stv090x_read_tbe(fe);
-	dprintk(FE_ERROR, 1, "post_bit_error = %d", stv090x_read_tbe(fe));
-
-	c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
-	c->post_bit_count.stat[0].uvalue = stv090x_read_tbc(fe);
-	dprintk(FE_ERROR, 1, "post_bit_count = %llu", stv090x_read_tbc(fe));
 
 	return 0;
 }
