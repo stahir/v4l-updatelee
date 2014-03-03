@@ -250,7 +250,7 @@ static const struct stv090x_tab stv090x_rf_tab[] = {
 	{ -50, 0x3a14 }, /* -50dBm */
 	{ -55, 0x2d11 }, /* -55dBm */
 	{ -60, 0x210d }, /* -60dBm */
-	{ -65, 0xa14f }, /* -65dBm */
+	{ -65, 0x114f }, /* -65dBm */
 	{ -70, 0x07aa }	 /* -70dBm */
 };
 
