@@ -1664,7 +1664,7 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 		q->buf_struct_size = sizeof(struct s2255_buffer);
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->ops = &s2255_video_qops;
-		q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		ret = vb2_queue_init(q);
 		if (ret != 0) {
 			dev_err(&dev->udev->dev,
@@ -2175,11 +2175,6 @@ static int s2255_stop_acquire(struct s2255_vc *vc)
 
 	mutex_lock(&dev->cmdlock);
 	chn_rev = G_chnmap[vc->idx];
-	buffer = kzalloc(512, GFP_KERNEL);
-	if (buffer == NULL) {
-		dev_err(&dev->udev->dev, "out of mem\n");
-		return -ENOMEM;
-	}
 	/* send the stop command */
 	buffer[0] = IN_DATA_TOKEN;
 	buffer[1] = (__le32) cpu_to_le32(chn_rev);

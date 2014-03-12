@@ -2014,7 +2014,7 @@ static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	return 0;
 }
 
-static int adv7842_get_edid(struct v4l2_subdev *sd, struct v4l2_subdev_edid *edid)
+static int adv7842_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 {
 	struct adv7842_state *state = to_state(sd);
 	u8 *data = NULL;
@@ -2054,7 +2054,7 @@ static int adv7842_get_edid(struct v4l2_subdev *sd, struct v4l2_subdev_edid *edi
 	return 0;
 }
 
-static int adv7842_set_edid(struct v4l2_subdev *sd, struct v4l2_subdev_edid *e)
+static int adv7842_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *e)
 {
 	struct adv7842_state *state = to_state(sd);
 	int err = 0;
@@ -2645,7 +2645,7 @@ static int adv7842_core_init(struct v4l2_subdev *sd)
 	sdp_write_and_or(sd, 0xdd, 0xf0, pdata->sdp_free_run_force |
 					 (pdata->sdp_free_run_cbar_en << 1) |
 					 (pdata->sdp_free_run_man_col_en << 2) |
-					 (pdata->sdp_free_run_force << 3));
+					 (pdata->sdp_free_run_auto << 3));
 
 	/* TODO from platform data */
 	cp_write(sd, 0x69, 0x14);   /* Enable CP CSC */

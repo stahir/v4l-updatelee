@@ -1029,7 +1029,7 @@ static int em28xx_vb2_setup(struct em28xx *dev)
 	q = &dev->vb_vidq;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	q->io_modes = VB2_READ | VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
-	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->drv_priv = dev;
 	q->buf_struct_size = sizeof(struct em28xx_buffer);
 	q->ops = &em28xx_video_qops;
@@ -1043,7 +1043,7 @@ static int em28xx_vb2_setup(struct em28xx *dev)
 	q = &dev->vb_vbiq;
 	q->type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	q->io_modes = VB2_READ | VB2_MMAP | VB2_USERPTR;
-	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->drv_priv = dev;
 	q->buf_struct_size = sizeof(struct em28xx_buffer);
 	q->ops = &em28xx_vbi_qops;
@@ -1837,7 +1837,6 @@ static int em28xx_v4l2_open(struct file *filp)
 			video_device_node_name(vdev), v4l2_type_names[fh_type],
 			dev->users);
 
-
 	if (mutex_lock_interruptible(&dev->lock))
 		return -ERESTARTSYS;
 	fh = kzalloc(sizeof(struct em28xx_fh), GFP_KERNEL);
@@ -1869,6 +1868,7 @@ static int em28xx_v4l2_open(struct file *filp)
 		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_radio);
 	}
 
+	kref_get(&dev->ref);
 	dev->users++;
 
 	mutex_unlock(&dev->lock);
@@ -1926,9 +1926,8 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 		dev->clk = NULL;
 	}
 
-	if (dev->users)
-		em28xx_warn("Device is open ! Memory deallocation is deferred on last close.\n");
 	mutex_unlock(&dev->lock);
+	kref_put(&dev->ref, em28xx_free_device);
 
 	return 0;
 }
@@ -1976,11 +1975,9 @@ static int em28xx_v4l2_close(struct file *filp)
 	mutex_lock(&dev->lock);
 
 	if (dev->users == 1) {
-		/* free the remaining resources if device is disconnected */
-		if (dev->disconnected) {
-			kfree(dev->alt_max_pkt_size_isoc);
+		/* No sense to try to write to the device */
+		if (dev->disconnected)
 			goto exit;
-		}
 
 		/* Save some power by putting tuner to sleep */
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_power, 0);
@@ -2001,6 +1998,8 @@ static int em28xx_v4l2_close(struct file *filp)
 exit:
 	dev->users--;
 	mutex_unlock(&dev->lock);
+	kref_put(&dev->ref, em28xx_free_device);
+
 	return 0;
 }
 
@@ -2514,6 +2513,8 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	em28xx_vb2_setup(dev);
 
 	em28xx_info("V4L2 extension successfully initialized\n");
+
+	kref_get(&dev->ref);
 
 	mutex_unlock(&dev->lock);
 	return 0;

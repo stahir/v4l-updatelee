@@ -1105,6 +1105,10 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 			else if (type != ATSC) /* DVB @6MHz, DTV 8 and DTV 7/8 */
 				offset += 200000;
 		}
+#endif
+	default:
+		tuner_err("Unsupported tuner type %d.\n", new_type);
+		break;
 	}
 
 	div = (freq - offset + DIV / 2) / DIV;
