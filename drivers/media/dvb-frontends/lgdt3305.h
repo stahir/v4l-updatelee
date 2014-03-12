@@ -72,6 +72,7 @@ struct lgdt3305_config {
 	enum lgdt3305_tp_clock_edge tpclk_edge;
 	enum lgdt3305_tp_valid_polarity tpvalid_polarity;
 	enum lgdt_demod_chip_type demod_chip;
+	char name[128];
 };
 
 #if IS_ENABLED(CONFIG_DVB_LGDT3305)

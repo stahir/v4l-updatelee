@@ -30,7 +30,7 @@
 #include "xc5000.h"
 #include "s5h1432.h"
 #include "tda18271.h"
-#include "tda18272.h"
+#include "tda18212.h"
 #include "s5h1411.h"
 #include "lgdt3305.h"
 #include "mb86a20s.h"
@@ -152,22 +152,24 @@ static struct tda18271_config pv_tda18271_config = {
 	.small_i2c = TDA18271_03_BYTE_CHUNK_INIT,
 };
 
-static struct lgdt3305_config kworld_ub445_u2_lgdt3305_config = {
-	   .i2c_addr           = 0x0e,
-	   .mpeg_mode          = LGDT3305_MPEG_SERIAL,
-	   .tpclk_edge         = LGDT3305_TPCLK_FALLING_EDGE,
-	   .tpvalid_polarity   = LGDT3305_TP_VALID_HIGH,
-	   .deny_i2c_rptr      = 1,
-	   .spectral_inversion = 1,
-	   .qam_if_khz         = 3600,
-	   .vsb_if_khz         = 3250,
+static struct lgdt3305_config kworld_ub445_v3_lgdt3305_nogate_dev = {
+	.i2c_addr           = 0x0e,
+	.demod_chip         = LGDT3305,
+	.spectral_inversion = 1,
+	.deny_i2c_rptr      = 1,
+	.mpeg_mode          = LGDT3305_MPEG_SERIAL,
+	.tpclk_edge         = LGDT3305_TPCLK_FALLING_EDGE,
+	.tpvalid_polarity   = LGDT3305_TP_VALID_HIGH,
+	.vsb_if_khz         = 3600,
+	.qam_if_khz         = 3600,
+	.name				= "Kworld 445v3",
 };
 
-static struct tda18272_config kworld_ub445_v3_config = {
-	.addr		= (0xc0 >> 1),
-	.mode		= TDA18272_MASTER,
+static struct tda18212_config kworld_ub435q_v3_config = {
+	.i2c_address    = 0x60,
+	.if_atsc_vsb    = 3600,
+	.if_atsc_qam    = 3600,
 };
-
 
 static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 {
@@ -699,27 +701,23 @@ static int dvb_init(struct cx231xx *dev)
 		}
 		break;
 	case CX231XX_BOARD_KWORLD_UB445_V3:
-
-		printk(KERN_INFO "%s: looking for tuner / demod on i2c bus: %d\n",
-		       __func__, i2c_adapter_id(&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap));
-
 		dev->dvb->frontend = dvb_attach(lgdt3305_attach,
-						&kworld_ub445_u2_lgdt3305_config,
-						&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap);
-
+							   &kworld_ub445_v3_lgdt3305_nogate_dev,
+							   &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap);
 		if (dev->dvb->frontend == NULL) {
 			printk(DRIVER_NAME
-			       ": Failed to attach LG3305 front end\n");
+				   ": Failed to attach LG3305 front end\n");
 			result = -EINVAL;
 			goto out_free;
 		}
 
-		/* define general-purpose callback pointer */
-		dvb->frontend->callback = cx231xx_tuner_callback;
-
-		dvb_attach(tda18272_attach, dev->dvb->frontend,
-			   &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
-			   &kworld_ub445_v3_config);
+		/* Attach the demodulator. */
+		if (!dvb_attach(tda18212_attach, dev->dvb->frontend,
+					   &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+					   &kworld_ub435q_v3_config)) {
+			result = -EINVAL;
+			goto out_free;
+		}
 		break;
 	case CX231XX_BOARD_HAUPPAUGE_EXETER:
 

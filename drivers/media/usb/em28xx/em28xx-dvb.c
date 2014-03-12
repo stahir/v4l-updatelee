@@ -42,7 +42,7 @@
 #include "mt352_priv.h" /* FIXME */
 #include "tda1002x.h"
 #include "tda18271.h"
-#include "tda18272.h"
+#include "tda18212.h"
 #include "s921.h"
 #include "drxd.h"
 #include "cxd2820r.h"
@@ -316,6 +316,19 @@ static struct lgdt3305_config em2874_lgdt3305_dev = {
 	.qam_if_khz         = 4000,
 };
 
+static struct lgdt3305_config em2874_lgdt3305_nogate_dev = {
+	.i2c_addr           = 0x0e,
+	.demod_chip         = LGDT3305,
+	.spectral_inversion = 1,
+	.deny_i2c_rptr      = 1,
+	.mpeg_mode          = LGDT3305_MPEG_SERIAL,
+	.tpclk_edge         = LGDT3305_TPCLK_FALLING_EDGE,
+	.tpvalid_polarity   = LGDT3305_TP_VALID_HIGH,
+	.vsb_if_khz         = 3600,
+	.qam_if_khz         = 3600,
+	.name				= "Kworld 435v3",
+};
+
 static struct s921_config sharp_isdbt = {
 	.demod_address = 0x30 >> 1
 };
@@ -349,9 +362,10 @@ static struct tda18271_config kworld_ub435q_v2_config = {
 	.gate              = TDA18271_GATE_DIGITAL,
 };
 
-static struct tda18272_config kworld_ub435q_v3_config = {
-	.addr		= (0xc0 >> 1),
-	.mode		= TDA18272_MASTER,
+static struct tda18212_config kworld_ub435q_v3_config = {
+	.i2c_address    = 0x60,
+	.if_atsc_vsb    = 3600,
+	.if_atsc_qam    = 3600,
 };
 
 static struct tda18271_config kworld_a340_config = {
@@ -1379,20 +1393,21 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		break;
 	case EM2874_BOARD_KWORLD_UB435Q_V3:
 		dvb->fe[0] = dvb_attach(lgdt3305_attach,
-					&em2874_lgdt3305_dev,
-					&dev->i2c_adap[dev->def_i2c_bus]);
+							   &em2874_lgdt3305_nogate_dev,
+							   &dev->i2c_adap[dev->def_i2c_bus]);
 		if (!dvb->fe[0]) {
 			result = -EINVAL;
 			goto out_free;
 		}
 
 		/* Attach the demodulator. */
-		if (!dvb_attach(tda18272_attach, dvb->fe[0],
-				&dev->i2c_adap[dev->def_i2c_bus],
-				&kworld_ub435q_v3_config)) {
+		if (!dvb_attach(tda18212_attach, dvb->fe[0],
+					   &dev->i2c_adap[dev->def_i2c_bus],
+					   &kworld_ub435q_v3_config)) {
 			result = -EINVAL;
 			goto out_free;
 		}
+		break;
 	case EM28178_BOARD_PCTV_461E:
 		{
 			/* demod I2C adapter */

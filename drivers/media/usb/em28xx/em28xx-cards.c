@@ -189,15 +189,12 @@ static struct em28xx_reg_seq kworld_a340_digital[] = {
 	{	-1,		-1,	-1,		-1},
 };
 
-/*
- * GPIO_0 ON = 3305 wont attach 
- */
-static struct em28xx_reg_seq kworld_ub435q_v3[] = {
-	{EM2874_R80_GPIO_P0_CTRL,	0x00,	0xff,	100},
-	{EM2874_R80_GPIO_P0_CTRL,	0xff,	EM_GPIO_2,	100},
-	{EM2874_R80_GPIO_P0_CTRL,	0xff,	EM_GPIO_4,	100},
-	{EM2874_R80_GPIO_P0_CTRL,	0xff,	EM_GPIO_6,	100},
-	{ -1,			-1,		-1,		-1},
+static struct em28xx_reg_seq kworld_ub435q_v3_digital[] = {
+	{EM2874_R80_GPIO_P0_CTRL,       0xff,   0xff,   100},
+	{EM2874_R80_GPIO_P0_CTRL,       0xfe,   0xff,   100},
+	{EM2874_R80_GPIO_P0_CTRL,       0xbe,   0xff,   100},
+	{EM2874_R80_GPIO_P0_CTRL,       0xfe,   0xff,   100},
+	{       -1,                     -1,     -1,     -1},
 };
 
 /* Pinnacle Hybrid Pro eb1a:2881 */
@@ -2127,14 +2124,17 @@ struct em28xx_board em28xx_boards[] = {
 		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE |
 				EM28XX_I2C_FREQ_400_KHZ,
 	},
-	/* 1b80:e34c KWorld USB ATSC TV Stick UB435-Q V3
-	* Empia EM2874B + LG DT3305 + NXP TDA18272/M */
+	/*
+	* 1b80:e34c KWorld USB ATSC TV Stick UB435-Q V3
+	* Empia EM2874B + LG DT3305 + NXP TDA18271HDC2
+	*/
 	[EM2874_BOARD_KWORLD_UB435Q_V3] = {
-		.name       = "KWorld USB ATSC TV Stick UB435-Q V3",
-		.tuner_type = TUNER_ABSENT,
-		.has_dvb    = 1,
-		.tuner_gpio = kworld_ub435q_v3,
-		.def_i2c_bus  = 1,
+		.name           = "KWorld USB ATSC TV Stick UB435-Q V3",
+		.tuner_type     = TUNER_ABSENT,
+		.has_dvb        = 1,
+		.tuner_gpio     = kworld_ub435q_v3_digital,
+		.def_i2c_bus    = 1,
+		.i2c_speed      = EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_100_KHZ,
 	},
 	/*
 	 * 1b80:e346 KWorld USB ATSC TV Stick UB435-Q V2

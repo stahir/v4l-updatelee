@@ -1136,6 +1136,9 @@ struct dvb_frontend *lgdt3305_attach(const struct lgdt3305_config *config,
 	default:
 		goto fail;
 	}
+	if (strlen(config->name)) {
+		strcpy(state->frontend.ops.info.name, config->name);
+	}
 	state->frontend.demodulator_priv = state;
 
 	/* verify that we're talking to a lg dt3304/5 */
@@ -1164,6 +1167,86 @@ fail:
 }
 EXPORT_SYMBOL(lgdt3305_attach);
 
+static int lgdt3305_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spectrum_scan *s)
+{
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	struct lgdt3305_state *state = fe->demodulator_priv;
+	int x, ret;
+
+	p->frequency		= 0;
+	p->bandwidth_hz		= 1000000;
+	p->delivery_system	= SYS_ATSC;
+	p->modulation		= VSB_8;
+
+	lg_info("%s\n", __func__);
+
+	if (fe->ops.tuner_ops.set_params) {
+		for (x = 0; x < s->num_freq; x++)
+		{
+			p->frequency = *(s->freq + x);
+			lg_info("freq: %d\n", p->frequency);
+
+			if (fe->ops.tuner_ops.set_params) {
+				ret = fe->ops.tuner_ops.set_params(fe);
+				if (fe->ops.i2c_gate_ctrl)
+					fe->ops.i2c_gate_ctrl(fe, 0);
+				if (lg_fail(ret))
+					goto fail;
+				state->current_frequency = p->frequency;
+			}
+
+			ret = lgdt3305_set_modulation(state, p);
+			if (lg_fail(ret))
+				goto fail;
+
+			ret = lgdt3305_passband_digital_agc(state, p);
+			if (lg_fail(ret))
+				goto fail;
+			ret = lgdt3305_set_agc_power_ref(state, p);
+			if (lg_fail(ret))
+				goto fail;
+			ret = lgdt3305_agc_setup(state, p);
+			if (lg_fail(ret))
+				goto fail;
+
+			/* low if */
+			ret = lgdt3305_write_reg(state, LGDT3305_GEN_CONTROL, 0x2f);
+			if (lg_fail(ret))
+				goto fail;
+			ret = lgdt3305_set_reg_bit(state, LGDT3305_CR_CTR_FREQ_1, 6, 1);
+			if (lg_fail(ret))
+				goto fail;
+
+			ret = lgdt3305_set_if(state, p);
+			if (lg_fail(ret))
+				goto fail;
+			ret = lgdt3305_spectral_inversion(state, p,
+							  state->cfg->spectral_inversion
+							  ? 1 : 0);
+			if (lg_fail(ret))
+				goto fail;
+
+			ret = lgdt3305_set_filter_extension(state, p);
+			if (lg_fail(ret))
+				goto fail;
+
+			state->current_modulation = p->modulation;
+			lgdt3305_soft_reset(state);
+			msleep(800);
+
+			lg_info("%d %d %d\n", read_reg(state, LGDT3305_EQ_MSE_1), read_reg(state, LGDT3305_EQ_MSE_2), read_reg(state, LGDT3305_EQ_MSE_3));
+			lg_info("%d %d %d\n", read_reg(state, LGDT3305_PT_MSE_1), read_reg(state, LGDT3305_PT_MSE_2), read_reg(state, LGDT3305_PT_MSE_3));
+			lg_info("%d %d\n", read_reg(state, LGDT3305_CR_MSE_1), read_reg(state, LGDT3305_CR_MSE_2));
+
+			lgdt3305_read_snr(fe, (s->rf_level + x));
+			lg_info("%d\n", *(s->rf_level + x));
+		}
+	}
+	return 0;
+fail:
+	return ret;
+}
+
 static struct dvb_frontend_ops lgdt3304_ops = {
 	.delsys = { SYS_DVBC_ANNEX_B, SYS_ATSC },
 	.info = {
@@ -1171,7 +1254,7 @@ static struct dvb_frontend_ops lgdt3304_ops = {
 		.frequency_min      = 54000000,
 		.frequency_max      = 858000000,
 		.frequency_stepsize = 62500,
-		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
+		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB | FE_CAN_SPECTRUMSCAN
 	},
 	.i2c_gate_ctrl        = lgdt3305_i2c_gate_ctrl,
 	.init                 = lgdt3305_init,
@@ -1184,6 +1267,7 @@ static struct dvb_frontend_ops lgdt3304_ops = {
 	.read_snr             = lgdt3305_read_snr,
 	.read_ucblocks        = lgdt3305_read_ucblocks,
 	.release              = lgdt3305_release,
+	.get_spectrum_scan    = lgdt3305_get_spectrum_scan,
 };
 
 static struct dvb_frontend_ops lgdt3305_ops = {
@@ -1193,7 +1277,7 @@ static struct dvb_frontend_ops lgdt3305_ops = {
 		.frequency_min      = 54000000,
 		.frequency_max      = 858000000,
 		.frequency_stepsize = 62500,
-		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
+		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB | FE_CAN_SPECTRUMSCAN
 	},
 	.i2c_gate_ctrl        = lgdt3305_i2c_gate_ctrl,
 	.init                 = lgdt3305_init,
@@ -1207,6 +1291,7 @@ static struct dvb_frontend_ops lgdt3305_ops = {
 	.read_snr             = lgdt3305_read_snr,
 	.read_ucblocks        = lgdt3305_read_ucblocks,
 	.release              = lgdt3305_release,
+	.get_spectrum_scan    = lgdt3305_get_spectrum_scan,
 };
 
 MODULE_DESCRIPTION("LG Electronics LGDT3304/5 ATSC/QAM-B Demodulator Driver");
