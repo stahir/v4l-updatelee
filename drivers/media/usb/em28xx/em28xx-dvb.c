@@ -378,12 +378,6 @@ static struct tda18271_config kworld_a340_config = {
 	.std_map           = &kworld_a340_std_map,
 };
 
-static struct tda18212_config kworld_ub435q_v3_config = {
-	.i2c_address	= 0x60,
-	.if_atsc_vsb	= 3600,
-	.if_atsc_qam	= 3600,
-};
-
 static struct zl10353_config em28xx_zl10353_xc3028_no_i2c_gate = {
 	.demod_address = (0x1e >> 1),
 	.no_tuner = 1,
