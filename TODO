@@ -1,3 +1,2 @@
 - saa716x: remove worker_demux
-- stv090x tuning should loop 3x if there is a chance of a lock, else exit out right away
-
+- stv090x should have two types of locking, normal (default right now) and slow (SR = 1000 and loops 3x before failing)
