@@ -1088,6 +1088,30 @@ err:
 }
 EXPORT_SYMBOL(rtl2832_attach);
 
+static int rtl2832_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spectrum_scan *s)
+{
+	int x;
+
+	fe->dtv_property_cache.frequency		= 0;
+	fe->dtv_property_cache.bandwidth_hz		= 6000000;
+	fe->dtv_property_cache.delivery_system	= SYS_DVBT;
+	fe->dtv_property_cache.modulation		= QPSK;
+
+	rtl2832_set_frontend(fe);
+	msleep(250);
+
+	if (fe->ops.tuner_ops.set_params)
+		for (x = 0; x < s->num_freq; x++)
+		{
+			fe->dtv_property_cache.frequency = *(s->freq + x);
+			fe->ops.tuner_ops.set_params(fe);
+			msleep(250);
+			fe->ops.tuner_ops.get_rf_strength(fe, (s->rf_level + x));
+		}
+
+	return 0;
+}
+
 static struct dvb_frontend_ops rtl2832_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
@@ -1109,7 +1133,8 @@ static struct dvb_frontend_ops rtl2832_ops = {
 			FE_CAN_GUARD_INTERVAL_AUTO |
 			FE_CAN_HIERARCHY_AUTO |
 			FE_CAN_RECOVER |
-			FE_CAN_MUTE_TS
+			FE_CAN_MUTE_TS |
+			FE_CAN_SPECTRUMSCAN
 	 },
 
 	.release = rtl2832_release,
@@ -1127,6 +1152,8 @@ static struct dvb_frontend_ops rtl2832_ops = {
 	.read_ber = rtl2832_read_ber,
 
 	.i2c_gate_ctrl = rtl2832_i2c_gate_ctrl,
+
+	.get_spectrum_scan    = rtl2832_get_spectrum_scan,
 };
 
 MODULE_AUTHOR("Thomas Mair <mair.thomas86@gmail.com>");

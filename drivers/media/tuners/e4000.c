@@ -120,7 +120,7 @@ static int e4000_set_params(struct dvb_frontend *fe)
 	u64 f_vco;
 	u8 buf[5], i_data[4], q_data[4];
 
-	dev_dbg(&s->client->dev,
+	dev_err(&s->client->dev,
 			"%s: delivery_system=%d frequency=%u bandwidth_hz=%u\n",
 			__func__, c->delivery_system, c->frequency,
 			c->bandwidth_hz);
@@ -150,7 +150,7 @@ static int e4000_set_params(struct dvb_frontend *fe)
 	buf[3] = 0x00;
 	buf[4] = e4000_pll_lut[i].div;
 
-	dev_dbg(&s->client->dev,
+	dev_err(&s->client->dev,
 			"%s: f_vco=%llu pll div=%d sigma_delta=%04x\n",
 			__func__, f_vco, buf[0], sigma_delta);
 
@@ -253,7 +253,7 @@ static int e4000_set_params(struct dvb_frontend *fe)
 		goto err;
 err:
 	if (ret)
-		dev_dbg(&s->client->dev, "%s: failed=%d\n", __func__, ret);
+		dev_err(&s->client->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -267,6 +267,18 @@ static int e4000_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 	*frequency = 0; /* Zero-IF */
 
 	return 0;
+}
+
+static int e4000_rf_strength(struct dvb_frontend *fe, u16 *strength)
+{
+	struct e4000 *s = fe->tuner_priv;
+	int ret;
+	unsigned int lvl;
+	ret = regmap_read(s->regmap, 0x1c, &lvl);
+	*strength = (u16)lvl;
+
+	dev_err(&s->client->dev, "%s: %d %d\n", __func__, *strength, lvl);
+	return ret;
 }
 
 #if IS_ENABLED(CONFIG_VIDEO_V4L2)
@@ -470,7 +482,8 @@ static const struct dvb_tuner_ops e4000_tuner_ops = {
 	.sleep = e4000_sleep,
 	.set_params = e4000_set_params,
 
-	.get_if_frequency = e4000_get_if_frequency,
+	.get_if_frequency	= e4000_get_if_frequency,
+	.get_rf_strength	= e4000_rf_strength,
 };
 
 /*
