@@ -591,16 +591,14 @@ static void *fq_alloc_node(size_t sz, int node)
 
 static void fq_free(void *addr)
 {
-	if (addr && is_vmalloc_addr(addr))
-		vfree(addr);
-	else
-		kfree(addr);
+	kvfree(addr);
 }
 
 static int fq_resize(struct Qdisc *sch, u32 log)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
 	struct rb_root *array;
+	void *old_fq_root;
 	u32 idx;
 
 	if (q->fq_root && log == q->fq_trees_log)
@@ -615,12 +613,18 @@ static int fq_resize(struct Qdisc *sch, u32 log)
 	for (idx = 0; idx < (1U << log); idx++)
 		array[idx] = RB_ROOT;
 
-	if (q->fq_root) {
-		fq_rehash(q, q->fq_root, q->fq_trees_log, array, log);
-		fq_free(q->fq_root);
-	}
+	sch_tree_lock(sch);
+
+	old_fq_root = q->fq_root;
+	if (old_fq_root)
+		fq_rehash(q, old_fq_root, q->fq_trees_log, array, log);
+
 	q->fq_root = array;
 	q->fq_trees_log = log;
+
+	sch_tree_unlock(sch);
+
+	fq_free(old_fq_root);
 
 	return 0;
 }
@@ -697,9 +701,11 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 		q->flow_refill_delay = usecs_to_jiffies(usecs_delay);
 	}
 
-	if (!err)
+	if (!err) {
+		sch_tree_unlock(sch);
 		err = fq_resize(sch, fq_log);
-
+		sch_tree_lock(sch);
+	}
 	while (sch->q.qlen > sch->limit) {
 		struct sk_buff *skb = fq_dequeue(sch);
 
@@ -772,8 +778,7 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	    nla_put_u32(skb, TCA_FQ_BUCKETS_LOG, q->fq_trees_log))
 		goto nla_put_failure;
 
-	nla_nest_end(skb, opts);
-	return skb->len;
+	return nla_nest_end(skb, opts);
 
 nla_put_failure:
 	return -1;

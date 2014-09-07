@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/init.h>
@@ -2087,6 +2083,7 @@ static int cx23885_initdev(struct pci_dev *pci_dev,
 			   const struct pci_device_id *pci_id)
 {
 	struct cx23885_dev *dev;
+	struct v4l2_ctrl_handler *hdl;
 	int err;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -2097,6 +2094,14 @@ static int cx23885_initdev(struct pci_dev *pci_dev,
 	if (err < 0)
 		goto fail_free;
 
+	hdl = &dev->ctrl_handler;
+	v4l2_ctrl_handler_init(hdl, 6);
+	if (hdl->error) {
+		err = hdl->error;
+		goto fail_ctrl;
+	}
+	dev->v4l2_dev.ctrl_handler = hdl;
+
 	/* Prepare to handle notifications from subdevices */
 	cx23885_v4l2_dev_notify_init(dev);
 
@@ -2104,12 +2109,12 @@ static int cx23885_initdev(struct pci_dev *pci_dev,
 	dev->pci = pci_dev;
 	if (pci_enable_device(pci_dev)) {
 		err = -EIO;
-		goto fail_unreg;
+		goto fail_ctrl;
 	}
 
 	if (cx23885_dev_setup(dev) < 0) {
 		err = -EINVAL;
-		goto fail_unreg;
+		goto fail_ctrl;
 	}
 
 	/* print pci info */
@@ -2157,7 +2162,8 @@ static int cx23885_initdev(struct pci_dev *pci_dev,
 
 fail_irq:
 	cx23885_dev_unregister(dev);
-fail_unreg:
+fail_ctrl:
+	v4l2_ctrl_handler_free(hdl);
 	v4l2_device_unregister(&dev->v4l2_dev);
 fail_free:
 	kfree(dev);
@@ -2180,6 +2186,7 @@ static void cx23885_finidev(struct pci_dev *pci_dev)
 	free_irq(pci_dev->irq, dev);
 
 	cx23885_dev_unregister(dev);
+	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 	v4l2_device_unregister(v4l2_dev);
 	kfree(dev);
 }

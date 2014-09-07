@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/pci.h>
@@ -25,6 +21,8 @@
 #include <linux/slab.h>
 
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
+#include <media/v4l2-ctrls.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
@@ -96,6 +94,8 @@
 #define CX23885_BOARD_TBS_6981                 40
 #define CX23885_BOARD_TBS_6980                 41
 #define CX23885_BOARD_LEADTEK_WINFAST_PXPVR2200 42
+#define CX23885_BOARD_HAUPPAUGE_IMPACTVCBE     43
+#define CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP2 44
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002
@@ -129,14 +129,6 @@ struct cx23885_fmt {
 	u32   cxformat;
 };
 
-struct cx23885_ctrl {
-	struct v4l2_queryctrl v;
-	u32                   off;
-	u32                   reg;
-	u32                   mask;
-	u32                   shift;
-};
-
 struct cx23885_tvnorm {
 	char		*name;
 	v4l2_std_id	id;
@@ -145,19 +137,9 @@ struct cx23885_tvnorm {
 };
 
 struct cx23885_fh {
-	struct cx23885_dev         *dev;
-	enum v4l2_buf_type         type;
-	int                        radio;
+	struct v4l2_fh		   fh;
 	u32                        resources;
-
-	/* video overlay */
-	struct v4l2_window         win;
-	struct v4l2_clip           *clips;
-	unsigned int               nclips;
-
-	/* video capture */
-	struct cx23885_fmt         *fmt;
-	unsigned int               width, height;
+	struct cx23885_dev         *q_dev;
 
 	/* vbi capture */
 	struct videobuf_queue      vidq;
@@ -338,7 +320,10 @@ struct cx23885_kernel_ir {
 struct cx23885_audio_buffer {
 	unsigned int		bpl;
 	struct btcx_riscmem	risc;
-	struct videobuf_dmabuf	dma;
+	void			*vaddr;
+	struct scatterlist	*sglist;
+	int                     sglen;
+	int                     nr_pages;
 };
 
 struct cx23885_audio_dev {
@@ -356,8 +341,6 @@ struct cx23885_audio_dev {
 	unsigned int		period_size;
 	unsigned int		num_periods;
 
-	struct videobuf_dmabuf	*dma_risc;
-
 	struct cx23885_audio_buffer   *buf;
 
 	struct snd_pcm_substream *substream;
@@ -366,6 +349,7 @@ struct cx23885_audio_dev {
 struct cx23885_dev {
 	atomic_t                   refcount;
 	struct v4l2_device 	   v4l2_dev;
+	struct v4l2_ctrl_handler   ctrl_handler;
 
 	/* pci stuff */
 	struct pci_dev             *pci;
@@ -415,7 +399,6 @@ struct cx23885_dev {
 	unsigned int               tuner_bus;
 	unsigned int               radio_type;
 	unsigned char              radio_addr;
-	unsigned int               has_radio;
 	struct v4l2_subdev 	   *sd_cx25840;
 	struct work_struct	   cx25840_work;
 
@@ -433,7 +416,10 @@ struct cx23885_dev {
 	u32                        freq;
 	struct video_device        *video_dev;
 	struct video_device        *vbi_dev;
-	struct video_device        *radio_dev;
+
+	/* video capture */
+	struct cx23885_fmt         *fmt;
+	unsigned int               width, height;
 
 	struct cx23885_dmaqueue    vidq;
 	struct cx23885_dmaqueue    vbiq;
@@ -441,7 +427,7 @@ struct cx23885_dev {
 
 	/* MPEG Encoder ONLY settings */
 	u32                        cx23417_mailbox;
-	struct cx2341x_mpeg_params mpeg_params;
+	struct cx2341x_handler     cxhdl;
 	struct video_device        *v4l_device;
 	atomic_t                   v4l_reader_count;
 	struct cx23885_tvnorm      encodernorm;
@@ -593,8 +579,6 @@ int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i);
 int cx23885_set_input(struct file *file, void *priv, unsigned int i);
 int cx23885_get_input(struct file *file, void *priv, unsigned int *i);
 int cx23885_set_frequency(struct file *file, void *priv, const struct v4l2_frequency *f);
-int cx23885_set_control(struct cx23885_dev *dev, struct v4l2_control *ctl);
-int cx23885_get_control(struct cx23885_dev *dev, struct v4l2_control *ctl);
 int cx23885_set_tvnorm(struct cx23885_dev *dev, v4l2_std_id norm);
 
 /* ----------------------------------------------------------- */

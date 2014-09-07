@@ -65,7 +65,7 @@ void blk_execute_rq_nowait(struct request_queue *q, struct gendisk *bd_disk,
 	 * be resued after dying flag is set
 	 */
 	if (q->mq_ops) {
-		blk_mq_insert_request(q, rq, at_head, true);
+		blk_mq_insert_request(rq, at_head, true, false);
 		return;
 	}
 
@@ -131,6 +131,11 @@ int blk_execute_rq(struct request_queue *q, struct gendisk *bd_disk,
 
 	if (rq->errors)
 		err = -EIO;
+
+	if (rq->sense == sense)	{
+		rq->sense = NULL;
+		rq->sense_len = 0;
+	}
 
 	return err;
 }

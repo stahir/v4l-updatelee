@@ -330,8 +330,6 @@ static int __qlcnic_dcb_attach(struct qlcnic_dcb *dcb)
 		goto out_free_cfg;
 	}
 
-	qlcnic_dcb_get_info(dcb);
-
 	return 0;
 out_free_cfg:
 	kfree(dcb->cfg);
@@ -807,7 +805,7 @@ qlcnic_dcb_get_pg_tc_cfg_tx(struct net_device *netdev, int tc, u8 *prio,
 	    !type->tc_param_valid)
 		return;
 
-	if (tc < 0 || (tc > QLC_DCB_MAX_TC))
+	if (tc < 0 || (tc >= QLC_DCB_MAX_TC))
 		return;
 
 	tc_cfg = &type->tc_cfg[tc];
@@ -843,7 +841,7 @@ static void qlcnic_dcb_get_pg_bwg_cfg_tx(struct net_device *netdev, int pgid,
 	    !type->tc_param_valid)
 		return;
 
-	if (pgid < 0 || pgid > QLC_DCB_MAX_PG)
+	if (pgid < 0 || pgid >= QLC_DCB_MAX_PG)
 		return;
 
 	pgcfg = &type->pg_cfg[pgid];
@@ -928,7 +926,7 @@ static int qlcnic_dcb_get_num_tcs(struct net_device *netdev, int attr, u8 *num)
 	}
 }
 
-static u8 qlcnic_dcb_get_app(struct net_device *netdev, u8 idtype, u16 id)
+static int qlcnic_dcb_get_app(struct net_device *netdev, u8 idtype, u16 id)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct dcb_app app = {
@@ -937,7 +935,7 @@ static u8 qlcnic_dcb_get_app(struct net_device *netdev, u8 idtype, u16 id)
 			     };
 
 	if (!test_bit(QLCNIC_DCB_STATE, &adapter->dcb->state))
-		return 0;
+		return -EINVAL;
 
 	return dcb_getapp(netdev, &app);
 }
@@ -1022,6 +1020,7 @@ static int qlcnic_dcb_peer_app_info(struct net_device *netdev,
 	struct qlcnic_dcb_cee *peer;
 	int i;
 
+	memset(info, 0, sizeof(*info));
 	*app_count = 0;
 
 	if (!test_bit(QLCNIC_DCB_STATE, &adapter->dcb->state))

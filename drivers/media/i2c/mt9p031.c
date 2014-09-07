@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/of_graph.h>
 #include <linux/pm.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -29,7 +30,6 @@
 #include <media/mt9p031.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-of.h>
 #include <media/v4l2-subdev.h>
 
 #include "aptina-pll.h"
@@ -647,6 +647,28 @@ static int mt9p031_set_crop(struct v4l2_subdev *subdev,
 #define V4L2_CID_BLC_ANALOG_OFFSET	(V4L2_CID_USER_BASE | 0x1004)
 #define V4L2_CID_BLC_DIGITAL_OFFSET	(V4L2_CID_USER_BASE | 0x1005)
 
+static int mt9p031_restore_blc(struct mt9p031 *mt9p031)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&mt9p031->subdev);
+	int ret;
+
+	if (mt9p031->blc_auto->cur.val != 0) {
+		ret = mt9p031_set_mode2(mt9p031, 0,
+					MT9P031_READ_MODE_2_ROW_BLC);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (mt9p031->blc_offset->cur.val != 0) {
+		ret = mt9p031_write(client, MT9P031_ROW_BLACK_TARGET,
+				    mt9p031->blc_offset->cur.val);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct mt9p031 *mt9p031 =
@@ -654,6 +676,9 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9p031->subdev);
 	u16 data;
 	int ret;
+
+	if (ctrl->flags & V4L2_CTRL_FLAG_INACTIVE)
+		return 0;
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
@@ -709,18 +734,20 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 					MT9P031_READ_MODE_2_ROW_MIR, 0);
 
 	case V4L2_CID_TEST_PATTERN:
+		/* The digital side of the Black Level Calibration function must
+		 * be disabled when generating a test pattern to avoid artifacts
+		 * in the image. Activate (deactivate) the BLC-related controls
+		 * when the test pattern is enabled (disabled).
+		 */
+		v4l2_ctrl_activate(mt9p031->blc_auto, ctrl->val == 0);
+		v4l2_ctrl_activate(mt9p031->blc_offset, ctrl->val == 0);
+
 		if (!ctrl->val) {
-			/* Restore the black level compensation settings. */
-			if (mt9p031->blc_auto->cur.val != 0) {
-				ret = mt9p031_s_ctrl(mt9p031->blc_auto);
-				if (ret < 0)
-					return ret;
-			}
-			if (mt9p031->blc_offset->cur.val != 0) {
-				ret = mt9p031_s_ctrl(mt9p031->blc_offset);
-				if (ret < 0)
-					return ret;
-			}
+			/* Restore the BLC settings. */
+			ret = mt9p031_restore_blc(mt9p031);
+			if (ret < 0)
+				return ret;
+
 			return mt9p031_write(client, MT9P031_TEST_PATTERN,
 					     MT9P031_TEST_PATTERN_DISABLE);
 		}
@@ -735,9 +762,7 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (ret < 0)
 			return ret;
 
-		/* Disable digital black level compensation when using a test
-		 * pattern.
-		 */
+		/* Disable digital BLC when generating a test pattern. */
 		ret = mt9p031_set_mode2(mt9p031, MT9P031_READ_MODE_2_ROW_BLC,
 					0);
 		if (ret < 0)
@@ -984,7 +1009,7 @@ mt9p031_get_pdata(struct i2c_client *client)
 	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
 		return client->dev.platform_data;
 
-	np = v4l2_of_get_next_endpoint(client->dev.of_node, NULL);
+	np = of_graph_get_next_endpoint(client->dev.of_node, NULL);
 	if (!np)
 		return NULL;
 

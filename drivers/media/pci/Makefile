@@ -10,7 +10,6 @@ obj-y        +=	ttpci/		\
 		mantis/		\
 		ngene/		\
 		ddbridge/	\
-		b2c2/		\
 		saa7146/
 
 obj-$(CONFIG_VIDEO_IVTV) += ivtv/
@@ -26,4 +25,4 @@ obj-$(CONFIG_VIDEO_MEYE) += meye/
 obj-$(CONFIG_STA2X11_VIP) += sta2x11/
 obj-$(CONFIG_SAA716X_CORE) += saa716x/
 obj-$(CONFIG_SAA7231_CORE) += saa7231/
-
+obj-$(CONFIG_VIDEO_SOLO6X10) += solo6x10/

@@ -406,8 +406,9 @@ void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save)
 	for (i = 0; i < rdev->num_crtc; i++) {
 		if (save->crtc_enabled[i]) {
 			tmp = RREG32(AVIVO_D1MODE_MASTER_UPDATE_MODE + crtc_offsets[i]);
-			if ((tmp & 0x3) != 0) {
-				tmp &= ~0x3;
+			if ((tmp & 0x7) != 3) {
+				tmp &= ~0x7;
+				tmp |= 0x3;
 				WREG32(AVIVO_D1MODE_MASTER_UPDATE_MODE + crtc_offsets[i], tmp);
 			}
 			tmp = RREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i]);
@@ -585,8 +586,6 @@ int rv515_resume(struct radeon_device *rdev)
 	rv515_clock_startup(rdev);
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
-
-	radeon_pm_resume(rdev);
 
 	rdev->accel_working = true;
 	r =  rv515_startup(rdev);
