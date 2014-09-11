@@ -270,12 +270,15 @@ int cx23885_audio_irq(struct cx23885_dev *dev, u32 status, u32 mask)
 
 static int dsp_buffer_free(struct cx23885_audio_dev *chip)
 {
+	struct cx23885_riscmem *risc;
+
 	BUG_ON(!chip->dma_size);
 
 	dprintk(2, "Freeing buffer\n");
 	cx23885_alsa_dma_unmap(chip);
 	cx23885_alsa_dma_free(chip->buf);
-	btcx_riscmem_free(chip->pci, &chip->buf->risc);
+	risc = &chip->buf->risc;
+	pci_free_consistent(chip->pci, risc->size, risc->cpu, risc->dma);
 	kfree(chip->buf);
 
 	chip->buf = NULL;
@@ -389,6 +392,7 @@ static int snd_cx23885_hw_params(struct snd_pcm_substream *substream,
 		return -ENOMEM;
 
 	buf->bpl = chip->period_size;
+	chip->buf = buf;
 
 	ret = cx23885_alsa_dma_init(chip,
 			(PAGE_ALIGN(chip->dma_size) >> PAGE_SHIFT));
@@ -409,8 +413,6 @@ static int snd_cx23885_hw_params(struct snd_pcm_substream *substream,
 	buf->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 	buf->risc.jmp[2] = cpu_to_le32(0); /* bits 63-32 */
 
-	chip->buf = buf;
-
 	substream->runtime->dma_area = chip->buf->vaddr;
 	substream->runtime->dma_bytes = chip->dma_size;
 	substream->runtime->dma_addr = 0;
@@ -419,6 +421,7 @@ static int snd_cx23885_hw_params(struct snd_pcm_substream *substream,
 
 error:
 	kfree(buf);
+	chip->buf = NULL;
 	return ret;
 }
 
