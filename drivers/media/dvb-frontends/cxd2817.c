@@ -290,8 +290,7 @@ out:
 	return ret;
 }
 
-static int cxd2817_dvbt_params(struct cxd2817_dev *cxd2817,
-	struct dvb_frontend_parameters *p)
+static int cxd2817_dvbt_params(struct cxd2817_dev *cxd2817)
 {
 	struct dvb_frontend *fe = &cxd2817->fe;
 	const struct cxd2817_config *cfg = cxd2817->cfg;
@@ -372,7 +371,7 @@ static int cxd2817_dvbt_params(struct cxd2817_dev *cxd2817,
 		goto err;
 
 	if (fe->ops.tuner_ops.set_params) {
-		ret = fe->ops.tuner_ops.set_params(fe,p);
+		ret = fe->ops.tuner_ops.set_params(fe);
 		if (ret)
 			goto err;
 	}
@@ -428,8 +427,8 @@ static int cxd2817_dvbt_params(struct cxd2817_dev *cxd2817,
 		ret = -EINVAL;
 		goto out;
 	}
-	if (fe->ops.tuner_ops.get_frequency) {
-		ret = fe->ops.tuner_ops.get_frequency(fe, &if_freq);
+	if (fe->ops.tuner_ops.get_if_frequency) {
+		ret = fe->ops.tuner_ops.get_if_frequency(fe, &if_freq);
 		if (ret) {
 			dprintk(FE_ERROR, 1, "ERROR: get_if!!");
 			goto err;
@@ -625,8 +624,8 @@ static int cxd2817_dvbc_setup(struct cxd2817_dev *cxd2817)
 	if (ret)
 		goto err;
 
-	if (fe->ops.tuner_ops.get_frequency) {
-		ret = fe->ops.tuner_ops.get_frequency(fe, &if_freq);
+	if (fe->ops.tuner_ops.get_if_frequency) {
+		ret = fe->ops.tuner_ops.get_if_frequency(fe, &if_freq);
 		if (ret) {
 			dprintk(FE_ERROR, 1, "ERROR: get_if!!");
 			goto err;
@@ -687,8 +686,7 @@ out:
 
 #define DEF_PIO			0x08
 
-static int cxd2817_tune(struct cxd2817_dev *cxd2817, enum cxd2817_delsys delsys,
-	struct dvb_frontend_parameters *p)
+static int cxd2817_tune(struct cxd2817_dev *cxd2817, enum cxd2817_delsys delsys)
 {
 	struct dvb_frontend *fe = &cxd2817->fe;
 	struct dtv_frontend_properties *props	= &fe->dtv_property_cache;
@@ -717,7 +715,7 @@ static int cxd2817_tune(struct cxd2817_dev *cxd2817, enum cxd2817_delsys delsys,
 		ret = cxd2817_dvbt_setup(cxd2817);
 		if (ret)
 			goto err;
-		ret = cxd2817_dvbt_params(cxd2817,p);
+		ret = cxd2817_dvbt_params(cxd2817);
 		if (ret)
 			goto err;
 	} else if (cxd2817->delsys == CXD2817_DVBC) {
@@ -1203,8 +1201,7 @@ static int cxd2817_get_frontend_algo(struct dvb_frontend *fe)
 	return DVBFE_ALGO_CUSTOM;
 }
 
-static enum dvbfe_search cxd2817_search(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+static enum dvbfe_search cxd2817_search(struct dvb_frontend *fe)
 {
 	struct cxd2817_dev *cxd2817		= fe->demodulator_priv;
 	struct dtv_frontend_properties *props	= &fe->dtv_property_cache;
@@ -1233,11 +1230,11 @@ static enum dvbfe_search cxd2817_search(struct dvb_frontend *fe,
 
 	dprintk(FE_DEBUG, 1, "CXD2817 Delsys:%d", delsys);
 	if (fe->ops.tuner_ops.set_params) {
-		ret = fe->ops.tuner_ops.set_params(fe,p);
+		ret = fe->ops.tuner_ops.set_params(fe);
 		if (ret)
 			goto err;
 	}
-	ret = cxd2817_tune(cxd2817, delsys, p);
+	ret = cxd2817_tune(cxd2817, delsys);
 	if (ret)
 		goto err;
 
@@ -1277,8 +1274,8 @@ out:
 }
 
 static struct dvb_frontend_ops cxd2817_ops = {
+	.delsys = { SYS_DVBT, SYS_DVBC_ANNEX_A },
 	.info = {
-		.type = FE_OFDM,
 		.name			= "Sony CXD2817",
 		.frequency_min		= 177000000,
 		.frequency_max		= 858000000,

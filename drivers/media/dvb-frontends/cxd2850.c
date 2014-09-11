@@ -1673,8 +1673,7 @@ out:
 	return ret;
 }
 
-static enum dvbfe_search cxd2850_search(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+static enum dvbfe_search cxd2850_search(struct dvb_frontend *fe)
 {
 	struct cxd2850_dev *cxd2850		= fe->demodulator_priv;
 	struct dtv_frontend_properties *props	= &fe->dtv_property_cache;
@@ -1740,8 +1739,9 @@ out:
 
 static struct dvb_frontend_ops cxd2850_ops = {
 
+	.delsys = { SYS_DVBS, SYS_DVBS2 },
+
 	.info = {
-		.type = FE_QPSK,
 		.name			= "CXD2850 Multistandard",
 
 		.frequency_min		= 950000,
