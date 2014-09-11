@@ -15,8 +15,8 @@
 #include "saa716x_cgu.h"
 #include "saa716x_dma.h"
 #include "saa716x_fgpi.h"
-#include "saa716x_vip.h"
 #include "saa716x_spi.h"
+#include "saa716x_vip.h"
 
 #include "dvbdev.h"
 #include "dvb_demux.h"
@@ -104,6 +104,9 @@ struct saa716x_adapter {
 
 	u8				feeds;
 	u8				count;
+
+	struct i2c_client	*i2c_client_demod;
+	struct i2c_client	*i2c_client_tuner;
 };
 
 struct saa716x_dev {

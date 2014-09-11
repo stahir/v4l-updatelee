@@ -20,6 +20,7 @@
 
 #define TBSQBOX_READ_MSG 0
 #define TBSQBOX_WRITE_MSG 1
+#define TBSQBOX_LED_CTRL (0x1b00)
 
 /* on my own*/
 #define TBSQBOX_VOLTAGE_CTRL (0x1800)
@@ -49,16 +50,12 @@ static int tbsqbox2ci_op_rw(struct usb_device *dev, u8 request, u16 value,
 				u16 index, u8 * data, u16 len, int flags)
 {
 	int ret;
-	u8 *u8buf;
+	u8 u8buf[len];
 
 	unsigned int pipe = (flags == TBSQBOX_READ_MSG) ?
 			usb_rcvctrlpipe(dev, 0) : usb_sndctrlpipe(dev, 0);
 	u8 request_type = (flags == TBSQBOX_READ_MSG) ? USB_DIR_IN : 
 								USB_DIR_OUT;
-
-	u8buf = kmalloc(len, GFP_KERNEL);
-	if (!u8buf)
-		return -ENOMEM;
 
 	if (flags == TBSQBOX_WRITE_MSG)
 		memcpy(u8buf, data, len);
@@ -446,6 +443,12 @@ static int tbsqbox2ci_i2c_transfer(struct i2c_adapter *adap,
 			tbsqbox2ci_op_rw(d->udev, 0x8a, 0, 0,
 					buf6, 2, TBSQBOX_WRITE_MSG);
 			break;
+		case (TBSQBOX_LED_CTRL):
+			buf6[0] = 5;
+			buf6[1] = msg[0].buf[0];
+			tbsqbox2ci_op_rw(d->udev, 0x8a, 0, 0,
+					buf6, 2, TBSQBOX_WRITE_MSG);
+			break;
 		}
 
 		break;
@@ -459,6 +462,25 @@ static int tbsqbox2ci_i2c_transfer(struct i2c_adapter *adap,
 static u32 tbsqbox2ci_i2c_func(struct i2c_adapter *adapter)
 {
 	return I2C_FUNC_I2C;
+}
+
+static void tbsqbox2ci_led_ctrl(struct dvb_frontend *fe, int offon)
+{
+	static u8 led_off[] = { 0 };
+	static u8 led_on[] = { 1 };
+	struct i2c_msg msg = {
+		.addr = TBSQBOX_LED_CTRL,
+		.flags = 0,
+		.buf = led_off,
+		.len = 1
+	};
+	struct dvb_usb_adapter *udev_adap =
+		(struct dvb_usb_adapter *)(fe->dvb->priv);
+
+	if (offon)
+		msg.buf = led_on;
+	i2c_transfer(&udev_adap->dev->i2c_adap, &msg, 1);
+	info("tbsqbox2ci_led_ctrl %d",offon);
 }
 
 static struct stv090x_config earda_config = {
@@ -481,6 +503,7 @@ static struct stv090x_config earda_config = {
 	.tuner_set_bandwidth    = stb6100_set_bandwidth,
 	.tuner_get_bandwidth    = stb6100_get_bandwidth,
 	.name					= "STV090x TBS QBox2 CI",
+	.set_lock_led			= tbsqbox2ci_led_ctrl,
 };
 
 static struct stb6100_config qbox2_stb6100_config = {

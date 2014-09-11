@@ -103,6 +103,7 @@ struct stv090x_config {
 	int (*tuner_set_refclk)  (struct dvb_frontend *fe, u32 refclk);
 	int (*tuner_get_status) (struct dvb_frontend *fe, u32 *status);
 	void (*tuner_i2c_lock) (struct dvb_frontend *fe, int lock);
+	void (*set_lock_led)(struct dvb_frontend *fe, int offon);
 	char name[128];
 	u8 tun1_iqswap:1;
 	u8 tun2_iqswap:1;
