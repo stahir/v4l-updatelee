@@ -5030,14 +5030,31 @@ static int stv090x_init(struct dvb_frontend *fe)
 	if (stv090x_ldpc_mode(state, state->demod_mode) < 0)
 		goto err;
 
-	reg = STV090x_READ_DEMOD(state, TNRCFG2);
-	if (config->tun1_iqswap) {
-		STV090x_SETFIELD_Px(reg, TUN_IQSWAP_FIELD, !state->inversion);
-	} else {
-		STV090x_SETFIELD_Px(reg, TUN_IQSWAP_FIELD, state->inversion);
-	}
-	if (STV090x_WRITE_DEMOD(state, TNRCFG2, reg) < 0)
+	/* Set AGC mode */
+	reg = stv090x_read_reg(state, STV090x_AGCRF1CFG);
+	reg = config->agc_rf1_inv ? (reg & 0xFE) : (reg | 0x01);
+	if (stv090x_write_reg(state, STV090x_AGCRF1CFG, reg) < 0)
 		goto err;
+
+	if (state->device == STV0900) {
+		reg = stv090x_read_reg(state, STV090x_AGCRF2CFG);
+		reg = config->agc_rf2_inv ? (reg & 0xFE) : (reg | 0x01);
+		if (stv090x_write_reg(state, STV090x_AGCRF2CFG, reg) < 0)
+			goto err;
+	}
+
+	/* Set IQ wire mode */
+	reg = stv090x_read_reg(state, STV090x_P1_TNRCFG2);
+	reg = config->tun1_iqswap ? (reg | 0x80) : (reg & 0x7F);
+	if (stv090x_write_reg(state, STV090x_P1_TNRCFG2, reg) < 0)
+		goto err;
+
+	if (state->device == STV0900) {
+		reg = stv090x_read_reg(state, STV090x_P2_TNRCFG2);
+		reg = config->tun2_iqswap ? (reg | 0x80) : (reg & 0x7F);
+		if (stv090x_write_reg(state, STV090x_P2_TNRCFG2, reg) < 0)
+			goto err;
+	}
 
 	reg = STV090x_READ_DEMOD(state, DEMOD);
 	STV090x_SETFIELD_Px(reg, ROLLOFF_CONTROL_FIELD, state->rolloff);

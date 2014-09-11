@@ -105,6 +105,12 @@ struct stv090x_config {
 	void (*tuner_i2c_lock) (struct dvb_frontend *fe, int lock);
 	void (*set_lock_led)(struct dvb_frontend *fe, int offon);
 	char name[128];
+
+	/* AGC control mode */
+	u8 agc_rf1_inv:1;
+	u8 agc_rf2_inv:1;
+
+	/* IQ wires mode */
 	u8 tun1_iqswap:1;
 	u8 tun2_iqswap:1;
 };
