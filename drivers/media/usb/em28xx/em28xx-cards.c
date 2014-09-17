@@ -2169,18 +2169,6 @@ struct em28xx_board em28xx_boards[] = {
 				EM28XX_I2C_FREQ_400_KHZ,
 	},
 	/*
-	* 1b80:e34c KWorld USB ATSC TV Stick UB435-Q V3
-	* Empia EM2874B + LG DT3305 + NXP TDA18271HDC2
-	*/
-	[EM2874_BOARD_KWORLD_UB435Q_V3] = {
-		.name           = "KWorld USB ATSC TV Stick UB435-Q V3",
-		.tuner_type     = TUNER_ABSENT,
-		.has_dvb        = 1,
-		.tuner_gpio     = kworld_ub435q_v3_digital,
-		.def_i2c_bus    = 1,
-		.i2c_speed      = EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_100_KHZ,
-	},
-	/*
 	 * 1b80:e346 KWorld USB ATSC TV Stick UB435-Q V2
 	 * Empia EM2874B + LG DT3305 + NXP TDA18271HDC2
 	 */
@@ -2428,10 +2416,6 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2884_BOARD_PCTV_520E },
 	{ USB_DEVICE(0x1b80, 0xe1cc),
 			.driver_info = EM2874_BOARD_DELOCK_61959 },
-	{ USB_DEVICE(0x1b80, 0xe346),
-			.driver_info = EM2874_BOARD_KWORLD_UB435Q_V2 },
-	{ USB_DEVICE(0x1b80, 0xe34c),
-			.driver_info = EM2874_BOARD_KWORLD_UB435Q_V3 },
 	{ USB_DEVICE(0x1ae7, 0x9003),
 			.driver_info = EM2765_BOARD_SPEEDLINK_VAD_LAPLACE },
 	{ USB_DEVICE(0x1ae7, 0x9004),

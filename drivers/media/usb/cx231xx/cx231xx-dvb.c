@@ -41,7 +41,7 @@ MODULE_DESCRIPTION("driver for cx231xx based DVB cards");
 MODULE_AUTHOR("Srinivasa Deevi <srinivasa.deevi@conexant.com>");
 MODULE_LICENSE("GPL");
 
-static unsigned int debug;
+static unsigned int debug = 1;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages [dvb]");
 
@@ -169,7 +169,7 @@ static struct lgdt3305_config kworld_ub445_v3_lgdt3305_nogate_dev = {
 };
 
 static struct tda18212_config kworld_ub435q_v3_config = {
-	.i2c_address    = 0x60,
+	.i2c_address    = (0xc0 >> 1),
 	.if_atsc_vsb    = 3600,
 	.if_atsc_qam    = 3600,
 };
@@ -723,7 +723,7 @@ static int dvb_init(struct cx231xx *dev)
 	case CX231XX_BOARD_KWORLD_UB445_V3:
 		dev->dvb->frontend = dvb_attach(lgdt3305_attach,
 							   &kworld_ub445_v3_lgdt3305_nogate_dev,
-							   &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap);
+							   &dev->i2c_bus[dev->board.demod_i2c_master].i2c_adap);
 		if (dev->dvb->frontend == NULL) {
 			printk(DRIVER_NAME
 				   ": Failed to attach LG3305 front end\n");
@@ -731,7 +731,9 @@ static int dvb_init(struct cx231xx *dev)
 			goto out_free;
 		}
 
-		/* Attach the demodulator. */
+		/* define general-purpose callback pointer */
+		dvb->frontend->callback = cx231xx_tuner_callback;
+
 		if (!dvb_attach(tda18212_attach, dev->dvb->frontend,
 					   &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
 					   &kworld_ub435q_v3_config)) {

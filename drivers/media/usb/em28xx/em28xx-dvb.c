@@ -366,19 +366,19 @@ static struct tda18271_std_map kworld_a340_std_map = {
 		      .if_lvl = 1, .rfagc_top = 0x37, },
 };
 
-static struct tda18271_config kworld_ub435q_v2_config = {
+static struct tda18271_config kworld_a340_config = {
 	.std_map           = &kworld_a340_std_map,
-	.gate              = TDA18271_GATE_DIGITAL,
+};
+
+static struct tda18271_config kworld_ub435q_v2_config = {
+	.std_map	= &kworld_a340_std_map,
+	.gate		= TDA18271_GATE_DIGITAL,
 };
 
 static struct tda18212_config kworld_ub435q_v3_config = {
-	.i2c_address    = 0x60,
-	.if_atsc_vsb    = 3600,
-	.if_atsc_qam    = 3600,
-};
-
-static struct tda18271_config kworld_a340_config = {
-	.std_map           = &kworld_a340_std_map,
+	.i2c_address	= 0x60,
+	.if_atsc_vsb	= 3600,
+	.if_atsc_qam	= 3600,
 };
 
 static struct zl10353_config em28xx_zl10353_xc3028_no_i2c_gate = {
@@ -1731,7 +1731,6 @@ static int em28xx_dvb_resume(struct em28xx *dev)
 	em28xx_info("Resuming DVB extension");
 	if (dev->dvb) {
 		struct em28xx_dvb *dvb = dev->dvb;
-		struct i2c_client *client = dvb->i2c_client_tuner;
 
 		if (dvb->fe[0]) {
 			ret = dvb_frontend_resume(dvb->fe[0]);
