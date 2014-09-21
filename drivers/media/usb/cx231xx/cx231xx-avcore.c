@@ -358,6 +358,7 @@ int cx231xx_afe_update_power_control(struct cx231xx *dev,
 	case CX231XX_BOARD_HAUPPAUGE_USB2_FM_PAL:
 	case CX231XX_BOARD_HAUPPAUGE_USB2_FM_NTSC:
 	case CX231XX_BOARD_OTG102:
+	case CX231XX_BOARD_KWORLD_UB445_V3:
 		if (avmode == POLARIS_AVMODE_ANALOGT_TV) {
 			while (afe_power_status != (FLD_PWRDN_TUNING_BIAS |
 						FLD_PWRDN_ENABLE_PLL)) {
@@ -1722,6 +1723,7 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 	case CX231XX_BOARD_CNXT_VIDEO_GRABBER:
 	case CX231XX_BOARD_HAUPPAUGE_EXETER:
 	case CX231XX_BOARD_OTG102:
+	case CX231XX_BOARD_KWORLD_UB445_V3:
 		func_mode = 0x03;
 		break;
 	case CX231XX_BOARD_CNXT_RDE_253S:
@@ -2210,11 +2212,12 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 	u32 tmp = 0;
 	int status = 0;
 
-	if (dev->power_mode != mode)
+	printk(KERN_CONT "setPowerMode::mode = %d, ", mode);
+	if (dev->power_mode != mode) {
+		printk(KERN_CONT "Change Required\n");
 		dev->power_mode = mode;
-	else {
-		cx231xx_info(" setPowerMode::mode = %d, No Change req.\n",
-			     mode);
+	} else {
+		printk(KERN_CONT "No Change Required\n");
 		return 0;
 	}
 

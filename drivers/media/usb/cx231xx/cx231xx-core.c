@@ -34,7 +34,7 @@
 
 /* #define ENABLE_DEBUG_ISOC_FRAMES */
 
-static unsigned int core_debug;
+static unsigned int core_debug = 1;
 module_param(core_debug, int, 0644);
 MODULE_PARM_DESC(core_debug, "enable debug messages [core]");
 
@@ -249,25 +249,6 @@ static int __usb_control_msg(struct cx231xx *dev, unsigned int pipe,
 {
 	int rc, i;
 
-	if (reg_debug) {
-		printk(KERN_DEBUG "%s: (pipe 0x%08x): "
-				"%s:  %02x %02x %02x %02x %02x %02x %02x %02x ",
-				dev->name,
-				pipe,
-				(requesttype & USB_DIR_IN) ? "IN" : "OUT",
-				requesttype,
-				request,
-				value & 0xff, value >> 8,
-				index & 0xff, index >> 8,
-				size & 0xff, size >> 8);
-		if (!(requesttype & USB_DIR_IN)) {
-			printk(KERN_CONT ">>>");
-			for (i = 0; i < size; i++)
-				printk(KERN_CONT " %02x",
-				       ((unsigned char *)data)[i]);
-		}
-	}
-
 	/* Do the real call to usb_control_msg */
 	mutex_lock(&dev->ctrl_urb_lock);
 	if (!(requesttype & USB_DIR_IN) && size)
@@ -279,18 +260,27 @@ static int __usb_control_msg(struct cx231xx *dev, unsigned int pipe,
 	mutex_unlock(&dev->ctrl_urb_lock);
 
 	if (reg_debug) {
-		if (unlikely(rc < 0)) {
-			printk(KERN_CONT "FAILED!\n");
-			return rc;
-		}
+		printk(KERN_DEBUG "%s: (pipe 0x%08x): "
+				"%s:  %02x %02x %02x %02x %02x %02x %02x %02x ",
+				dev->name,
+				pipe,
+				(requesttype & USB_DIR_IN) ? "IN" : "OUT",
+				requesttype,
+				request,
+				value & 0xff, value >> 8,
+				index & 0xff, index >> 8,
+				size & 0xff, size >> 8);
+		printk(KERN_CONT ">>>");
+		for (i = 0; i < size; i++)
+			printk(KERN_CONT " %02x",
+				   ((unsigned char *)data)[i]);
 
-		if ((requesttype & USB_DIR_IN)) {
-			printk(KERN_CONT "<<<");
-			for (i = 0; i < size; i++)
-				printk(KERN_CONT " %02x",
-				       ((unsigned char *)data)[i]);
+		if (unlikely(rc < 0)) {
+			printk(KERN_CONT " FAILED!\n");
+			return rc;
+		} else {
+			printk(KERN_CONT "\n");
 		}
-		printk(KERN_CONT "\n");
 	}
 
 	return rc;
@@ -365,7 +355,9 @@ int cx231xx_send_vendor_cmd(struct cx231xx *dev,
 	 */
 	if ((ven_req->wLength > 4) && ((ven_req->bRequest == 0x4) ||
 					(ven_req->bRequest == 0x5) ||
-					(ven_req->bRequest == 0x6))) {
+					(ven_req->bRequest == 0x6) ||
+					(ven_req->bRequest == 0x1) ||
+					(ven_req->bRequest == 0x2) )) {
 		unsend_size = 0;
 		pdata = ven_req->pBuff;
 
@@ -446,21 +438,6 @@ int cx231xx_write_ctrl_reg(struct cx231xx *dev, u8 req, u16 reg, char *buf,
 
 	if (val == 0xFF)
 		return -EINVAL;
-
-	if (reg_debug) {
-		int byte;
-
-		cx231xx_isocdbg("(pipe 0x%08x): "
-			"OUT: %02x %02x %02x %02x %02x %02x %02x %02x >>>",
-			pipe,
-			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			req, 0, val, reg & 0xff,
-			reg >> 8, len & 0xff, len >> 8);
-
-		for (byte = 0; byte < len; byte++)
-			cx231xx_isocdbg(" %02x", (unsigned char)buf[byte]);
-		cx231xx_isocdbg("\n");
-	}
 
 	ret = __usb_control_msg(dev, pipe, req,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
@@ -727,6 +704,7 @@ int cx231xx_set_mode(struct cx231xx *dev, enum cx231xx_mode set_mode)
 			break;
 		case CX231XX_BOARD_HAUPPAUGE_EXETER:
 		case CX231XX_BOARD_HAUPPAUGE_930C_HD_1113xx:
+		case CX231XX_BOARD_KWORLD_UB445_V3:
 			errCode = cx231xx_set_power_mode(dev,
 						POLARIS_AVMODE_DIGITAL);
 			break;
@@ -749,6 +727,7 @@ int cx231xx_set_mode(struct cx231xx *dev, enum cx231xx_mode set_mode)
 		case CX231XX_BOARD_PV_PLAYTV_USB_HYBRID:
 		case CX231XX_BOARD_HAUPPAUGE_USB2_FM_PAL:
 		case CX231XX_BOARD_HAUPPAUGE_USB2_FM_NTSC:
+		case CX231XX_BOARD_KWORLD_UB445_V3:
 		errCode = cx231xx_set_agc_analog_digital_mux_select(dev, 0);
 			break;
 		default:
@@ -1385,6 +1364,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	case CX231XX_BOARD_PV_PLAYTV_USB_HYBRID:
 	case CX231XX_BOARD_HAUPPAUGE_USB2_FM_PAL:
 	case CX231XX_BOARD_HAUPPAUGE_USB2_FM_NTSC:
+	case CX231XX_BOARD_KWORLD_UB445_V3:
 	errCode = cx231xx_set_agc_analog_digital_mux_select(dev, 0);
 		break;
 	default:
