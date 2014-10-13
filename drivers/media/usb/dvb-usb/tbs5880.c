@@ -518,7 +518,6 @@ static struct cxd2820r_config cxd2820r_config = {
 };
 
 static struct tda18212_config tda18212_config = {
-	.i2c_address = 0x60 /* (0xc0 >> 1) */,
 	.if_dvbt_6 = 3550,
 	.if_dvbt_7 = 3700,
 	.if_dvbt_8 = 4150,
@@ -530,9 +529,29 @@ static struct tda18212_config tda18212_config = {
 
 static int tbs5880_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	if (!dvb_attach(tda18212_attach, adap->fe_adap->fe, &adap->dev->i2c_adap,
-		&tda18212_config))
-		return -EIO;
+	struct i2c_client *i2c_client;
+	struct i2c_board_info board_info = {
+		.type = "tda18212",
+		.addr = 0x60,
+		.platform_data = &tda18212_config,
+	};
+
+	/* attach tuner */
+	tda18212_config.fe = adap->fe_adap->fe;
+	request_module("tda18212");
+	i2c_client = i2c_new_device(&adap->dev->i2c_adap, &board_info);
+	if (i2c_client == NULL || i2c_client->dev.driver == NULL) {
+		dvb_frontend_detach(adap->fe_adap->fe);
+		return -ENODEV;
+	}
+
+	if (!try_module_get(i2c_client->dev.driver->owner)) {
+		i2c_unregister_device(i2c_client);
+		dvb_frontend_detach(adap->fe_adap->fe);
+		return -ENODEV;
+	}
+
+	adap->i2c_client_tuner = i2c_client;
 
 	return 0;
 }

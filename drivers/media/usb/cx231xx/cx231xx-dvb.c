@@ -71,6 +71,7 @@ struct cx231xx_dvb {
 	struct dmx_frontend fe_mem;
 	struct dvb_net net;
 	struct i2c_client *i2c_client_tuner;
+	struct i2c_client *i2c_client_demod;
 };
 
 static struct s5h1432_config dvico_s5h1432_config = {
@@ -168,8 +169,7 @@ static struct lgdt3305_config kworld_ub445_v3_lgdt3305_nogate_dev = {
 	.name				= "Kworld 445v3",
 };
 
-static struct tda18212_config kworld_ub435q_v3_config = {
-	.i2c_address    = (0xc0 >> 1),
+static struct tda18212_config kworld_ub445q_v3_config = {
 	.if_atsc_vsb    = 3600,
 	.if_atsc_qam    = 3600,
 };
@@ -588,12 +588,21 @@ static void unregister_dvb(struct cx231xx_dvb *dvb)
 	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	dvb_dmxdev_release(&dvb->dmxdev);
 	dvb_dmx_release(&dvb->demux);
-	client = dvb->i2c_client_tuner;
+
 	/* remove I2C tuner */
+	client = dvb->i2c_client_tuner;
 	if (client) {
 		module_put(client->dev.driver->owner);
 		i2c_unregister_device(client);
 	}
+
+	/* remove I2C demod */
+	client = dvb->i2c_client_demod;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
 	dvb_unregister_frontend(dvb->frontend);
 	dvb_frontend_detach(dvb->frontend);
 	dvb_unregister_adapter(&dvb->adapter);
@@ -721,6 +730,14 @@ static int dvb_init(struct cx231xx *dev)
 		}
 		break;
 	case CX231XX_BOARD_KWORLD_UB445_V3:
+	{
+		struct i2c_client *i2c_client;
+		struct i2c_board_info board_info = {
+			.type = "tda18212",
+			.addr = 0x60,
+			.platform_data = &kworld_ub445q_v3_config,
+		};
+
 		dev->dvb->frontend = dvb_attach(lgdt3305_attach,
 							   &kworld_ub445_v3_lgdt3305_nogate_dev,
 							   &dev->i2c_bus[dev->board.demod_i2c_master].i2c_adap);
@@ -734,13 +751,26 @@ static int dvb_init(struct cx231xx *dev)
 		/* define general-purpose callback pointer */
 		dvb->frontend->callback = cx231xx_tuner_callback;
 
-		if (!dvb_attach(tda18212_attach, dev->dvb->frontend,
-					   &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
-					   &kworld_ub435q_v3_config)) {
-			result = -EINVAL;
+		/* attach tuner */
+		kworld_ub445q_v3_config.fe = dev->dvb->frontend;
+		request_module("tda18212");
+		i2c_client = i2c_new_device(&dev->i2c_bus[dev->board.demod_i2c_master].i2c_adap, &board_info);
+		if (i2c_client == NULL || i2c_client->dev.driver == NULL) {
+			dvb_frontend_detach(dev->dvb->frontend);
+			result = -ENODEV;
 			goto out_free;
 		}
+
+		if (!try_module_get(i2c_client->dev.driver->owner)) {
+			i2c_unregister_device(i2c_client);
+			dvb_frontend_detach(dev->dvb->frontend);
+			result = -ENODEV;
+			goto out_free;
+		}
+
+		dvb->i2c_client_tuner = i2c_client;
 		break;
+	}
 	case CX231XX_BOARD_HAUPPAUGE_EXETER:
 
 		printk(KERN_INFO "%s: looking for tuner / demod on i2c bus: %d\n",

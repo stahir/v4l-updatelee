@@ -392,6 +392,9 @@ struct dvb_usb_adapter {
 	int num_frontends_initialized;
 
 	void *priv;
+
+	struct i2c_client *i2c_client_tuner;
+	struct i2c_client *i2c_client_demod;
 };
 
 /**
