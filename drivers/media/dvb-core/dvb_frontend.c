@@ -1887,7 +1887,6 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 		if (r < 0)
 			c->lna = LNA_AUTO;
 		break;
-
 	default:
 		return -EINVAL;
 	}

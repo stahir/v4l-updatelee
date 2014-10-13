@@ -57,6 +57,10 @@ unsigned int int_type;
 module_param(int_type, int, 0644);
 MODULE_PARM_DESC(int_type, "force Interrupt Handler type: 0=INT-A, 1=MSI, 2=MSI-X. default INT-A mode");
 
+static int tsout = 1;
+module_param(tsout, int, 0644);
+MODULE_PARM_DESC(tsout, "TBS 6925 output format 1=TS, 0=BB (default:1)");
+
 #define DRIVER_NAME	"SAA716x Budget"
 
 static int saa716x_budget_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
@@ -282,7 +286,11 @@ static void demux_worker(unsigned long data)
 			fgpi_entry->dma_buf[fgpi_entry->read_index].list_len,
 			PCI_DMA_FROMDEVICE);
 
-		dvb_dmx_swfilter(demux, data, 348 * 188);
+		if (tsout == 0) {
+			dvb_dmx_swfilter_data(demux, FE_DFMT_BB_FRAME, data, 348 * 188);
+		} else {
+			dvb_dmx_swfilter(demux, data, 348 * 188);
+		}
 
 		fgpi_entry->read_index = (fgpi_entry->read_index + 1) & 7;
 	} while (write_index != fgpi_entry->read_index);
