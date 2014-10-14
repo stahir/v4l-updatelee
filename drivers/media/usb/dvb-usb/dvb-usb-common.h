@@ -13,6 +13,7 @@
 
 extern int dvb_usb_debug;
 extern int dvb_usb_disable_rc_polling;
+extern int tsout;
 
 #define deb_info(args...)  dprintk(dvb_usb_debug,0x001,args)
 #define deb_xfer(args...)  dprintk(dvb_usb_debug,0x002,args)

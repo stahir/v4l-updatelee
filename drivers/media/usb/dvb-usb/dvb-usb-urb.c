@@ -88,11 +88,23 @@ static void dvb_usb_data_complete_raw(struct usb_data_stream *stream,
 		dvb_dmx_swfilter_raw(&adap->demux, buffer, length);
 }
 
+static void dvb_usb_data_complete_data(struct usb_data_stream *stream,
+					  u8 *buffer, size_t length)
+{
+	struct dvb_usb_adapter *adap = stream->user_priv;
+	if (adap->feedcount > 0 && adap->state & DVB_USB_ADAP_STATE_DVB)
+		dvb_dmx_swfilter_data(&adap->demux, FE_DFMT_BB_FRAME, buffer, length);
+}
+
 int dvb_usb_adapter_stream_init(struct dvb_usb_adapter *adap)
 {
 	int i, ret = 0;
 	for (i = 0; i < adap->props.num_frontends; i++) {
 		adap->fe_adap[i].stream.udev      = adap->dev->udev;
+		if (tsout)
+			adap->fe_adap[i].stream.complete =
+				dvb_usb_data_complete_data;
+		else
 		if (adap->props.fe[i].caps & DVB_USB_ADAP_RECEIVES_204_BYTE_TS)
 			adap->fe_adap[i].stream.complete =
 				dvb_usb_data_complete_204;
