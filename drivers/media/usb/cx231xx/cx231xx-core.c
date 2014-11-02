@@ -1279,6 +1279,15 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	cx231xx_i2c_register(&dev->i2c_bus[1]);
 	cx231xx_i2c_register(&dev->i2c_bus[2]);
 
+	cx231xx_i2c_mux_register(dev, 0);
+	cx231xx_i2c_mux_register(dev, 1);
+
+	/* scan the real bus segments in the order of physical port numbers */
+	cx231xx_do_i2c_scan(dev, I2C_0);
+	cx231xx_do_i2c_scan(dev, I2C_1_MUX_1);
+	cx231xx_do_i2c_scan(dev, I2C_2);
+	cx231xx_do_i2c_scan(dev, I2C_1_MUX_3);
+
 	/* init hardware */
 	/* Note : with out calling set power mode function,
 	afe can not be set up correctly */
@@ -1384,9 +1393,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	if (dev->board.has_dvb)
 		cx231xx_set_alt_setting(dev, INDEX_TS1, 0);
 
-	/* set the I2C master port to 3 on channel 1 */
-	errCode = cx231xx_enable_i2c_port_3(dev, true);
-
+	errCode = 0;
 	return errCode;
 }
 EXPORT_SYMBOL_GPL(cx231xx_dev_init);
@@ -1394,6 +1401,8 @@ EXPORT_SYMBOL_GPL(cx231xx_dev_init);
 void cx231xx_dev_uninit(struct cx231xx *dev)
 {
 	/* Un Initialize I2C bus */
+	cx231xx_i2c_mux_unregister(dev, 1);
+	cx231xx_i2c_mux_unregister(dev, 0);
 	cx231xx_i2c_unregister(&dev->i2c_bus[2]);
 	cx231xx_i2c_unregister(&dev->i2c_bus[1]);
 	cx231xx_i2c_unregister(&dev->i2c_bus[0]);

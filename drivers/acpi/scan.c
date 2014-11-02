@@ -130,7 +130,7 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 	list_for_each_entry(id, &acpi_dev->pnp.ids, list) {
 		count = snprintf(&modalias[len], size, "%s:", id->id);
 		if (count < 0)
-			return EINVAL;
+			return -EINVAL;
 		if (count >= size)
 			return -ENOMEM;
 		len += count;
@@ -1470,7 +1470,7 @@ static void acpi_wakeup_gpe_init(struct acpi_device *device)
 	if (ACPI_FAILURE(status))
 		return;
 
-	wakeup->flags.run_wake = !!(event_status & ACPI_EVENT_FLAG_HANDLE);
+	wakeup->flags.run_wake = !!(event_status & ACPI_EVENT_FLAG_HAS_HANDLER);
 }
 
 static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
@@ -2189,6 +2189,9 @@ static void acpi_bus_attach(struct acpi_device *device)
  ok:
 	list_for_each_entry(child, &device->children, node)
 		acpi_bus_attach(child);
+
+	if (device->handler && device->handler->hotplug.notify_online)
+		device->handler->hotplug.notify_online(device);
 }
 
 /**
@@ -2312,6 +2315,7 @@ int __init acpi_scan_init(void)
 	acpi_container_init();
 	acpi_memory_hotplug_init();
 	acpi_pnp_init();
+	acpi_int340x_thermal_init();
 
 	mutex_lock(&acpi_scan_lock);
 	/*

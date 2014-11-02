@@ -93,6 +93,7 @@
 #define CX23885_BOARD_HAUPPAUGE_IMPACTVCBE     43
 #define CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP2 44
 #define CX23885_BOARD_DVBSKY_T9580             45
+#define CX23885_BOARD_DVBSKY_T980C             46
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002
@@ -296,6 +297,7 @@ struct cx23885_tsport {
 
 	struct i2c_client *i2c_client_demod;
 	struct i2c_client *i2c_client_tuner;
+	struct i2c_client *i2c_client_ci;
 
 	int (*set_frontend)(struct dvb_frontend *fe);
 	int (*fe_set_voltage)(struct dvb_frontend *fe,

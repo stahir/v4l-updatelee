@@ -1271,8 +1271,13 @@ int cx231xx_enable_i2c_port_3(struct cx231xx *dev, bool is_port_3)
 	int status = 0;
 	bool current_is_port_3;
 
-	if (dev->board.dont_use_port_3)
-		is_port_3 = false;
+	/*
+	 * Should this code check dev->port_3_switch_enabled first
+	 * to skip unnecessary reading of the register?
+	 * If yes, the flag dev->port_3_switch_enabled must be initialized
+	 * correctly.
+	 */
+
 	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER,
 				       PWR_CTL_EN, value, 4);
 	if (status < 0)
@@ -1289,11 +1294,12 @@ int cx231xx_enable_i2c_port_3(struct cx231xx *dev, bool is_port_3)
 	else
 		value[0] &= ~I2C_DEMOD_EN;
 
-	cx231xx_info("Changing the i2c master port to %d\n",
-		     is_port_3 ?  3 : 1);
-
 	status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
 					PWR_CTL_EN, value, 4);
+
+	/* remember status of the switch for usage in is_tuner */
+	if (status >= 0)
+		dev->port_3_switch_enabled = is_port_3;
 
 	return status;
 
@@ -2267,7 +2273,6 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 	case POLARIS_AVMODE_ANALOGT_TV:
 
 		tmp |= PWR_DEMOD_EN;
-		tmp |= (I2C_DEMOD_EN);
 		value[0] = (u8) tmp;
 		value[1] = (u8) (tmp >> 8);
 		value[2] = (u8) (tmp >> 16);
@@ -2320,9 +2325,6 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 		}
 
 		if (dev->board.tuner_type != TUNER_ABSENT) {
-			/* Enable tuner */
-			cx231xx_enable_i2c_port_3(dev, true);
-
 			/* reset the Tuner */
 			if (dev->board.tuner_gpio)
 				cx231xx_gpio_set(dev, dev->board.tuner_gpio);
@@ -2366,7 +2368,7 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 		}
 
 		tmp &= (~PWR_AV_MODE);
-		tmp |= POLARIS_AVMODE_DIGITAL | I2C_DEMOD_EN;
+		tmp |= POLARIS_AVMODE_DIGITAL;
 		value[0] = (u8) tmp;
 		value[1] = (u8) (tmp >> 8);
 		value[2] = (u8) (tmp >> 16);
@@ -2387,15 +2389,6 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 		}
 
 		if (dev->board.tuner_type != TUNER_ABSENT) {
-			/*
-			 * Enable tuner
-			 *	Hauppauge Exeter seems to need to do something different!
-			 */
-			if (dev->model == CX231XX_BOARD_HAUPPAUGE_EXETER)
-				cx231xx_enable_i2c_port_3(dev, false);
-			else
-				cx231xx_enable_i2c_port_3(dev, true);
-
 			/* reset the Tuner */
 			if (dev->board.tuner_gpio)
 				cx231xx_gpio_set(dev, dev->board.tuner_gpio);

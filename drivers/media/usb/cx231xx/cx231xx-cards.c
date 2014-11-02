@@ -104,8 +104,8 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 1,
-		.demod_i2c_master = 2,
+		.tuner_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x02,
 		.norm = V4L2_STD_PAL,
@@ -144,8 +144,8 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 1,
-		.demod_i2c_master = 2,
+		.tuner_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x32,
 		.norm = V4L2_STD_NTSC,
@@ -184,8 +184,8 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x1c,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 1,
-		.demod_i2c_master = 2,
+		.tuner_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x02,
 		.norm = V4L2_STD_PAL,
@@ -225,8 +225,8 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x1c,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 1,
-		.demod_i2c_master = 2,
+		.tuner_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x02,
 		.norm = V4L2_STD_PAL,
@@ -262,7 +262,6 @@ struct cx231xx_board cx231xx_boards[] = {
 		.norm = V4L2_STD_PAL,
 		.no_alt_vanc = 1,
 		.external_av = 1,
-		.dont_use_port_3 = 1,
 		/* Actually, it has a 417, but it isn't working correctly.
 		 * So set to 0 for now until someone can manage to get this
 		 * to work reliably. */
@@ -297,8 +296,8 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 1,
-		.demod_i2c_master = 2,
+		.tuner_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x02,
 		.norm = V4L2_STD_PAL,
@@ -325,8 +324,8 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 1,
-		.demod_i2c_master = 2,
+		.tuner_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x32,
 		.norm = V4L2_STD_NTSC,
@@ -353,8 +352,8 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 1,
-		.demod_i2c_master = 2,
+		.tuner_i2c_master = I2C_1_MUX_1,
+		.demod_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x0e,
 		.norm = V4L2_STD_NTSC,
@@ -390,7 +389,6 @@ struct cx231xx_board cx231xx_boards[] = {
 		.norm = V4L2_STD_NTSC,
 		.no_alt_vanc = 1,
 		.external_av = 1,
-		.dont_use_port_3 = 1,
 		.input = {{
 			.type = CX231XX_VMUX_COMPOSITE1,
 			.vmux = CX231XX_VIN_2_1,
@@ -418,9 +416,9 @@ struct cx231xx_board cx231xx_boards[] = {
 		.tuner_scl_gpio = -1,
 		.tuner_sda_gpio = -1,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 2,
-		.demod_i2c_master = 1,
-		.ir_i2c_master = 2,
+		.tuner_i2c_master = I2C_2,
+		.demod_i2c_master = I2C_1_MUX_3,
+		.ir_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x10,
 		.norm = V4L2_STD_PAL_M,
@@ -456,9 +454,9 @@ struct cx231xx_board cx231xx_boards[] = {
 		.tuner_scl_gpio = -1,
 		.tuner_sda_gpio = -1,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 2,
-		.demod_i2c_master = 1,
-		.ir_i2c_master = 2,
+		.tuner_i2c_master = I2C_2,
+		.demod_i2c_master = I2C_1_MUX_3,
+		.ir_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x10,
 		.norm = V4L2_STD_NTSC_M,
@@ -532,9 +530,9 @@ struct cx231xx_board cx231xx_boards[] = {
 		.tuner_scl_gpio = -1,
 		.tuner_sda_gpio = -1,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 2,
-		.demod_i2c_master = 1,
-		.ir_i2c_master = 2,
+		.tuner_i2c_master = I2C_2,
+		.demod_i2c_master = I2C_1_MUX_3,
+		.ir_i2c_master = I2C_2,
 		.rc_map_name = RC_MAP_PIXELVIEW_002T,
 		.has_dvb = 1,
 		.demod_addr = 0x10,
@@ -570,7 +568,6 @@ struct cx231xx_board cx231xx_boards[] = {
 		.norm = V4L2_STD_NTSC,
 		.no_alt_vanc = 1,
 		.external_av = 1,
-		.dont_use_port_3 = 1,
 
 		.input = {{
 				.type = CX231XX_VMUX_COMPOSITE1,
@@ -625,7 +622,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 1,
+		.tuner_i2c_master = I2C_1_MUX_3,
 		.norm = V4L2_STD_PAL,
 
 		.input = {{
@@ -660,7 +657,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 1,
+		.tuner_i2c_master = I2C_1_MUX_3,
 		.norm = V4L2_STD_NTSC,
 
 		.input = {{
@@ -694,7 +691,6 @@ struct cx231xx_board cx231xx_boards[] = {
 		.norm = V4L2_STD_NTSC,
 		.no_alt_vanc = 1,
 		.external_av = 1,
-		.dont_use_port_3 = 1,
 		.input = {{
 			.type = CX231XX_VMUX_COMPOSITE1,
 			.vmux = CX231XX_VIN_2_1,
@@ -721,7 +717,6 @@ struct cx231xx_board cx231xx_boards[] = {
 		.norm = V4L2_STD_NTSC,
 		.no_alt_vanc = 1,
 		.external_av = 1,
-		.dont_use_port_3 = 1,
 		/*.has_417 = 1, */
 		/* This board is believed to have a hardware encoding chip
 		 * supporting mpeg1/2/4, but as the 417 is apparently not
@@ -756,8 +751,8 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 1,
-		.demod_i2c_master = 2,
+		.tuner_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x0e,
 		.norm = V4L2_STD_PAL,
@@ -795,8 +790,8 @@ struct cx231xx_board cx231xx_boards[] = {
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 1,
-		.demod_i2c_master = 2,
+		.tuner_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = I2C_2,
 		.has_dvb = 1,
 		.demod_addr = 0x0e,
 		.norm = V4L2_STD_PAL,
@@ -1020,23 +1015,20 @@ static void cx231xx_config_tuner(struct cx231xx *dev)
 
 }
 
-static int read_eeprom(struct cx231xx *dev, u8 *eedata, int len)
+static int read_eeprom(struct cx231xx *dev, struct i2c_client *client,
+		       u8 *eedata, int len)
 {
 	int ret = 0;
-	u8 addr = 0xa0 >> 1;
 	u8 start_offset = 0;
 	int len_todo = len;
 	u8 *eedata_cur = eedata;
 	int i;
-	struct i2c_msg msg_write = { .addr = addr, .flags = 0,
+	struct i2c_msg msg_write = { .addr = client->addr, .flags = 0,
 		.buf = &start_offset, .len = 1 };
-	struct i2c_msg msg_read = { .addr = addr, .flags = I2C_M_RD };
-
-	/* mutex_lock(&dev->i2c_lock); */
-	cx231xx_enable_i2c_port_3(dev, false);
+	struct i2c_msg msg_read = { .addr = client->addr, .flags = I2C_M_RD };
 
 	/* start reading at offset 0 */
-	ret = i2c_transfer(&dev->i2c_bus[1].i2c_adap, &msg_write, 1);
+	ret = i2c_transfer(client->adapter, &msg_write, 1);
 	if (ret < 0) {
 		cx231xx_err("Can't read eeprom\n");
 		return ret;
@@ -1046,7 +1038,7 @@ static int read_eeprom(struct cx231xx *dev, u8 *eedata, int len)
 		msg_read.len = (len_todo > 64) ? 64 : len_todo;
 		msg_read.buf = eedata_cur;
 
-		ret = i2c_transfer(&dev->i2c_bus[1].i2c_adap, &msg_read, 1);
+		ret = i2c_transfer(client->adapter, &msg_read, 1);
 		if (ret < 0) {
 			cx231xx_err("Can't read eeprom\n");
 			return ret;
@@ -1054,9 +1046,6 @@ static int read_eeprom(struct cx231xx *dev, u8 *eedata, int len)
 		eedata_cur += msg_read.len;
 		len_todo -= msg_read.len;
 	}
-
-	cx231xx_enable_i2c_port_3(dev, true);
-	/* mutex_unlock(&dev->i2c_lock); */
 
 	for (i = 0; i + 15 < len; i += 16)
 		cx231xx_info("i2c eeprom %02x: %*ph\n", i, 16, &eedata[i]);
@@ -1076,7 +1065,7 @@ void cx231xx_card_setup(struct cx231xx *dev)
 	/* request some modules */
 	if (dev->board.decoder == CX231XX_AVDECODER) {
 		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-					&dev->i2c_bus[0].i2c_adap,
+					cx231xx_get_i2c_adap(dev, I2C_0),
 					"cx25840", 0x88 >> 1, NULL);
 		if (dev->sd_cx25840 == NULL)
 			cx231xx_info("cx25840 subdev registration failure\n");
@@ -1086,8 +1075,10 @@ void cx231xx_card_setup(struct cx231xx *dev)
 
 	/* Initialize the tuner */
 	if (dev->board.tuner_type != TUNER_ABSENT) {
+		struct i2c_adapter *tuner_i2c = cx231xx_get_i2c_adap(dev,
+						dev->board.tuner_i2c_master);
 		dev->sd_tuner = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-						    &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+						    tuner_i2c,
 						    "tuner",
 						    dev->tuner_addr, NULL);
 		if (dev->sd_tuner == NULL)
@@ -1102,9 +1093,14 @@ void cx231xx_card_setup(struct cx231xx *dev)
 		{
 			struct tveeprom tvee;
 			static u8 eeprom[256];
+			struct i2c_client client;
 
-			read_eeprom(dev, eeprom, sizeof(eeprom));
-			tveeprom_hauppauge_analog(&dev->i2c_bus[1].i2c_client,
+			memset(&client, 0, sizeof(client));
+			client.adapter = cx231xx_get_i2c_adap(dev, I2C_1_MUX_1);
+			client.addr = 0xa0 >> 1;
+
+			read_eeprom(dev, &client, eeprom, sizeof(eeprom));
+			tveeprom_hauppauge_analog(&client,
 						&tvee, eeprom + 0xc0);
 			break;
 		}
