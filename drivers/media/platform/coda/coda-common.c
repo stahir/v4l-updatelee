@@ -2035,12 +2035,14 @@ static int coda_probe(struct platform_device *pdev)
 
 	pdev_id = of_id ? of_id->data : platform_get_device_id(pdev);
 
-	if (of_id)
+	if (of_id) {
 		dev->devtype = of_id->data;
-	else if (pdev_id)
+	} else if (pdev_id) {
 		dev->devtype = &coda_devdata[pdev_id->driver_data];
-	else
-		return -EINVAL;
+	} else {
+		ret = -EINVAL;
+		goto err_v4l2_register;
+	}
 
 	spin_lock_init(&dev->irqlock);
 	INIT_LIST_HEAD(&dev->instances);
@@ -2120,8 +2122,7 @@ static int coda_probe(struct platform_device *pdev)
 					 dev->debugfs_root);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to allocate work buffer\n");
-			v4l2_device_unregister(&dev->v4l2_dev);
-			return ret;
+			goto err_v4l2_register;
 		}
 	}
 
@@ -2131,8 +2132,7 @@ static int coda_probe(struct platform_device *pdev)
 					 dev->debugfs_root);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to allocate temp buffer\n");
-			v4l2_device_unregister(&dev->v4l2_dev);
-			return ret;
+			goto err_v4l2_register;
 		}
 	}
 
@@ -2152,7 +2152,8 @@ static int coda_probe(struct platform_device *pdev)
 	dev->workqueue = alloc_workqueue("coda", WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
 	if (!dev->workqueue) {
 		dev_err(&pdev->dev, "unable to alloc workqueue\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_v4l2_register;
 	}
 
 	platform_set_drvdata(pdev, dev);
@@ -2167,6 +2168,10 @@ static int coda_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	return coda_firmware_request(dev);
+
+err_v4l2_register:
+	v4l2_device_unregister(&dev->v4l2_dev);
+	return ret;
 }
 
 static int coda_remove(struct platform_device *pdev)

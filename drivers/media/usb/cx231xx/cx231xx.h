@@ -28,6 +28,7 @@
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/usb.h>
 
 #include <media/cx2341x.h>
 
@@ -597,6 +598,7 @@ struct cx231xx {
 	char name[30];		/* name (including minor) of the device */
 	int model;		/* index in the device_data struct */
 	int devno;		/* marks the number of this device */
+	struct device *dev;	/* pointer to USB interface's dev */
 
 	struct cx231xx_board board;
 
@@ -608,6 +610,8 @@ struct cx231xx {
 	unsigned int vbi_stream_on:1;	/* Locks streams for VBI */
 	unsigned int has_audio_class:1;
 	unsigned int has_alsa_audio:1;
+
+	unsigned int i2c_scan_running:1; /* true only during i2c_scan */
 
 	struct cx231xx_fmt *format;
 
@@ -808,7 +812,6 @@ void cx231xx_Setup_AFE_for_LowIF(struct cx231xx *dev);
 void reset_s5h1432_demod(struct cx231xx *dev);
 void cx231xx_dump_HH_reg(struct cx231xx *dev);
 void update_HH_register_after_set_DIF(struct cx231xx *dev);
-void cx231xx_dump_SC_reg(struct cx231xx *dev);
 
 
 
@@ -981,23 +984,6 @@ void cx231xx_ir_exit(struct cx231xx *dev);
 #define cx231xx_ir_init(dev)	(0)
 #define cx231xx_ir_exit(dev)	(0)
 #endif
-
-
-/* printk macros */
-
-#define cx231xx_err(fmt, arg...) do {\
-	printk(KERN_ERR fmt , ##arg); } while (0)
-
-#define cx231xx_errdev(fmt, arg...) do {\
-	printk(KERN_ERR "%s: "fmt,\
-			dev->name , ##arg); } while (0)
-
-#define cx231xx_info(fmt, arg...) do {\
-	printk(KERN_INFO "%s: "fmt,\
-			dev->name , ##arg); } while (0)
-#define cx231xx_warn(fmt, arg...) do {\
-	printk(KERN_WARNING "%s: "fmt,\
-			dev->name , ##arg); } while (0)
 
 static inline unsigned int norm_maxw(struct cx231xx *dev)
 {
