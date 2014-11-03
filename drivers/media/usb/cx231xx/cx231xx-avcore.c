@@ -2242,7 +2242,7 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 	if (dev->power_mode != mode) {
 		printk(KERN_CONT "Change Required\n");
 		dev->power_mode = mode;
-	else {
+	} else {
 		dev_dbg(dev->dev, "%s: mode = %d, No Change req.\n",
 			 __func__, mode);
 		return 0;
