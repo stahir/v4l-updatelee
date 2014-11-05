@@ -289,7 +289,7 @@ static void demux_worker(unsigned long data)
 		if (tsout == 0) {
 			dvb_dmx_swfilter_data(demux, FE_DFMT_BB_FRAME, data, 348 * 188);
 		} else {
-			dvb_dmx_swfilter(demux, data, 348 * 188);
+			dvb_dmx_swfilter_packets(demux, data, 188);
 		}
 
 		fgpi_entry->read_index = (fgpi_entry->read_index + 1) & 7;
