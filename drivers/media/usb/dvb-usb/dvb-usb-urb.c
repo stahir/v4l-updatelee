@@ -101,7 +101,7 @@ int dvb_usb_adapter_stream_init(struct dvb_usb_adapter *adap)
 	int i, ret = 0;
 	for (i = 0; i < adap->props.num_frontends; i++) {
 		adap->fe_adap[i].stream.udev      = adap->dev->udev;
-		if (tsout)
+		if (tsout == 0)
 			adap->fe_adap[i].stream.complete =
 				dvb_usb_data_complete_data;
 		else
