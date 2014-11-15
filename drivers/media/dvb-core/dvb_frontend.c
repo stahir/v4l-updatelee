@@ -964,6 +964,11 @@ static int dvb_frontend_clear_cache(struct dvb_frontend *fe)
 	case SYS_ATSC:
 		c->modulation = VSB_8;
 		break;
+	case SYS_ISDBS:
+		c->symbol_rate = 28860000;
+		c->rolloff = ROLLOFF_35;
+		c->bandwidth_hz = c->symbol_rate / 100 * 135;
+		break;
 	default:
 		c->modulation = QAM_AUTO;
 		break;
@@ -2166,6 +2171,7 @@ static int dtv_set_frontend(struct dvb_frontend *fe)
 		break;
 	case SYS_DVBS:
 	case SYS_TURBO:
+	case SYS_ISDBS:
 		rolloff = 135;
 		break;
 	case SYS_DVBS2:
