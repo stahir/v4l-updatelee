@@ -4021,8 +4021,12 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			if (STV090x_GETFIELD_Px(reg, PKTDELIN_LOCK_FIELD)) {
 				*status |= FE_HAS_VITERBI;
 				reg = STV090x_READ_DEMOD(state, TSSTATUS);
-				if (STV090x_GETFIELD_Px(reg, TSFIFO_LINEOK_FIELD))
+				if (STV090x_GETFIELD_Px(reg, TSFIFO_LINEOK_FIELD)) {
 					*status |= FE_HAS_SYNC | FE_HAS_LOCK;
+					if (state->config->set_lock_led) {
+						state->config->set_lock_led(fe, 1);
+					}
+				}
 			}
 		}
 		stv090x_get_sig_params(state);
@@ -4034,8 +4038,12 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			if (STV090x_GETFIELD_Px(reg, LOCKEDVIT_FIELD)) {
 				*status |= FE_HAS_VITERBI;
 				reg = STV090x_READ_DEMOD(state, TSSTATUS);
-				if (STV090x_GETFIELD_Px(reg, TSFIFO_LINEOK_FIELD))
+				if (STV090x_GETFIELD_Px(reg, TSFIFO_LINEOK_FIELD)) {
 					*status |= FE_HAS_SYNC | FE_HAS_LOCK;
+					if (state->config->set_lock_led) {
+						state->config->set_lock_led(fe, 1);
+					}
+				}
 			}
 		}
 		stv090x_get_sig_params(state);
@@ -4044,6 +4052,9 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	if (state->algo == STV090x_NOTUNE) {
 		*status |= FE_TIMEDOUT;
+		if (state->config->set_lock_led) {
+			state->config->set_lock_led(fe, 0);
+		}
 	}
 	stv090x_get_stats(fe, *status);
 	return 0;
@@ -4256,6 +4267,10 @@ static int stv090x_sleep(struct dvb_frontend *fe)
 	u8 full_standby = 0;
 
 	state->algo = STV090x_NOTUNE;
+
+	if (state->config->set_lock_led) {
+		state->config->set_lock_led(fe, 0);
+	}
 
 	if (stv090x_i2c_gate_ctrl(state, 1) < 0)
 		goto err;
@@ -4489,6 +4504,10 @@ err:
 static void stv090x_release(struct dvb_frontend *fe)
 {
 	struct stv090x_state *state = fe->demodulator_priv;
+
+	if (state->config->set_lock_led) {
+		state->config->set_lock_led(fe, 0);
+	}
 
 	state->internal->num_used--;
 	if (state->internal->num_used <= 0) {

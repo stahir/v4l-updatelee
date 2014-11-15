@@ -1101,6 +1101,7 @@ static struct stv090x_config prof_7500_stv090x_config = {
 	.adc1_range             = STV090x_ADC_2Vpp,
 	.diseqc_envelope_mode   = false,
 
+	.set_lock_led           = dw210x_led_ctrl,
 	.tuner_bbgain			= 8,
 	.tuner_get_frequency    = stb6100_get_frequency,
 	.tuner_set_frequency    = stb6100_set_frequency,
