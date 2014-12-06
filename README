@@ -11,7 +11,7 @@
 	sudo apt-get install git build-essential linux-headers-generic \
 	ncurses-dev libproc-processtable-perl fakeroot
 
-# Then download the repository 
+# Then download the repository, aprox 1.9Gb
 
 	git clone https://bitbucket.org/updatelee/v4l-updatelee
 	cd v4l-updatelee
@@ -20,9 +20,10 @@
 
 	sudo make menuconfig
 
-# Then compile
+# Then compile, -j[number of cores in your processor], this will take around 20min on my 
+# computer, so depending on your system it may take even longer.
 
-	sudo make deb-pkg
+	sudo make -j9 deb-pkg
 
 # Install the kernel
 
