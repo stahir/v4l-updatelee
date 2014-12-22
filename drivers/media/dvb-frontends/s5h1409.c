@@ -999,15 +999,15 @@ EXPORT_SYMBOL(s5h1409_attach);
 static int s5h1409_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spectrum_scan *s)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
-	struct s5h1409_state *state = fe->demodulator_priv;
 	
-	u16 reg;
 	int x;
 	p->bandwidth_hz = 1000000;
 	p->delivery_system = SYS_ATSC;
 	p->modulation = VSB_8;
 
 	dprintk("%s\n", __func__);
+
+        *s->type = SC_DB;
 
 	if (fe->ops.tuner_ops.set_params) {
 		for (x = 0 ; x < s->num_freq ; x++)
@@ -1019,12 +1019,8 @@ static int s5h1409_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 			if (fe->ops.i2c_gate_ctrl)
 				fe->ops.i2c_gate_ctrl(fe, 0);
 			
-			reg = s5h1409_readreg(state, 0xf1) & 0x3ff;
-			if (reg < 520) {
-				reg = 520;
-			}
-			
-			*(s->rf_level + x) = reg;
+                        s5h1409_read_snr(fe, (s->rf_level + x));
+                        *(s->rf_level + x) *= 10;
 		}
 	}
 

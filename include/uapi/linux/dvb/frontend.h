@@ -587,10 +587,18 @@ struct dvb_fe_constellation_samples {
 #define DTV_MAX_CONSTELLATION_SAMPLES 1000
 #define FE_GET_CONSTELLATION_SAMPLES    _IOR('o',84, struct dvb_fe_constellation_samples)
 
+typedef enum spectrum_scan {
+        SC_DB       = 0x00,
+        SC_DBM      = 0x01,
+        SC_GAIN     = 0x02
+} spectrum_scan_t;
+
+
 struct dvb_fe_spectrum_scan {
 		__u32			*freq;
 		__u16			num_freq;
-		__u16			*rf_level;
+		__s16			*rf_level;
+                __u32                   *type;
 };
 
 #define DTV_MAX_SPECTRUM_SCAN_STEPS     2000

@@ -1180,6 +1180,7 @@ static int lgdt3305_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spe
 
 	lg_info("%s\n", __func__);
 
+        *s->type = SC_DB;
 	if (fe->ops.tuner_ops.set_params) {
 		for (x = 0; x < s->num_freq; x++)
 		{
@@ -1234,12 +1235,8 @@ static int lgdt3305_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spe
 			lgdt3305_soft_reset(state);
 			msleep(800);
 
-			lg_info("%d %d %d\n", read_reg(state, LGDT3305_EQ_MSE_1), read_reg(state, LGDT3305_EQ_MSE_2), read_reg(state, LGDT3305_EQ_MSE_3));
-			lg_info("%d %d %d\n", read_reg(state, LGDT3305_PT_MSE_1), read_reg(state, LGDT3305_PT_MSE_2), read_reg(state, LGDT3305_PT_MSE_3));
-			lg_info("%d %d\n", read_reg(state, LGDT3305_CR_MSE_1), read_reg(state, LGDT3305_CR_MSE_2));
-
-			lgdt3305_read_snr(fe, (s->rf_level + x));
-			lg_info("%d\n", *(s->rf_level + x));
+                        lgdt3305_read_snr(fe, (s->rf_level + x));
+                        *(s->rf_level + x) *= 10;
 		}
 	}
 	return 0;

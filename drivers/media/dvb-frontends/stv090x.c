@@ -262,6 +262,23 @@ static const struct stv090x_tab stv090x_rf_tab[] = {
 	{ -70, 0x07aa }	 /* -70dBm */
 };
 
+static const struct stv090x_tab stv090x_rf_tab_x100[] = {
+	{  -500, 0xcaa1 }, /*  -5dBm */
+	{ -1000, 0xc229 }, /* -10dBm */
+	{ -1500, 0xbb08 }, /* -15dBm */
+	{ -2000, 0xb4bc }, /* -20dBm */
+	{ -2500, 0xad5a }, /* -25dBm */
+	{ -3000, 0xa298 }, /* -30dBm */
+	{ -3500, 0x98a8 }, /* -35dBm */
+	{ -4000, 0x8389 }, /* -40dBm */
+	{ -4500, 0x59be }, /* -45dBm */
+	{ -5000, 0x3a14 }, /* -50dBm */
+	{ -5500, 0x2d11 }, /* -55dBm */
+	{ -6000, 0x210d }, /* -60dBm */
+	{ -6500, 0x114f }, /* -65dBm */
+	{ -7000, 0x07aa }  /* -70dBm */
+};
+
 
 static struct stv090x_reg stv0900_initval[] = {
 
@@ -3811,11 +3828,9 @@ static u32 stv090x_read_tbe(struct dvb_frontend *fe)
 	struct stv090x_state *state = fe->demodulator_priv;
 	u32 count;
 
-	dprintk(FE_ERROR, 1, "%02x %02x %02x", STV090x_READ_DEMOD(state, ERRCNT12), STV090x_READ_DEMOD(state, ERRCNT11), STV090x_READ_DEMOD(state, ERRCNT10));
 	count  = (STV090x_READ_DEMOD(state, ERRCNT12) & 0x7f) << 16;
 	count |= (STV090x_READ_DEMOD(state, ERRCNT11) & 0xff) << 8;
 	count |= (STV090x_READ_DEMOD(state, ERRCNT10) & 0xff);
-	dprintk(FE_ERROR, 1, "%06x", count);
 
 	return count;
 }
@@ -5344,12 +5359,13 @@ err:
 	return -1;
 }
 
-static int stv090x_read_signal_strength2(struct dvb_frontend *fe, u16 *strength)
+static int stv090x_read_signal_strength2(struct dvb_frontend *fe, s16 *strength)
 {
 	struct stv090x_state *state = fe->demodulator_priv;
 
 	u32 reg;
 	s32 agc_0, agc_1, agc_gain;
+	s16 str;
 
 	reg = STV090x_READ_DEMOD(state, AGCIQIN1);
 	agc_1 = STV090x_GETFIELD_Px(reg, AGCIQ_VALUE_FIELD);
@@ -5357,7 +5373,13 @@ static int stv090x_read_signal_strength2(struct dvb_frontend *fe, u16 *strength)
 	agc_0 = STV090x_GETFIELD_Px(reg, AGCIQ_VALUE_FIELD);
 	agc_gain = MAKEWORD16(agc_1, agc_0);
 
-	*strength = agc_gain;
+	str = stv090x_table_lookup(stv090x_rf_tab_x100, ARRAY_SIZE(stv090x_rf_tab_x100) - 1, agc_gain);
+	if (agc_gain > stv090x_rf_tab_x100[0].read)
+		str = 0;
+	else if (agc_gain < stv090x_rf_tab_x100[ARRAY_SIZE(stv090x_rf_tab_x100) - 1].read)
+		str = -10000;
+
+	*strength = str;
 	return 0;
 }
 
@@ -5401,6 +5423,8 @@ static int stv090x_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 	}
 
 	stv090x_set_srate(state, bw);
+
+        *s->type = SC_DBM;
 
 	// stop demod
 	stv090x_write_reg(state, STV090x_P1_DMDISTATE, 0x5c);
