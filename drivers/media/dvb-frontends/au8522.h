@@ -92,8 +92,3 @@ enum au8522_audio_input {
 };
 
 #endif /* __AU8522_H__ */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- */
