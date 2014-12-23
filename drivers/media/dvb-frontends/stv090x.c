@@ -2732,7 +2732,6 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 
 	offst_freq = stv090x_get_car_freq(state, state->internal->mclk) / 1000;
 	props->frequency = state->frequency + offst_freq;
-	dprintk(FE_DEBUG, 1, "props->frequency = %d, state->frequency = %d, offst_freq = %d", props->frequency, state->frequency, offst_freq);
 
 	if (stv090x_get_viterbi(state) < 0)
 		goto err;
@@ -4032,7 +4031,6 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		*status = 0;
 		break;
 	case 2: /* DVB-S2 mode */
-		dprintk(FE_DEBUG, 1, "Delivery system: DVB-S2");
 		if (STV090x_GETFIELD_Px(dstatus, LOCK_DEFINITIF_FIELD)) {
 			reg = STV090x_READ_DEMOD(state, PDELSTATUS1);
 			if (STV090x_GETFIELD_Px(reg, PKTDELIN_LOCK_FIELD)) {
@@ -4049,7 +4047,6 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		stv090x_get_sig_params(state);
 		break;
 	case 3: /* DVB-S1/legacy mode */
-		dprintk(FE_DEBUG, 1, "Delivery system: DVB-S");
 		if (STV090x_GETFIELD_Px(dstatus, LOCK_DEFINITIF_FIELD)) {
 			reg = STV090x_READ_DEMOD(state, VSTATUSVIT);
 			if (STV090x_GETFIELD_Px(reg, LOCKEDVIT_FIELD)) {
