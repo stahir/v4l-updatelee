@@ -237,13 +237,13 @@ int cx8802_buf_prepare(struct vb2_queue *q, struct cx8802_dev *dev,
 
 	rc = cx88_risc_databuffer(dev->pci, risc, sgt->sgl,
 			     dev->ts_packet_size, dev->ts_packet_count, 0);
-	if (rc) {
-		if (risc->cpu)
-			pci_free_consistent(dev->pci, risc->size, risc->cpu, risc->dma);
-		memset(risc, 0, sizeof(*risc));
-		return rc;
-	}
-	return 0;
+        if (rc) {
+                if (risc->cpu)
+                        pci_free_consistent(dev->pci, risc->size, risc->cpu, risc->dma);
+                memset(risc, 0, sizeof(*risc));
+                return rc;
+        }
+        return 0;
 }
 
 void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
