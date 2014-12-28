@@ -1408,6 +1408,9 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 	case DTV_MATYPE:
 		tvp->u.data = c->matype;
 		break;
+        case DTV_FRAME_LEN:
+                tvp->u.data = c->frame_len;
+                break;
 
 	/* ATSC-MH */
 	case DTV_ATSCMH_FIC_VER:

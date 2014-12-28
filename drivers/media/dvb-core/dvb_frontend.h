@@ -386,7 +386,8 @@ struct dtv_frontend_properties {
 
 	/* Multistream specifics */
 	u32			stream_id;
-	u32			matype;
+        u32			matype;
+        u32			frame_len;
 
 	/* ATSC-MH specifics */
 	u8			atscmh_fic_ver;
