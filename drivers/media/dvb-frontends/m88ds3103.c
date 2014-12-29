@@ -837,10 +837,10 @@ static int m88ds3103_get_frontend(struct dvb_frontend *fe)
 
 		switch ((buf[0] >> 5) & 0x01) {
 		case 0:
-			c->pilot = PILOT_OFF;
+                        c->pilot = PILOT_ON;
 			break;
 		case 1:
-			c->pilot = PILOT_ON;
+                        c->pilot = PILOT_OFF;
 			break;
 		}
 
