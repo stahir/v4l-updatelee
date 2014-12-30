@@ -124,6 +124,10 @@ static u32 MSI_CONFIG_REG[51] = {
 
 int saa716x_msi_event(struct saa716x_dev *saa716x, u32 stat_l, u32 stat_h)
 {
+	if (stat_h & MSI_INT_I2CINT_0) {
+		saa716x_i2c_irqevent(saa716x, 0);
+	}
+
 	if (stat_h & MSI_INT_I2CINT_1) {
 		saa716x_i2c_irqevent(saa716x, 1);
 	}

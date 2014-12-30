@@ -56,54 +56,11 @@ int saa716x_i2c_irqevent(struct saa716x_dev *saa716x, u8 bus)
 	stat = SAA716x_EPRD(I2C_DEV[bus], INT_STATUS);
 	mask = SAA716x_EPRD(I2C_DEV[bus], INT_ENABLE);
 	saa716x->i2c[bus].i2c_stat = stat;
-	dprintk(SAA716x_DEBUG, 0, "Bus(%d) I2C event: Status=<%s> --> Stat=<%02x> Mask=<%02x>",
-		bus, state[stat], stat, mask);
 
 	if (!(stat & mask))
 		return -1;
 
 	SAA716x_EPWR(I2C_DEV[bus], INT_CLR_STATUS, stat);
-
-	if (stat & I2C_INTERRUPT_STFNF)
-		dprintk(SAA716x_DEBUG, 0, "<STFNF> ");
-
-	if (stat & I2C_INTERRUPT_MTFNF) {
-		dprintk(SAA716x_DEBUG, 0, "<MTFNF> ");
-	}
-
-	if (stat & I2C_INTERRUPT_RFDA)
-		dprintk(SAA716x_DEBUG, 0, "<RFDA> ");
-
-	if (stat & I2C_INTERRUPTE_RFF)
-		dprintk(SAA716x_DEBUG, 0, "<RFF> ");
-
-	if (stat & I2C_SLAVE_INTERRUPT_STDR)
-		dprintk(SAA716x_DEBUG, 0, "<STDR> ");
-
-	if (stat & I2C_MASTER_INTERRUPT_MTDR) {
-		dprintk(SAA716x_DEBUG, 0, "<MTDR> ");
-	}
-
-	if (stat & I2C_ERROR_IBE)
-		dprintk(SAA716x_DEBUG, 0, "<IBE> ");
-
-	if (stat & I2C_MODE_CHANGE_INTER_MSMC)
-		dprintk(SAA716x_DEBUG, 0, "<MSMC> ");
-
-	if (stat & I2C_SLAVE_RECEIVE_INTER_SRSD)
-		dprintk(SAA716x_DEBUG, 0, "<SRSD> ");
-
-	if (stat & I2C_SLAVE_TRANSMIT_INTER_STSD)
-		dprintk(SAA716x_DEBUG, 0, "<STSD> ");
-
-	if (stat & I2C_ACK_INTER_MTNA)
-		dprintk(SAA716x_DEBUG, 0, "<MTNA> ");
-
-	if (stat & I2C_FAILURE_INTER_MAF)
-		dprintk(SAA716x_DEBUG, 0, "<MAF> ");
-
-	if (stat & I2C_INTERRUPT_MTD)
-		dprintk(SAA716x_DEBUG, 0, "<MTD> ");
 
 	return 0;
 }

@@ -490,10 +490,10 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 	u16 pid = ts_pid(buf);
 	int dvr_done = 0;
 
-	if (demux->frame_ops.frame_size		== 0) {
-		demux->frame_ops.frame_size		= 188;
+	if (demux->frame_ops.frame_size == 0) {
+		demux->frame_ops.frame_size	= 188;
 		demux->frame_ops.packet_size	= 188;
-		demux->frame_ops.sync_byte		= 0x47;
+		demux->frame_ops.sync_byte	= 0x47;
 	}
 	if (dvb_demux_speedcheck) {
 		struct timespec cur_time, delta_time;
@@ -578,14 +578,14 @@ void dvb_dmx_swfilter_packets(struct dvb_demux *demux, const u8 *buf,
 	spin_lock_irqsave(&demux->lock, flags);
 
 	if (demux->frame_ops.frame_size		== 0) {
-		demux->frame_ops.frame_size		= 188;
+		demux->frame_ops.frame_size	= 188;
 		demux->frame_ops.packet_size	= 188;
-		demux->frame_ops.sync_byte		= 0x47;
+		demux->frame_ops.sync_byte	= 0x47;
 	}
 	while (count--) {
 		if (buf[0] == demux->frame_ops.sync_byte)
 			dvb_dmx_swfilter_packet(demux, buf);
-		buf += demux->frame_ops.packet_size;
+		buf += demux->frame_ops.packet_size; // Should be frame_size ?
 	}
 
 	spin_unlock_irqrestore(&demux->lock, flags);
@@ -632,15 +632,10 @@ static inline void _dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf,
 
 	spin_lock_irqsave(&demux->lock, flags);
 
-	if (demux->frame_ops.frame_size	== 0) {
-		demux->frame_ops.frame_size		= 188;
+	if (demux->frame_ops.frame_size	== 0 || pktsize == 204) {
+		demux->frame_ops.frame_size	= pktsize;
 		demux->frame_ops.packet_size	= 188;
-		demux->frame_ops.sync_byte		= 0x47;
-	}
-	if (pktsize == 204) {
-		demux->frame_ops.frame_size		= 204;
-		demux->frame_ops.packet_size	= 188;
-		demux->frame_ops.sync_byte		= 0x47;
+		demux->frame_ops.sync_byte	= 0x47;
 	}
 
 	if (demux->tsbufp) { /* tsbuf[0] is now demux->frame_ops.sync_byte. */
@@ -673,7 +668,7 @@ static inline void _dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf,
 			q = demux->tsbuf;
 		}
 		dvb_dmx_swfilter_packet(demux, q);
-		p += demux->frame_ops.packet_size;
+		p += demux->frame_ops.frame_size;
 	}
 
 	i = count - p;

@@ -118,8 +118,7 @@ static int saa716x_budget_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	}
 
 	saa716x_gpio_init(saa716x);
-
-	/* UDL
+#if 0
 	err = saa716x_dump_eeprom(saa716x);
 	if (err) {
 		dprintk(SAA716x_ERROR, 1, "SAA716x EEPROM dump failed");
@@ -129,11 +128,16 @@ static int saa716x_budget_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	if (err) {
 		dprintk(SAA716x_ERROR, 1, "SAA716x EEPROM read failed");
 	}
-	*/
+
+	/* set default port mapping */
+	SAA716x_EPWR(GREG, GREG_VI_CTRL, 0x04080FA9);
+	/* enable FGPI3 and FGPI1 for TS input from Port 2 and 6 */
+	SAA716x_EPWR(GREG, GREG_FGPI_CTRL, 0x321);
+#endif
 
 	/* set default port mapping */
 	SAA716x_EPWR(GREG, GREG_VI_CTRL, 0x2C688F0A);
-	/* enable FGPI3 and FGPI1 for TS input from Port 2 and 6 */
+	/* enable FGPI3, FGPI2, FGPI1 and FGPI0 for TS input from Port 2 and 6 */
 	SAA716x_EPWR(GREG, GREG_FGPI_CTRL, 0x322);
 
 	err = saa716x_dvb_init(saa716x);
@@ -289,7 +293,7 @@ static void demux_worker(unsigned long data)
 		if (tsout == 0) {
 			dvb_dmx_swfilter_data(demux, FE_DFMT_BB_FRAME, data, 348 * 188);
 		} else {
-			dvb_dmx_swfilter_packets(demux, data, 188);
+			dvb_dmx_swfilter(demux, data, 348 * 188);
 		}
 
 		fgpi_entry->read_index = (fgpi_entry->read_index + 1) & 7;

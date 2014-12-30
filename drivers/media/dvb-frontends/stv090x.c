@@ -3771,12 +3771,12 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe)
 			if (props->delivery_system == SYS_DSS) {
 				frame_ops.frame_size	= 131;
 				frame_ops.packet_size	= 131;
-				frame_ops.sync_byte		= 0x1D;
+				frame_ops.sync_byte	= 0x1D;
 				frontend_ops->set_frame_ops(fe, frame_ops);
 			} else {
 				frame_ops.frame_size	= 188;
 				frame_ops.packet_size	= 188;
-				frame_ops.sync_byte		= 0x47;
+				frame_ops.sync_byte	= 0x47;
 				frontend_ops->set_frame_ops(fe, frame_ops);
 			}
 			dprintk(FE_DEBUG, 1, "frame_ops.frame_size = %d", frame_ops.frame_size);
