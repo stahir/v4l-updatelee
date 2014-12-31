@@ -3144,6 +3144,18 @@ static int stv090x_optimize_track(struct stv090x_state *state)
 				goto err;
 	}
 
+	if (state->internal->dev_ver >= 0x20) {
+		if ((state->search_mode == STV090x_SEARCH_DVBS1)	||
+		    (state->search_mode == STV090x_SEARCH_DSS)		||
+		    (state->search_mode == STV090x_SEARCH_AUTO)) {
+
+			if (STV090x_WRITE_DEMOD(state, VAVSRVIT, 0x0a) < 0)
+				goto err;
+			if (STV090x_WRITE_DEMOD(state, VITSCALE, 0x00) < 0)
+				goto err;
+		}
+	}
+
 	if (STV090x_WRITE_DEMOD(state, AGC2REF, 0x38) < 0)
 		goto err;
 
@@ -3228,9 +3240,7 @@ static int stv090x_optimize_track(struct stv090x_state *state)
 			if (STV090x_WRITE_DEMOD(state, VITSCALE, 0x00) < 0)
 				goto err;
 		}
-	}
-
-	if (state->internal->dev_ver >= 0x30) {
+	} else if (state->internal->dev_ver >= 0x30) {
 		if (STV090x_WRITE_DEMOD(state, CARHDR, 0x10) < 0)
 			goto err;
 	}
