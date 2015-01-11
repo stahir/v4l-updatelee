@@ -678,12 +678,10 @@ static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	*status = 0;
 
 	if (state->current_modulation == VSB_8) {
-		dprintk("%s() Checking VSB_8\n", __func__);
 		reg = au8522_readreg(state, 0x4088);
 		if ((reg & 0x03) == 0x03)
 			*status |= FE_HAS_LOCK | FE_HAS_SYNC | FE_HAS_VITERBI;
 	} else {
-		dprintk("%s() Checking QAM\n", __func__);
 		reg = au8522_readreg(state, 0x4541);
 		if (reg & 0x80)
 			*status |= FE_HAS_VITERBI;
@@ -693,13 +691,11 @@ static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 	switch (state->config->status_mode) {
 	case AU8522_DEMODLOCKING:
-		dprintk("%s() DEMODLOCKING\n", __func__);
 		if (*status & FE_HAS_VITERBI)
 			*status |= FE_HAS_CARRIER | FE_HAS_SIGNAL;
 		break;
 	case AU8522_TUNERLOCKING:
 		/* Get the tuner status */
-		dprintk("%s() TUNERLOCKING\n", __func__);
 		if (fe->ops.tuner_ops.get_status) {
 			if (fe->ops.i2c_gate_ctrl)
 				fe->ops.i2c_gate_ctrl(fe, 1);
@@ -721,8 +717,6 @@ static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	else
 		/* turn off LED */
 		au8522_led_ctrl(state, 0);
-
-	dprintk("%s() status 0x%08x\n", __func__, *status);
 
 	return 0;
 }
