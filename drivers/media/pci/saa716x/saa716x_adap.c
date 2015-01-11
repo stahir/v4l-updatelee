@@ -22,8 +22,6 @@ void saa716x_dma_start(struct saa716x_dev *saa716x, u8 adapter)
 {
 	struct fgpi_stream_params params;
 
-	dprintk(SAA716x_DEBUG, 1, "SAA716x Start DMA engine for Adapter:%d", adapter);
-
 	params.bits		= 8;
 	params.samples		= 188;
 	params.lines		= SAA716X_TS_DMA_BUF_SIZE / 188;
@@ -38,8 +36,6 @@ void saa716x_dma_start(struct saa716x_dev *saa716x, u8 adapter)
 
 void saa716x_dma_stop(struct saa716x_dev *saa716x, u8 adapter)
 {
-	dprintk(SAA716x_DEBUG, 1, "SAA716x Stop DMA engine for Adapter:%d", adapter);
-
 	saa716x_fgpi_stop(saa716x, saa716x->config->adap_config[adapter].ts_port);
 }
 
@@ -56,7 +52,6 @@ static int saa716x_dvb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	saa716x_adap->feeds++;
 
 	if (saa716x_adap->feeds == 1) {
-		dprintk(SAA716x_DEBUG, 1, "SAA716x start feed & dma");
 		saa716x_dma_start(saa716x, saa716x_adap->count);
 	}
 
@@ -75,7 +70,6 @@ static int saa716x_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	}
 	saa716x_adap->feeds--;
 	if (saa716x_adap->feeds == 0) {
-		dprintk(SAA716x_DEBUG, 1, "saa716x stop feed and dma");
 		saa716x_dma_stop(saa716x, saa716x_adap->count);
 	}
 
