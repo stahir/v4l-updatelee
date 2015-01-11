@@ -27,7 +27,7 @@
 #include "dvb_math.h"
 #include "lgdt3305.h"
 
-static int debug = 1;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debug level (info=1, reg=2 (or-able))");
 
