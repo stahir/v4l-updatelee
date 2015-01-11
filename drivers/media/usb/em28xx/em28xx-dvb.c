@@ -63,7 +63,7 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DRIVER_DESC " - digital TV interface");
 MODULE_VERSION(EM28XX_VERSION);
 
-static unsigned int debug = 1;
+static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages [dvb]");
 
