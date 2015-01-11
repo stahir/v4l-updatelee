@@ -253,7 +253,6 @@ static int au8522_mse2snr_lookup(struct mse2snr_tab *tab, int sz, int mse,
 				 u16 *snr)
 {
 	int i, ret = -EINVAL;
-	dprintk("%s()\n", __func__);
 
 	for (i = 0; i < sz; i++) {
 		if (mse <= tab[i].val) {
@@ -262,7 +261,6 @@ static int au8522_mse2snr_lookup(struct mse2snr_tab *tab, int sz, int mse,
 			break;
 		}
 	}
-	dprintk("%s() snr=%d\n", __func__, *snr);
 	return ret;
 }
 
@@ -758,8 +756,6 @@ static int au8522_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct au8522_state *state = fe->demodulator_priv;
 	int ret = -EINVAL;
-
-	dprintk("%s()\n", __func__);
 
 	if (state->current_modulation == QAM_256)
 		ret = au8522_mse2snr_lookup(qam256_mse2snr_tab,
