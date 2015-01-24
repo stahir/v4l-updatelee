@@ -55,7 +55,7 @@ struct s5h1409_state {
 	u8  qam_state;
 };
 
-static int debug = 1;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Enable verbose debug messages");
 

@@ -77,7 +77,8 @@ MODULE_PARM_DESC(dvb_buf_tscnt, "DVB Buffer TS count [dvb]");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-#define dprintk(level,fmt, arg...) printk(KERN_DEBUG "%s/2-dvb: " fmt, core->name, ## arg)
+#define dprintk(level,fmt, arg...)	if (debug >= level) \
+	printk(KERN_DEBUG "%s/2-dvb: " fmt, core->name, ## arg)
 
 /* ------------------------------------------------------------------ */
 

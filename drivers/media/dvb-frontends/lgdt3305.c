@@ -39,8 +39,9 @@ MODULE_PARM_DESC(debug, "set debug level (info=1, reg=2 (or-able))");
 
 #define lg_info(fmt, arg...)	printk(KERN_INFO "lgdt3305: " fmt, ##arg)
 #define lg_warn(fmt, arg...)	lg_printk(KERN_WARNING,       fmt, ##arg)
-#define lg_err(fmt, arg...)		lg_printk(KERN_ERR,           fmt, ##arg)
-#define lg_dbg(fmt, arg...)		lg_printk(KERN_DEBUG,         fmt, ##arg)
+#define lg_err(fmt, arg...)	lg_printk(KERN_ERR,           fmt, ##arg)
+#define lg_dbg(fmt, arg...) if (debug & DBG_INFO)			\
+				lg_printk(KERN_DEBUG,         fmt, ##arg)
 #define lg_reg(fmt, arg...) if (debug & DBG_REG)			\
 				lg_printk(KERN_DEBUG,         fmt, ##arg)
 

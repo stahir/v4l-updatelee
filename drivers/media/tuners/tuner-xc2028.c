@@ -43,7 +43,7 @@
 
 #define XREG_ADC_ENV      0x0100
 
-static int debug = 1;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 

@@ -33,7 +33,7 @@
 
 /* #define ENABLE_DEBUG_ISOC_FRAMES */
 
-static unsigned int core_debug = 1;
+static unsigned int core_debug;
 module_param(core_debug, int, 0644);
 MODULE_PARM_DESC(core_debug, "enable debug messages [core]");
 

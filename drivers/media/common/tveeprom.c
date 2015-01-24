@@ -781,7 +781,6 @@ int tveeprom_read(struct i2c_client *c, unsigned char *eedata, int len)
 		tveeprom_warn("i2c eeprom read error (err=%d)\n", err);
 		return -1;
 	}
-	debug = 1;
 	if (debug) {
 		int i;
 

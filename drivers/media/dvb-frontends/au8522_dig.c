@@ -31,7 +31,10 @@
 static int debug;
 static int zv_mode = 1; /* default to on */
 
-#define dprintk(arg...) printk(arg)
+#define dprintk(arg...)\
+	do { if (debug)\
+		printk(arg);\
+	} while (0)
 
 struct mse2snr_tab {
 	u16 val;

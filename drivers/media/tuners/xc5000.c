@@ -47,7 +47,8 @@ MODULE_PARM_DESC(no_poweroff, "0 (default) powers device off when not used.\n"
 static DEFINE_MUTEX(xc5000_list_mutex);
 static LIST_HEAD(hybrid_tuner_instance_list);
 
-#define dprintk(level, fmt, arg...) printk(KERN_INFO "%s: " fmt, "xc5000", ## arg)
+#define dprintk(level, fmt, arg...) if (debug >= level) \
+	printk(KERN_INFO "%s: " fmt, "xc5000", ## arg)
 
 struct xc5000_priv {
 	struct tuner_i2c_props i2c_props;
