@@ -697,13 +697,13 @@ EXPORT_SYMBOL(dvb_dmx_swfilter_204);
 
 void dvb_dmx_swfilter_raw(struct dvb_demux *demux, const u8 *buf, size_t count)
 {
-        unsigned long flags;
+	unsigned long flags;
 
-        spin_lock_irqsave(&demux->lock, flags);
+	spin_lock_irqsave(&demux->lock, flags);
 
-        demux->feed->cb.ts(buf, count, NULL, 0, &demux->feed->feed.ts, DMX_OK);
+	demux->feed->cb.ts(buf, count, NULL, 0, &demux->feed->feed.ts, DMX_OK);
 
-        spin_unlock_irqrestore(&demux->lock, flags);
+	spin_unlock_irqrestore(&demux->lock, flags);
 }
 EXPORT_SYMBOL(dvb_dmx_swfilter_raw);
 

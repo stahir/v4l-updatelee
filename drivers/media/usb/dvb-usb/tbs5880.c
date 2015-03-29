@@ -551,8 +551,6 @@ static int tbs5880_tuner_attach(struct dvb_usb_adapter *adap)
 		return -ENODEV;
 	}
 
-	adap->i2c_client_tuner = i2c_client;
-
 	return 0;
 }
 
