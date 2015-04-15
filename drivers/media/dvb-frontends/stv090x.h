@@ -118,7 +118,7 @@ struct stv090x_config {
 	u8 tun2_iqswap:1;
 };
 
-#if IS_ENABLED(CONFIG_DVB_STV090x)
+#if IS_REACHABLE(CONFIG_DVB_STV090x)
 
 struct dvb_frontend *stv090x_attach(struct stv090x_config *config,
 				    struct i2c_adapter *i2c,

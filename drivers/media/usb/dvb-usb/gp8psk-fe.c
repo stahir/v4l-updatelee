@@ -98,6 +98,8 @@ static int gp8psk_fe_read_status(struct dvb_frontend* fe, fe_status_t *status)
 	else
 		*status = 0;
 
+	deb_fe("%s() lock: %s", __func__, st->lock ? "yes" : "no");
+
 	if (*status & FE_HAS_LOCK) {
 		gp8psk_usb_in_op(st->d, GET_SIGNAL_STAT, 0, 0, buf, 32);
 		frequency		= ((buf[11] << 24) + (buf[10] << 16) + (buf[9] << 8) + buf[8]) / 1000;
@@ -178,13 +180,9 @@ static int gp8psk_fe_read_status(struct dvb_frontend* fe, fe_status_t *status)
 static int gp8psk_fe_read_ber(struct dvb_frontend* fe, u32 *ber)
 {
 	struct gp8psk_fe_state *st = fe->demodulator_priv;
-
 	u8 buf[4];
 
-	if (gp8psk_usb_in_op(st->d, GET_BER_RATE, 0, 0, buf, 4)) {
-		return -EINVAL;
-	}
-
+	gp8psk_usb_in_op(st->d, GET_BER_RATE, 0, 0, buf, 4);
 	*ber = (buf[3] << 24) + (buf[2] << 16) + (buf[1] << 8) + buf[0];
 
 	return 0;
@@ -235,7 +233,7 @@ static int gp8psk_fe_set_frontend(struct dvb_frontend *fe)
 	u32 freq = c->frequency * 1000;
 	int gp_product_id = le16_to_cpu(state->d->udev->descriptor.idProduct);
 
-	info("%s() freq: %d, sr: %d", __func__, freq, c->symbol_rate);
+	deb_fe("%s() freq: %d, sr: %d", __func__, freq, c->symbol_rate);
 
 	cmd[0] =  c->symbol_rate        & 0xff;
 	cmd[1] = (c->symbol_rate >>  8) & 0xff;
@@ -247,21 +245,22 @@ static int gp8psk_fe_set_frontend(struct dvb_frontend *fe)
 	cmd[7] = (freq >> 24) & 0xff;
 
 	/* backwards compatibility: DVB-S2 used to be used for Turbo-FEC */
-	if (c->delivery_system == SYS_DVBS2)
+	if (c->delivery_system == SYS_DVBS2) {
 		c->delivery_system = SYS_TURBO;
+	}
 
 	switch (c->delivery_system) {
 	case SYS_DVBS:
-		info("%s: DVB-S delivery system selected w/fec %d", __func__, c->fec_inner);
+		deb_fe("%s: DVB-S delivery system selected w/fec %d", __func__, c->fec_inner);
 		c->fec_inner = FEC_AUTO;
 		cmd[8] = ADV_MOD_DVB_QPSK;
 		cmd[9] = 5;
 		break;
 	case SYS_TURBO:
-		info("%s: Turbo-FEC delivery system selected", __func__);
+		deb_fe("%s: Turbo-FEC delivery system selected", __func__);
 		switch (c->modulation) {
 		case QPSK:
-			info("%s: modulation QPSK selected w/fec %d", __func__, c->fec_inner);
+			deb_fe("%s: modulation QPSK selected w/fec %d", __func__, c->fec_inner);
 			cmd[8] = ADV_MOD_TURBO_QPSK;
 			switch (c->fec_inner) {
 			case FEC_1_2:	cmd[9] = 1; break;
@@ -272,7 +271,7 @@ static int gp8psk_fe_set_frontend(struct dvb_frontend *fe)
 			}
 			break;
 		case PSK_8:
-			info("%s: modulation 8PSK selected w/fec %d", __func__, c->fec_inner);
+			deb_fe("%s: modulation 8PSK selected w/fec %d", __func__, c->fec_inner);
 			cmd[8] = ADV_MOD_TURBO_8PSK;
 			switch (c->fec_inner) {
 			case FEC_2_3:	cmd[9] = 0; break;
@@ -284,18 +283,17 @@ static int gp8psk_fe_set_frontend(struct dvb_frontend *fe)
 			}
 			break;
 		case QAM_16: /* QAM_16 is for compatibility with DN */
-			info("%s: modulation QAM_16 selected w/fec %d", __func__, c->fec_inner);
+			deb_fe("%s: modulation QAM_16 selected w/fec %d", __func__, c->fec_inner);
 			cmd[8] = ADV_MOD_TURBO_16QAM;
 			cmd[9] = 0;
 			break;
 		default: /* Unknown modulation */
-			info("%s: unsupported modulation selected (%d)",
-				__func__, c->modulation);
+			deb_fe("%s: unsupported modulation selected (%d)", __func__, c->modulation);
 			return -EOPNOTSUPP;
 		}
 		break;
 	case SYS_DSS:
-		info("%s: DSS delivery system selected w/fec %d", __func__, c->fec_inner);
+		deb_fe("%s: DSS delivery system selected w/fec %d", __func__, c->fec_inner);
 		cmd[8] = ADV_MOD_DSS_QPSK;
 		switch (c->fec_inner) {
 		case FEC_1_2:	cmd[9] = 0; break;
@@ -309,7 +307,7 @@ static int gp8psk_fe_set_frontend(struct dvb_frontend *fe)
 		}
 		break;
 	case SYS_DCII:
-		info("%s: DCII delivery system selected w/fec %d", __func__, c->fec_inner);
+		deb_fe("%s: DCII delivery system selected w/fec %d", __func__, c->fec_inner);
 		switch (c->modulation) {
 		case C_QPSK:
 			cmd[8] = ADV_MOD_DCII_C_QPSK;
@@ -339,12 +337,16 @@ static int gp8psk_fe_set_frontend(struct dvb_frontend *fe)
 		}
 		break;
 	default:
-		info("%s: unsupported delivery system selected (%d)", __func__, c->delivery_system);
+		deb_fe("%s: unsupported delivery system selected (%d)", __func__, c->delivery_system);
 		return -EOPNOTSUPP;
 	}
 
-	if (gp_product_id == USB_PID_GENPIX_8PSK_REV_1_WARM)
-		gp8psk_set_tuner_mode(fe, 0);
+	if (gp_product_id == USB_PID_GENPIX_8PSK_REV_1_WARM) {
+	    if (gp8psk_tuned_to_DCII(fe)) {
+		gp8psk_bcm4500_reload(state->d);
+	    }
+	    gp8psk_set_tuner_mode(fe, 0);
+	}
 	gp8psk_usb_out_op(state->d, TUNE_8PSK, 0, 0, cmd, 10);
 
 	state->lock = 0;
@@ -467,7 +469,7 @@ static int gp8psk_fe_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_sp
 	unsigned int freq = 950000000;
 	unsigned int sr = 1000000;
 
-	info("%s()", __func__);
+	deb_fe("%s()", __func__);
 
 	cmd[0] =  sr        & 0xff;
 	cmd[1] = (sr >>  8) & 0xff;
@@ -480,7 +482,7 @@ static int gp8psk_fe_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_sp
 	cmd[8] = ADV_MOD_DVB_QPSK;
 	cmd[9] = 5;
 	if (gp8psk_usb_out_op(state->d, TUNE_8PSK, 0, 0, cmd, 10)) {
-		info("%s() TUNE_8PSK error", __func__);
+		deb_fe("%s() TUNE_8PSK error", __func__);
 		return -EINVAL;
 	}
 	msleep(1000);
@@ -494,14 +496,14 @@ static int gp8psk_fe_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_sp
 		cmd[3] = (freq >> 24) & 0xff;
 
 		if (gp8psk_usb_out_op(state->d, SET_FREQUENCY, 0, 0, cmd, 4)) {
-			info("%s() SET_FREQUENCY %d error", __func__, freq);
+			deb_fe("%s() SET_FREQUENCY %d error", __func__, freq);
 			return -EINVAL;
 		}
 
 		msleep(30);
 
 		if (gp8psk_usb_in_op(state->d, GET_SIGNAL_POWER, 0, 0, buf, 2)) {
-			info("%s() GET_SIGNAL_POWER %x %x error", __func__, buf[0], buf[1]);
+			deb_fe("%s() GET_SIGNAL_POWER %x %x error", __func__, buf[0], buf[1]);
 			return -EINVAL;
 		}
 		power = (buf[1] << 8) + buf[0];

@@ -70,7 +70,7 @@ struct s5h1409_config {
 	char name[128];	
 };
 
-#if IS_ENABLED(CONFIG_DVB_S5H1409)
+#if IS_REACHABLE(CONFIG_DVB_S5H1409)
 extern struct dvb_frontend *s5h1409_attach(const struct s5h1409_config *config,
 					   struct i2c_adapter *i2c);
 #else

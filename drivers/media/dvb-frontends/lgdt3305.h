@@ -81,7 +81,7 @@ struct lgdt3305_config {
 	char name[128];
 };
 
-#if IS_ENABLED(CONFIG_DVB_LGDT3305)
+#if IS_REACHABLE(CONFIG_DVB_LGDT3305)
 extern
 struct dvb_frontend *lgdt3305_attach(const struct lgdt3305_config *config,
 				     struct i2c_adapter *i2c_adap);
