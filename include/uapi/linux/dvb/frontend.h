@@ -168,6 +168,8 @@ typedef enum fe_code_rate {
 	FEC_9_10,
 	FEC_2_5,
 	FEC_5_11,
+	FEC_1_4,
+	FEC_1_3,
 } fe_code_rate_t;
 
 

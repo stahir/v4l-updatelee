@@ -2682,9 +2682,9 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 
 	int fe_stv0900_modcod_return_dvbs2[] = {
 		FEC_NONE,
-		FEC_AUTO,
-		FEC_AUTO,
-		FEC_AUTO,
+		FEC_1_4,
+		FEC_1_3,
+		FEC_2_5,
 		FEC_1_2,
 		FEC_3_5,
 		FEC_2_3,
