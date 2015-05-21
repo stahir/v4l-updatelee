@@ -328,7 +328,7 @@ static int mn88472_init(struct dvb_frontend *fe)
 			remaining -= (dev->i2c_wr_max - 1)) {
 		len = remaining;
 		if (len > (dev->i2c_wr_max - 1))
-			len = (dev->i2c_wr_max - 1);
+			len = dev->i2c_wr_max - 1;
 
 		ret = regmap_bulk_write(dev->regmap[0], 0xf6,
 				&fw->data[fw->size - remaining], len);
@@ -344,12 +344,12 @@ static int mn88472_init(struct dvb_frontend *fe)
 	if (ret) {
 		dev_err(&client->dev,
 				"parity reg read failed=%d\n", ret);
-		goto err;
+		goto firmware_release;
 	}
 	if (tmp & 0x10) {
 		dev_err(&client->dev,
 				"firmware parity check failed=0x%x\n", tmp);
-		goto err;
+		goto firmware_release;
 	}
 	dev_err(&client->dev, "firmware parity check succeeded=0x%x\n", tmp);
 
