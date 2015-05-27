@@ -31,19 +31,7 @@
 #define FE_DEBUGREG				4
 
 #define dprintk(__y, __z, format, arg...) do {						\
-	if (__z) {									\
-		if	((verbose > FE_ERROR) && (verbose > __y))			\
-			printk(KERN_ERR "%s: " format "\n", __func__ , ##arg);		\
-		else if	((verbose > FE_NOTICE) && (verbose > __y))			\
-			printk(KERN_NOTICE "%s: " format "\n", __func__ , ##arg);	\
-		else if ((verbose > FE_INFO) && (verbose > __y))			\
-			printk(KERN_INFO "%s: " format "\n", __func__ , ##arg);		\
-		else if ((verbose > FE_DEBUG) && (verbose > __y))			\
-			printk(KERN_DEBUG "%s: " format "\n", __func__ , ##arg);	\
-	} else {									\
-		if (verbose > __y)							\
-			printk(format, ##arg);						\
-	}										\
+			printk(KERN_DEBUG "%s: " format "\n", __func__ , ##arg);						\
 } while (0)
 
 #define STV090x_READ_DEMOD(__state, __reg) ((			\
@@ -276,6 +264,7 @@ struct stv090x_state {
 	s32				DemodTimeout;
 	s32				FecTimeout;
 	u32				matype;
+	u32				enable_modcod;
 	int				offset;
 };
 

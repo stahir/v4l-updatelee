@@ -861,7 +861,10 @@ static void stv090x_get_lock_tmg(struct stv090x_state *state)
 	case STV090x_WARM_SEARCH:
 	default:
 		dprintk(FE_DEBUG, 1, "Normal Search");
-		if (state->srate <= 2000000) { /*1Msps < SR <= 2Msps */
+		if (state->srate <= 1000000) {  /*SR <=1Msps*/
+			state->DemodTimeout = 4500;
+			state->FecTimeout = 1700;
+		} else if (state->srate <= 2000000) { /*1Msps < SR <= 2Msps */
 			state->DemodTimeout = 2500;
 			state->FecTimeout = 1100;
 		} else if (state->srate <= 5000000) { /*2Msps < SR <= 5Msps */
@@ -1148,85 +1151,54 @@ err:
 	return -1;
 }
 
+unsigned char modcod(struct stv090x_state *state, unsigned int bit)
+{
+	if ((state->enable_modcod >> bit) & 0x01) {
+		if (state->demod_mode == STV090x_SINGLE) {
+			return 0x0;
+		} else {
+			return 0xc;
+		}
+	} else {
+		return 0xf;
+	}
+}
+
 static int stv090x_activate_modcod(struct stv090x_state *state)
 {
 	if (STV090x_WRITE_DEMOD(state, MODCODLST0, 0xff) < 0)
 		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST1, 0xfc) < 0)
+	if (STV090x_WRITE_DEMOD(state, MODCODLST1, 0xf0 | modcod(state, 27)) < 0)
 		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST2, 0xcc) < 0)
+	if (STV090x_WRITE_DEMOD(state, MODCODLST2, (modcod(state, 26) << 4) | modcod(state, 25)) < 0)
 		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST3, 0xcc) < 0)
+	if (STV090x_WRITE_DEMOD(state, MODCODLST3, (modcod(state, 24) << 4) | modcod(state, 23)) < 0)
 		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST4, 0xcc) < 0)
+	if (STV090x_WRITE_DEMOD(state, MODCODLST4, (modcod(state, 22) << 4) | modcod(state, 21)) < 0)
 		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST5, 0xcc) < 0)
+	if (STV090x_WRITE_DEMOD(state, MODCODLST5, (modcod(state, 20) << 4) | modcod(state, 19)) < 0)
 		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST6, 0xcc) < 0)
+	if (STV090x_WRITE_DEMOD(state, MODCODLST6, (modcod(state, 18) << 4) | modcod(state, 17)) < 0)
 		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST7, 0xcc) < 0)
+	if (STV090x_WRITE_DEMOD(state, MODCODLST7, (modcod(state, 16) << 4) | modcod(state, 15)) < 0)
 		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST8, 0xcc) < 0)
+	if (STV090x_WRITE_DEMOD(state, MODCODLST8, (modcod(state, 14) << 4) | modcod(state, 13)) < 0)
 		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST9, 0xcc) < 0)
+	if (STV090x_WRITE_DEMOD(state, MODCODLST9, (modcod(state, 12) << 4) | modcod(state, 11)) < 0)
 		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLSTA, 0xcc) < 0)
+	if (STV090x_WRITE_DEMOD(state, MODCODLSTA, (modcod(state, 10) << 4) | modcod(state, 9)) < 0)
 		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLSTB, 0xcc) < 0)
+	if (STV090x_WRITE_DEMOD(state, MODCODLSTB, (modcod(state, 8) << 4) | modcod(state, 7)) < 0)
 		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLSTC, 0xcc) < 0)
+	if (STV090x_WRITE_DEMOD(state, MODCODLSTC, (modcod(state, 6) << 4) | modcod(state, 5)) < 0)
 		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLSTD, 0xcc) < 0)
+	if (STV090x_WRITE_DEMOD(state, MODCODLSTD, (modcod(state, 4) << 4) | modcod(state, 3)) < 0)
 		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLSTE, 0xcc) < 0)
+	if (STV090x_WRITE_DEMOD(state, MODCODLSTE, (modcod(state, 2) << 4) | modcod(state, 1)) < 0)
 		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLSTF, 0xcf) < 0)
+	if (STV090x_WRITE_DEMOD(state, MODCODLSTF, (modcod(state, 0) << 4) | 0x0f ) < 0)
 		goto err;
-
 	return 0;
-err:
-	dprintk(FE_ERROR, 1, "I/O error");
-	return -1;
-}
-
-static int stv090x_activate_modcod_single(struct stv090x_state *state)
-{
-
-	if (STV090x_WRITE_DEMOD(state, MODCODLST0, 0xff) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST1, 0xf0) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST2, 0x00) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST3, 0x00) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST4, 0x00) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST5, 0x00) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST6, 0x00) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST7, 0x00) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST8, 0x00) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLST9, 0x00) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLSTA, 0x00) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLSTB, 0x00) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLSTC, 0x00) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLSTD, 0x00) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLSTE, 0x00) < 0)
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, MODCODLSTF, 0x0f) < 0)
-		goto err;
-
-	return 0;
-
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
 	return -1;
@@ -1360,18 +1332,8 @@ static int stv090x_delivery_search(struct stv090x_state *state)
 				goto err;
 		}
 
-		if (state->demod_mode != STV090x_SINGLE) {
-			/* Cut 2: enable link during search */
-			if (stv090x_activate_modcod(state) < 0)
-				goto err;
-		} else {
-			/* Single demodulator
-			 * Authorize SHORT and LONG frames,
-			 * QPSK, 8PSK, 16APSK and 32APSK
-			 */
-			if (stv090x_activate_modcod_single(state) < 0)
-				goto err;
-		}
+		if (stv090x_activate_modcod(state) < 0)
+			goto err;
 
 		if (stv090x_set_vit_thtracq(state) < 0)
 			goto err;
@@ -1402,18 +1364,8 @@ static int stv090x_delivery_search(struct stv090x_state *state)
 				goto err;
 		}
 
-		if (state->demod_mode != STV090x_SINGLE) {
-			/* Cut 2: enable link during search */
-			if (stv090x_activate_modcod(state) < 0)
-				goto err;
-		} else {
-			/* Single demodulator
-			 * Authorize SHORT and LONG frames,
-			 * QPSK, 8PSK, 16APSK and 32APSK
-			 */
-			if (stv090x_activate_modcod_single(state) < 0)
-				goto err;
-		}
+		if (stv090x_activate_modcod(state) < 0)
+			goto err;
 
 		if (state->srate >= 2000000) {
 			if (stv090x_set_vit_thacq(state) < 0)
@@ -1730,7 +1682,7 @@ static u32 stv090x_srate_srch_coarse(struct stv090x_state *state)
 		agc2th = 0x1f00;
 
 	reg = STV090x_READ_DEMOD(state, DMDISTATE);
-	STV090x_SETFIELD_Px(reg, I2C_DEMOD_MODE_FIELD, 0x5f); /* Demod RESET */
+	STV090x_SETFIELD_Px(reg, I2C_DEMOD_MODE_FIELD, 0x1f); /* Demod RESET */
 	if (STV090x_WRITE_DEMOD(state, DMDISTATE, reg) < 0)
 		goto err;
 	if (STV090x_WRITE_DEMOD(state, TMGCFG, 0x12) < 0)
@@ -3084,7 +3036,7 @@ static int stv090x_optimize_track(struct stv090x_state *state)
 				}
 			}
 		} else {
-                        /*Carrier loop setting for short frame*/
+			/*Carrier loop setting for short frame*/
 			aclc = stv090x_optimize_carloop_short(state);
 			if (state->modulation == STV090x_QPSK) {
 				if (STV090x_WRITE_DEMOD(state, ACLC2S2Q, aclc) < 0)
@@ -3756,12 +3708,19 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe)
 
 	state->frequency = props->frequency;
 	state->srate = props->symbol_rate;
+	state->enable_modcod = props->enable_modcod;
 	state->search_mode = STV090x_SEARCH_AUTO;
-	state->algo = STV090x_BLIND_SEARCH;
+	if (props->enable_modcod == 0x0fffffff) {
+		state->algo = STV090x_BLIND_SEARCH;
+		dprintk(FE_DEBUG, 1, "mod %08x state->algo = STV090x_BLIND_SEARCH", props->enable_modcod);
+	} else {
+		state->algo = STV090x_COLD_SEARCH;
+		dprintk(FE_DEBUG, 1, "mod %08x state->algo = STV090x_COLD_SEARCH", props->enable_modcod);
+	}
 	state->fec = STV090x_PRERR;
 	state->search_range = 0;
 
-	dprintk(FE_DEBUG, 1, "Search started...");	
+	dprintk(FE_DEBUG, 1, "Search started...");
 
 	stv090x_set_mis(state, props->stream_id);
 
@@ -3957,6 +3916,8 @@ err:
 
 static int stv090x_read_ucblocks(struct dvb_frontend *fe, u32 * ucblocks)
 {
+	struct stv090x_state *state = fe->demodulator_priv;
+	stv090x_activate_modcod(state);
 	*ucblocks = (u32) stv090x_read_ucb(fe);
 	return 0;
 }
@@ -4133,9 +4094,15 @@ static int stv090x_set_property(struct dvb_frontend *fe,
 				struct dtv_property *tvp)
 {
 	struct stv090x_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *props = &fe->dtv_property_cache;
 	if (tvp->cmd == DTV_TUNE) {
-		dprintk(FE_DEBUG, 1, "state->algo = STV090x_BLIND_SEARCH");
-		state->algo = STV090x_BLIND_SEARCH;
+		if (props->enable_modcod == 0x0fffffff) {
+			dprintk(FE_DEBUG, 1, "mod %08x state->algo = STV090x_BLIND_SEARCH", props->enable_modcod);
+			state->algo = STV090x_BLIND_SEARCH;
+		} else {
+			dprintk(FE_DEBUG, 1, "mod %08x state->algo = STV090x_COLD_SEARCH", props->enable_modcod);
+			state->algo = STV090x_COLD_SEARCH;
+		}
 	}
 	
 	return 0;
@@ -4150,9 +4117,15 @@ static int stv090x_get_property(struct dvb_frontend *fe,
 static int stv090x_set_frontend(struct dvb_frontend *fe)
 {
 	struct stv090x_state *state = fe->demodulator_priv;
-	dprintk(FE_DEBUG, 1, "state->algo = STV090x_BLIND_SEARCH");
-	state->algo = STV090x_BLIND_SEARCH;
-	
+	struct dtv_frontend_properties *props = &fe->dtv_property_cache;
+	if (props->enable_modcod == 0x0fffffff) {
+		dprintk(FE_DEBUG, 1, "state->algo = STV090x_BLIND_SEARCH");
+		state->algo = STV090x_BLIND_SEARCH;
+	} else {
+		dprintk(FE_DEBUG, 1, "state->algo = STV090x_COLD_SEARCH");
+		state->algo = STV090x_COLD_SEARCH;
+	}
+
 	return 0;
 }
 
@@ -4610,7 +4583,7 @@ static int stv090x_ldpc_mode(struct stv090x_state *state, enum stv090x_mode ldpc
 	case STV090x_SINGLE:
 		if (stv090x_stop_modcod(state) < 0)
 			goto err;
-		if (stv090x_activate_modcod_single(state) < 0)
+		if (stv090x_activate_modcod(state) < 0)
 			goto err;
 
 		if (state->demod == STV090x_DEMODULATOR_1) {

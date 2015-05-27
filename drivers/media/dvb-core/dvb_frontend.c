@@ -1072,6 +1072,7 @@ static int dvb_frontend_clear_cache(struct dvb_frontend *fe)
 	}
 
 	c->stream_id = NO_STREAM_ID_FILTER;
+	c->enable_modcod = 0x0fffffff;
 
 	switch (c->delivery_system) {
 	case SYS_DVBS:
@@ -1152,6 +1153,7 @@ static struct dtv_cmds_h dtv_cmds[DTV_MAX_COMMAND + 1] = {
 	_DTV_CMD(DTV_STREAM_ID, 1, 0),
 	_DTV_CMD(DTV_DVBT2_PLP_ID_LEGACY, 1, 0),
 	_DTV_CMD(DTV_MATYPE, 1, 0),
+	_DTV_CMD(DTV_ENABLE_MODCOD, 1, 0),
 	_DTV_CMD(DTV_LNA, 1, 0),
 
 	/* Get */
@@ -1523,6 +1525,9 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 	case DTV_STREAM_ID:
 	case DTV_DVBT2_PLP_ID_LEGACY:
 		tvp->u.data = c->stream_id;
+		break;
+	case DTV_ENABLE_MODCOD:
+		tvp->u.data = c->enable_modcod;
 		break;
 	case DTV_MATYPE:
 		tvp->u.data = c->matype;
@@ -1997,6 +2002,10 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 	case DTV_STREAM_ID:
 	case DTV_DVBT2_PLP_ID_LEGACY:
 		c->stream_id = tvp->u.data;
+		break;
+
+	case DTV_ENABLE_MODCOD:
+		c->enable_modcod = tvp->u.data;
 		break;
 
 	/* ATSC-MH */
