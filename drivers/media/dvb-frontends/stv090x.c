@@ -1153,15 +1153,19 @@ err:
 
 unsigned char modcod(struct stv090x_state *state, unsigned int bit)
 {
+	u8 ret;
 	if ((state->enable_modcod >> bit) & 0x01) {
 		if (state->demod_mode == STV090x_SINGLE) {
-			return 0x0;
+			ret = 0x0;
 		} else {
-			return 0xc;
+			ret = 0xc;
 		}
 	} else {
-		return 0xf;
+		ret = 0xf;
 	}
+	dprintk(FE_DEBUG, 1, "modcod: %01x", ret);
+
+	return ret;
 }
 
 static int stv090x_activate_modcod(struct stv090x_state *state)
@@ -1197,7 +1201,7 @@ static int stv090x_activate_modcod(struct stv090x_state *state)
 	if (STV090x_WRITE_DEMOD(state, MODCODLSTE, (modcod(state, 2) << 4) | modcod(state, 1)) < 0)
 		goto err;
 	if (STV090x_WRITE_DEMOD(state, MODCODLSTF, (modcod(state, 0) << 4) | 0x0f ) < 0)
-		goto err;
+		goto err;	
 	return 0;
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
@@ -1306,10 +1310,6 @@ static int stv090x_delivery_search(struct stv090x_state *state)
 	case STV090x_SEARCH_DVBS2:
 		reg = STV090x_READ_DEMOD(state, DMDCFGMD);
 		STV090x_SETFIELD_Px(reg, DVBS1_ENABLE_FIELD, 0);
-		STV090x_SETFIELD_Px(reg, DVBS2_ENABLE_FIELD, 0);
-		if (STV090x_WRITE_DEMOD(state, DMDCFGMD, reg) < 0)
-			goto err;
-		STV090x_SETFIELD_Px(reg, DVBS1_ENABLE_FIELD, 1);
 		STV090x_SETFIELD_Px(reg, DVBS2_ENABLE_FIELD, 1);
 		if (STV090x_WRITE_DEMOD(state, DMDCFGMD, reg) < 0)
 			goto err;
@@ -1983,6 +1983,8 @@ static int stv090x_blind_search(struct stv090x_state *state)
 	if (agc2 > STV090x_SEARCH_AGC2_TH(state->internal->dev_ver)) {
 		lock = 0;
 	} else {
+		if (STV090x_WRITE_DEMOD(state, CARHDR, 0x20) < 0)
+			goto err;
 
 		if (state->internal->dev_ver <= 0x20) {
 			if (STV090x_WRITE_DEMOD(state, CARCFG, 0xc4) < 0)
@@ -1995,6 +1997,16 @@ static int stv090x_blind_search(struct stv090x_state *state)
 
 		if (STV090x_WRITE_DEMOD(state, RTCS2, 0x44) < 0)
 			goto err;
+
+		if (state->internal->dev_ver >= 0x30) {
+			if (state->srate < 10000000) {
+				if (STV090x_WRITE_DEMOD(state, AGC2O, 0x5b) < 0)
+					goto err;
+			} else {
+				if (STV090x_WRITE_DEMOD(state, AGC2O, 0x5f) < 0)
+					goto err;
+			}
+		}
 
 		if (state->internal->dev_ver >= 0x20) {
 			if (STV090x_WRITE_DEMOD(state, EQUALCFG, 0x41) < 0)
@@ -2029,7 +2041,9 @@ static int stv090x_blind_search(struct stv090x_state *state)
 					if (agc2 >= 0xff00)
 						agc2_ovflw++;
 					reg = STV090x_READ_DEMOD(state, DSTATUS2);
-					if ((STV090x_GETFIELD_Px(reg, CFR_OVERFLOW_FIELD) == 0x01) && (STV090x_GETFIELD_Px(reg, DEMOD_DELOCK_FIELD) == 0x01))
+					if ((STV090x_GETFIELD_Px(reg, CFR_OVERFLOW_FIELD) == 0x01) &&
+					    (STV090x_GETFIELD_Px(reg, DEMOD_DELOCK_FIELD) == 0x01))
+
 						cpt_fail++;
 				}
 				if ((cpt_fail > 7) || (agc2_ovflw > 7))
@@ -2122,7 +2136,7 @@ static int stv090x_get_coldlock(struct stv090x_state *state, s32 timeout_dmd)
 
 	u32 reg;
 	s32 car_step, steps, cur_step, dir, freq, timeout_lock;
-	int lock;
+	int lock = 0;
 
 	if (state->srate >= 10000000)
 		timeout_lock = timeout_dmd / 3;
@@ -2130,96 +2144,98 @@ static int stv090x_get_coldlock(struct stv090x_state *state, s32 timeout_dmd)
 		timeout_lock = timeout_dmd / 2;
 
 	lock = stv090x_get_dmdlock(state, timeout_lock); /* cold start wait */
-	if (lock)
-		return lock;
+	if (!lock) {
+		if (state->srate >= 10000000) {
+			if (stv090x_chk_tmg(state)) {
+				if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x1f) < 0)
+					goto err;
+				if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x15) < 0)
+					goto err;
+				lock = stv090x_get_dmdlock(state, timeout_dmd);
+			} else {
+				lock = 0;
+			}
+		} else {
+			if (state->srate <= 4000000)
+				car_step = 1000;
+			else if (state->srate <= 7000000)
+				car_step = 2000;
+			else if (state->srate <= 10000000)
+				car_step = 3000;
+			else
+				car_step = 5000;
 
-	if (state->srate >= 10000000) {
-		if (stv090x_chk_tmg(state)) {
-			if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x1f) < 0)
-				goto err;
-			if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x15) < 0)
-				goto err;
-			return stv090x_get_dmdlock(state, timeout_dmd);
+			steps  = (state->search_range / 1000) / car_step;
+			steps /= 2;
+			steps  = 2 * (steps + 1);
+			if (steps < 0)
+				steps = 2;
+			else if (steps > 12)
+				steps = 12;
+
+			cur_step = 1;
+			dir = 1;
+
+			if (!lock) {
+				freq = state->frequency;
+				state->tuner_bw = stv090x_car_width(state->srate, state->rolloff) + state->srate;
+				while ((cur_step <= steps) && (!lock)) {
+					if (dir > 0)
+						freq += cur_step * car_step;
+					else
+						freq -= cur_step * car_step;
+
+					/* Setup tuner */
+					if (stv090x_i2c_gate_ctrl(state, 1) < 0)
+						goto err;
+
+					if (state->config->tuner_set_frequency) {
+						if (state->config->tuner_set_frequency(fe, freq) < 0)
+							goto err_gateoff;
+					}
+
+					if (state->config->tuner_set_bandwidth) {
+						if (state->config->tuner_set_bandwidth(fe, state->tuner_bw) < 0)
+							goto err_gateoff;
+					}
+
+					if (stv090x_i2c_gate_ctrl(state, 0) < 0)
+						goto err;
+
+					msleep(50);
+
+					if (stv090x_i2c_gate_ctrl(state, 1) < 0)
+						goto err;
+
+					if (state->config->tuner_get_status) {
+						if (state->config->tuner_get_status(fe, &reg) < 0)
+							goto err_gateoff;
+					}
+
+					if (reg)
+						dprintk(FE_DEBUG, 1, "Tuner phase locked");
+					else
+						dprintk(FE_DEBUG, 1, "Tuner unlocked");
+
+					if (stv090x_i2c_gate_ctrl(state, 0) < 0)
+						goto err;
+
+					STV090x_WRITE_DEMOD(state, DMDISTATE, 0x1c);
+					if (STV090x_WRITE_DEMOD(state, CFRINIT1, 0x00) < 0)
+						goto err;
+					if (STV090x_WRITE_DEMOD(state, CFRINIT0, 0x00) < 0)
+						goto err;
+					if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x1f) < 0)
+						goto err;
+					if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x15) < 0)
+						goto err;
+					lock = stv090x_get_dmdlock(state, (timeout_dmd / 3));
+
+					dir *= -1;
+					cur_step++;
+				}
+			}
 		}
-		return 0;
-	}
-
-	if (state->srate <= 4000000)
-		car_step = 1000;
-	else if (state->srate <= 7000000)
-		car_step = 2000;
-	else if (state->srate <= 10000000)
-		car_step = 3000;
-	else
-		car_step = 5000;
-
-	steps  = (state->search_range / 1000) / car_step;
-	steps /= 2;
-	steps  = 2 * (steps + 1);
-	if (steps < 0)
-		steps = 2;
-	else if (steps > 12)
-		steps = 12;
-
-	cur_step = 1;
-	dir = 1;
-
-	freq = state->frequency;
-	state->tuner_bw = stv090x_car_width(state->srate, state->rolloff) + state->srate;
-	while ((cur_step <= steps) && (!lock)) {
-		if (dir > 0)
-			freq += cur_step * car_step;
-		else
-			freq -= cur_step * car_step;
-
-		/* Setup tuner */
-		if (stv090x_i2c_gate_ctrl(state, 1) < 0)
-			goto err;
-
-		if (state->config->tuner_set_frequency) {
-			if (state->config->tuner_set_frequency(fe, freq) < 0)
-				goto err_gateoff;
-		}
-
-		if (state->config->tuner_set_bandwidth) {
-			if (state->config->tuner_set_bandwidth(fe, state->tuner_bw) < 0)
-				goto err_gateoff;
-		}
-
-		if (stv090x_i2c_gate_ctrl(state, 0) < 0)
-			goto err;
-
-		msleep(50);
-
-		if (stv090x_i2c_gate_ctrl(state, 1) < 0)
-			goto err;
-
-		if (state->config->tuner_get_status) {
-			if (state->config->tuner_get_status(fe, &reg) < 0)
-				goto err_gateoff;
-		}
-
-		if (reg)
-			dprintk(FE_DEBUG, 1, "Tuner phase locked");
-		else
-			dprintk(FE_DEBUG, 1, "Tuner unlocked");
-
-		if (stv090x_i2c_gate_ctrl(state, 0) < 0)
-			goto err;
-
-		STV090x_WRITE_DEMOD(state, DMDISTATE, 0x1c);
-		if (STV090x_WRITE_DEMOD(state, CFRINIT1, 0x00) < 0)
-			goto err;
-		if (STV090x_WRITE_DEMOD(state, CFRINIT0, 0x00) < 0)
-			goto err;
-		if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x1f) < 0)
-			goto err;
-		if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x15) < 0)
-			goto err;
-		lock = stv090x_get_dmdlock(state, (timeout_dmd / 3));
-
-		dir *= -1;
-		cur_step++;
 	}
 
 	return lock;
@@ -2515,8 +2531,8 @@ static s32 stv090x_get_car_freq(struct stv090x_state *state, u32 mclk)
 	s32 derot, int_1, int_2, tmp_1, tmp_2;
 
 	derot  = STV090x_READ_DEMOD(state, CFR2) << 16;
-	derot  |= STV090x_READ_DEMOD(state, CFR1) << 8;
-	derot  |= STV090x_READ_DEMOD(state, CFR0);
+	derot |= STV090x_READ_DEMOD(state, CFR1) <<  8;
+	derot |= STV090x_READ_DEMOD(state, CFR0);
 
 	derot = comp2(derot, 24);
 	int_1 = mclk >> 12;
@@ -2601,9 +2617,9 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 
 	int fe_stv0900_modcod_return_dvbs[] = {
 		FEC_NONE,
-		FEC_AUTO,
-		FEC_AUTO,
-		FEC_AUTO,
+		FEC_1_4,
+		FEC_1_3,
+		FEC_2_5,
 		FEC_1_2,
 		FEC_3_5,
 		FEC_2_3,
@@ -2884,12 +2900,6 @@ static u8 stv090x_optimize_carloop(struct stv090x_state *state, enum stv090x_mod
 				aclc = car_loop[i].crl_pilots_off_30;
 		}
 	} else { /* 16APSK and 32APSK */
-		/*
-		 * This should never happen in practice, except if
-		 * something is really wrong at the car_loop table.
-		 */
-		if (i >= 11)
-			i = 10;
 		if (state->srate <= 3000000)
 			aclc = car_loop_apsk_low[i].crl_pilots_on_2;
 		else if (state->srate <= 7000000)
@@ -3333,7 +3343,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 	u32 reg;
 	s32 agc1_power, power_iq = 0, i;
 	int lock = 0, low_sr = 0;
-	
+
 	reg = STV090x_READ_DEMOD(state, TSCFGH);
 	STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 1); /* Stop path 1 stream merger */
 	if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
@@ -3692,33 +3702,26 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe)
 			return DVBFE_ALGO_SEARCH_ERROR;
 	}
 
-	switch (props->delivery_system) {
-	case SYS_DSS:
-		state->delsys = STV090x_DSS;
-		break;
-	case SYS_DVBS:
-		state->delsys = STV090x_DVBS1;
-		break;
-	case SYS_DVBS2:
-		state->delsys = STV090x_DVBS2;
-		break;
-	default:
-		return DVBFE_ALGO_SEARCH_INVALID;
-	}
-
+	state->delsys = props->delivery_system;
 	state->frequency = props->frequency;
 	state->srate = props->symbol_rate;
-	state->enable_modcod = props->enable_modcod;
 	state->search_mode = STV090x_SEARCH_AUTO;
+	state->fec = STV090x_PRERR;
+	state->enable_modcod = props->enable_modcod;
+
 	if (props->enable_modcod == 0x0fffffff) {
 		state->algo = STV090x_BLIND_SEARCH;
 		dprintk(FE_DEBUG, 1, "mod %08x state->algo = STV090x_BLIND_SEARCH", props->enable_modcod);
+		state->search_range = 0;
 	} else {
 		state->algo = STV090x_COLD_SEARCH;
 		dprintk(FE_DEBUG, 1, "mod %08x state->algo = STV090x_COLD_SEARCH", props->enable_modcod);
+		if (props->symbol_rate > 10000000) {
+			state->search_range = 10000000;
+		} else {
+			state->search_range = 5000000;
+		}
 	}
-	state->fec = STV090x_PRERR;
-	state->search_range = 0;
 
 	dprintk(FE_DEBUG, 1, "Search started...");
 
@@ -5496,7 +5499,7 @@ struct dvb_frontend *stv090x_attach(struct stv090x_config *config,
 	state->demod				= demod;
 	state->demod_mode 			= config->demod_mode; /* Single or Dual mode */
 	state->device				= config->device;
-	state->rolloff				= STV090x_RO_35; /* default */
+	state->rolloff				= STV090x_RO_25; /* default */
 
 	temp_int = find_dev(state->i2c,
 				state->config->address);
