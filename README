@@ -4,7 +4,7 @@
 #
 # 
 
-# This will set you up with Linux 3.19.0-rc6
+# This will set you up with Linux 4.1.0-rc3
 
 # Download any dependancies that you might need
 
@@ -53,13 +53,11 @@
 #
 # Tested with
 #
-# Prof 7301
-# Prof 7500
-# Prof 8000
-# TBS 6925
+# Prof 7301, 7500, 8000
+# TBS 6925, 5925, 5980
 # Skystar 2 eXpress HD
 # Genpix Skywalker-1
-# Hauppauge 950Q
+# Hauppauge 950Q, Aero-m
 #
 # Others are reported working as well, but havent personally tested them
 #
