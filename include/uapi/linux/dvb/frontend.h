@@ -36,7 +36,7 @@ typedef enum fe_type {
 } fe_type_t;
 
 
-typedef enum fe_caps {
+enum fe_caps {
 	FE_IS_STUPID			= 0,
 	FE_CAN_INVERSION_AUTO		= 0x1,
 	FE_CAN_FEC_1_2			= 0x2,
@@ -70,8 +70,9 @@ typedef enum fe_caps {
 	FE_CAN_MUTE_TS			= 0x80000000,  /* frontend can stop spurious TS data output */        FE_CAN_SPECTRUMSCAN             = 0x100000000,
         FE_CAN_IQ                       = 0x200000000,
         FE_CAN_BLINDSEARCH              = 0x400000000
-} fe_caps_t;
+};
 
+typedef enum fe_caps fe_caps_t;
 
 struct dvb_frontend_info {
 	char       name[128];
@@ -105,23 +106,29 @@ struct dvb_diseqc_slave_reply {
 };			/*  errorcode when no message was received  */
 
 
-typedef enum fe_sec_voltage {
+enum fe_sec_voltage {
 	SEC_VOLTAGE_13,
 	SEC_VOLTAGE_18,
 	SEC_VOLTAGE_OFF
-} fe_sec_voltage_t;
+};
+
+typedef enum fe_sec_voltage fe_sec_voltage_t;
 
 
-typedef enum fe_sec_tone_mode {
+enum fe_sec_tone_mode {
 	SEC_TONE_ON,
 	SEC_TONE_OFF
-} fe_sec_tone_mode_t;
+};
+
+typedef enum fe_sec_tone_mode fe_sec_tone_mode_t;
 
 
-typedef enum fe_sec_mini_cmd {
+enum fe_sec_mini_cmd {
 	SEC_MINI_A,
 	SEC_MINI_B
-} fe_sec_mini_cmd_t;
+};
+
+typedef enum fe_sec_mini_cmd fe_sec_mini_cmd_t;
 
 
 /**
@@ -136,7 +143,7 @@ typedef enum fe_sec_mini_cmd {
  *			to reset DiSEqC, tone and parameters
  */
 
-typedef enum fe_status {
+enum fe_status {
 	FE_HAS_SIGNAL		= 0x01,
 	FE_HAS_CARRIER		= 0x02,
 	FE_HAS_VITERBI		= 0x04,
@@ -144,16 +151,19 @@ typedef enum fe_status {
 	FE_HAS_LOCK		= 0x10,
 	FE_TIMEDOUT		= 0x20,
 	FE_REINIT		= 0x40,
-} fe_status_t;
+};
 
-typedef enum fe_spectral_inversion {
+typedef enum fe_status fe_status_t;
+
+enum fe_spectral_inversion {
 	INVERSION_OFF,
 	INVERSION_ON,
 	INVERSION_AUTO
-} fe_spectral_inversion_t;
+};
 
+typedef enum fe_spectral_inversion fe_spectral_inversion_t;
 
-typedef enum fe_code_rate {
+enum fe_code_rate {
 	FEC_NONE = 0,
 	FEC_1_2,
 	FEC_2_3,
@@ -170,10 +180,11 @@ typedef enum fe_code_rate {
 	FEC_5_11,
 	FEC_1_4,
 	FEC_1_3,
-} fe_code_rate_t;
+};
 
+typedef enum fe_code_rate fe_code_rate_t;
 
-typedef enum fe_modulation {
+enum fe_modulation {
 	QPSK,
 	QAM_16,
 	QAM_32,
@@ -192,9 +203,11 @@ typedef enum fe_modulation {
 	I_QPSK,
 	Q_QPSK,
 	C_OQPSK,
-} fe_modulation_t;
+};
 
-typedef enum fe_transmit_mode {
+typedef enum fe_modulation fe_modulation_t;
+
+enum fe_transmit_mode {
 	TRANSMISSION_MODE_2K,
 	TRANSMISSION_MODE_8K,
 	TRANSMISSION_MODE_AUTO,
@@ -204,10 +217,12 @@ typedef enum fe_transmit_mode {
 	TRANSMISSION_MODE_32K,
 	TRANSMISSION_MODE_C1,
 	TRANSMISSION_MODE_C3780,
-} fe_transmit_mode_t;
+};
+
+typedef enum fe_transmit_mode fe_transmit_mode_t;
 
 #if defined(__DVB_CORE__) || !defined (__KERNEL__)
-typedef enum fe_bandwidth {
+enum fe_bandwidth {
 	BANDWIDTH_8_MHZ,
 	BANDWIDTH_7_MHZ,
 	BANDWIDTH_6_MHZ,
@@ -215,10 +230,12 @@ typedef enum fe_bandwidth {
 	BANDWIDTH_5_MHZ,
 	BANDWIDTH_10_MHZ,
 	BANDWIDTH_1_712_MHZ,
-} fe_bandwidth_t;
+};
+
+typedef enum fe_bandwidth fe_bandwidth_t;
 #endif
 
-typedef enum fe_guard_interval {
+enum fe_guard_interval {
 	GUARD_INTERVAL_1_32,
 	GUARD_INTERVAL_1_16,
 	GUARD_INTERVAL_1_8,
@@ -230,16 +247,19 @@ typedef enum fe_guard_interval {
 	GUARD_INTERVAL_PN420,
 	GUARD_INTERVAL_PN595,
 	GUARD_INTERVAL_PN945,
-} fe_guard_interval_t;
+};
 
+typedef enum fe_guard_interval fe_guard_interval_t;
 
-typedef enum fe_hierarchy {
+enum fe_hierarchy {
 	HIERARCHY_NONE,
 	HIERARCHY_1,
 	HIERARCHY_2,
 	HIERARCHY_4,
 	HIERARCHY_AUTO
-} fe_hierarchy_t;
+};
+
+typedef enum fe_hierarchy fe_hierarchy_t;
 
 enum fe_interleaving {
 	INTERLEAVING_NONE,

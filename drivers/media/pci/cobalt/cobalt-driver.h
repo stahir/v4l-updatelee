@@ -96,9 +96,9 @@
 #define COBALT_SYSSTAT_VIHSMA_INT1_MSK		(1 << 21)
 #define COBALT_SYSSTAT_VIHSMA_INT2_MSK		(1 << 22)
 #define COBALT_SYSSTAT_VIHSMA_LOST_DATA_MSK	(1 << 23)
-#define COBALT_SYSSTAT_VOHSMA_INT1_MSK		(1 << 25)
-#define COBALT_SYSSTAT_VOHSMA_PLL_LOCKED_MSK	(1 << 26)
-#define COBALT_SYSSTAT_VOHSMA_LOST_DATA_MSK	(1 << 27)
+#define COBALT_SYSSTAT_VOHSMA_INT1_MSK		(1 << 24)
+#define COBALT_SYSSTAT_VOHSMA_PLL_LOCKED_MSK	(1 << 25)
+#define COBALT_SYSSTAT_VOHSMA_LOST_DATA_MSK	(1 << 26)
 #define COBALT_SYSSTAT_AUD_PLL_LOCKED_MSK	(1 << 28)
 #define COBALT_SYSSTAT_AUD_IN_LOST_DATA_MSK	(1 << 29)
 #define COBALT_SYSSTAT_AUD_OUT_LOST_DATA_MSK	(1 << 30)
@@ -177,7 +177,7 @@ struct cobalt_i2c_regs;
 /* Per I2C bus private algo callback data */
 struct cobalt_i2c_data {
 	struct cobalt *cobalt;
-	volatile struct cobalt_i2c_regs __iomem *regs;
+	struct cobalt_i2c_regs __iomem *regs;
 };
 
 struct pci_consistent_buffer {
@@ -231,11 +231,14 @@ struct cobalt_stream {
 	u32 pixfmt;
 	u32 sequence;
 	u32 colorspace;
+	u32 xfer_func;
 	u32 ycbcr_enc;
 	u32 quantization;
 
 	u8 dma_channel;
 	int video_channel;
+	unsigned dma_fifo_mask;
+	unsigned adv_irq_mask;
 	struct sg_dma_desc_info dma_desc_info[NR_BUFS];
 	unsigned long flags;
 	bool unstable_frame;
@@ -340,17 +343,17 @@ static inline u32 cobalt_g_sysstat(struct cobalt *cobalt)
 	return cobalt_read_bar1(cobalt, COBALT_SYS_STAT_BASE);
 }
 
-#define ADRS_REG (cobalt->bar1 + COBALT_BUS_BAR1_BASE + 0)
-#define LOWER_DATA (cobalt->bar1 + COBALT_BUS_BAR1_BASE + 4)
-#define UPPER_DATA (cobalt->bar1 + COBALT_BUS_BAR1_BASE + 6)
+#define ADRS_REG (bar1 + COBALT_BUS_BAR1_BASE + 0)
+#define LOWER_DATA (bar1 + COBALT_BUS_BAR1_BASE + 4)
+#define UPPER_DATA (bar1 + COBALT_BUS_BAR1_BASE + 6)
 
-static inline u32 cobalt_bus_read32(struct cobalt *cobalt, u32 bus_adrs)
+static inline u32 cobalt_bus_read32(void __iomem *bar1, u32 bus_adrs)
 {
 	iowrite32(bus_adrs, ADRS_REG);
 	return ioread32(LOWER_DATA);
 }
 
-static inline void cobalt_bus_write16(struct cobalt *cobalt,
+static inline void cobalt_bus_write16(void __iomem *bar1,
 				      u32 bus_adrs, u16 data)
 {
 	iowrite32(bus_adrs, ADRS_REG);
@@ -360,7 +363,7 @@ static inline void cobalt_bus_write16(struct cobalt *cobalt,
 		iowrite16(data, LOWER_DATA);
 }
 
-static inline void cobalt_bus_write32(struct cobalt *cobalt,
+static inline void cobalt_bus_write32(void __iomem *bar1,
 				      u32 bus_adrs, u16 data)
 {
 	iowrite32(bus_adrs, ADRS_REG);

@@ -877,8 +877,8 @@ static void stv090x_get_lock_tmg(struct stv090x_state *state)
 			state->DemodTimeout = 400;
 			state->FecTimeout = 130;
 		} else {   /*SR >20Msps*/
-			state->DemodTimeout = 300;
-			state->FecTimeout = 100;
+			state->DemodTimeout = 700;
+			state->FecTimeout = 300;
 		}
 		break;
 	}

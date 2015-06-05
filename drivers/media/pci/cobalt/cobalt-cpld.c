@@ -20,18 +20,18 @@
 
 #include <linux/delay.h>
 
-#include "cobalt-driver.h"
+#include "cobalt-cpld.h"
 
 #define ADRS(offset) (COBALT_BUS_CPLD_BASE + offset)
 
 static u16 cpld_read(struct cobalt *cobalt, u32 offset)
 {
-	return cobalt_bus_read32(cobalt, ADRS(offset));
+	return cobalt_bus_read32(cobalt->bar1, ADRS(offset));
 }
 
 static void cpld_write(struct cobalt *cobalt, u32 offset, u16 val)
 {
-	return cobalt_bus_write32(cobalt, ADRS(offset), val);
+	return cobalt_bus_write32(cobalt->bar1, ADRS(offset), val);
 }
 
 static void cpld_info_ver3(struct cobalt *cobalt)
