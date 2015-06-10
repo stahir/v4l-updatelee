@@ -32,7 +32,7 @@
 
 #define DMX_FILTER_SIZE 16
 
-typedef enum
+enum dmx_output
 {
 	DMX_OUT_DECODER, /* Streaming directly to decoder. */
 	DMX_OUT_TAP,     /* Output going to a memory buffer */
@@ -41,10 +41,11 @@ typedef enum
 			 /* (to be retrieved by reading from the */
 			 /* logical DVR device).                 */
 	DMX_OUT_TSDEMUX_TAP /* Like TS_TAP but retrieved from the DMX device */
-} dmx_output_t;
+};
 
+typedef enum dmx_output dmx_output_t;
 
-typedef enum
+typedef enum dmx_input
 {
 	DMX_IN_FRONTEND, /* Input from a front-end device.  */
 	DMX_IN_DVR       /* Input from the logical DVR device.  */
@@ -122,7 +123,7 @@ typedef struct dmx_caps {
 	int num_decoders;
 } dmx_caps_t;
 
-typedef enum {
+typedef enum dmx_source {
 	DMX_SOURCE_FRONT0 = 0,
 	DMX_SOURCE_FRONT1,
 	DMX_SOURCE_FRONT2,

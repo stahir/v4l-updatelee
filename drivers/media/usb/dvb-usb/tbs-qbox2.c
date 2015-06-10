@@ -245,7 +245,7 @@ static int tbsqbox2_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 				eepromline[i%16] = ibuf[0];
 				eeprom[i] = ibuf[0];
 			}
-			
+
 			if ((i % 16) == 15) {
 				deb_xfer("%02x: ", i - 15);
 				debug_dump(eepromline, 16, deb_xfer);
@@ -255,7 +255,7 @@ static int tbsqbox2_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 	return 0;
 };
 
-static int tbsqbox2_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int tbsqbox2_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage voltage)
 {
 	static u8 command_13v[1] = {0x00};
 	static u8 command_18v[1] = {0x01};
@@ -263,7 +263,7 @@ static int tbsqbox2_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltag
 		{.addr = TBSQBOX_VOLTAGE_CTRL, .flags = 0,
 			.buf = command_13v, .len = 1},
 	};
-	
+
 	struct dvb_usb_adapter *udev_adap =
 		(struct dvb_usb_adapter *)(fe->dvb->priv);
 	if (voltage == SEC_VOLTAGE_18)

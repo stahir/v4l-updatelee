@@ -3955,7 +3955,7 @@ static int stv090x_read_cnr(struct dvb_frontend *fe, u16 *cnr)
 	return 0;
 }
 
-static int stv090x_get_stats(struct dvb_frontend *fe, fe_status_t stat)
+static int stv090x_get_stats(struct dvb_frontend *fe, enum fe_status stat)
 {
 	struct stv090x_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -4049,7 +4049,7 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	return 0;
 }
 
-static int stv090x_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
+static int stv090x_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 {
 	struct stv090x_state *state = fe->demodulator_priv;
 	u32 reg;
@@ -4183,7 +4183,8 @@ err:
 	return -1;
 }
 
-static int stv090x_send_diseqc_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t burst)
+static int stv090x_send_diseqc_burst(struct dvb_frontend *fe,
+				     enum fe_sec_mini_cmd burst)
 {
 	struct stv090x_state *state = fe->demodulator_priv;
 	u32 reg, idle = 0, fifo_full = 1;

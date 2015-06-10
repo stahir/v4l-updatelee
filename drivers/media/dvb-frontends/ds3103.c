@@ -392,7 +392,7 @@ static int ds3103_load_firmware(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int ds3103_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int ds3103_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage voltage)
 {
 	struct ds3103_state *state = fe->demodulator_priv;
 	u8 data;
@@ -419,7 +419,7 @@ static int ds3103_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 	return 0;
 }
 
-static int ds3103_read_status(struct dvb_frontend *fe, fe_status_t* status)
+static int ds3103_read_status(struct dvb_frontend *fe, enum fe_status* status)
 {
 	struct ds3103_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -645,7 +645,7 @@ static int ds3103_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
-static int ds3103_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
+static int ds3103_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 {
 	struct ds3103_state *state = fe->demodulator_priv;
 	u8 data;
@@ -746,7 +746,7 @@ static int ds3103_send_diseqc_msg(struct dvb_frontend *fe,
 
 /* Send DiSEqC burst */
 static int ds3103_diseqc_send_burst(struct dvb_frontend *fe,
-					fe_sec_mini_cmd_t burst)
+					enum fe_sec_mini_cmd burst)
 {
 	struct ds3103_state *state = fe->demodulator_priv;
 	int i;
@@ -935,7 +935,7 @@ static int ds3103_set_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
 	int i;
-	fe_status_t status;
+	enum fe_status status;
 	s32 offset_khz;
 	u32 tuner_freq;
 	u16 value;//, ndiv=0;
@@ -952,7 +952,7 @@ static int ds3103_set_frontend(struct dvb_frontend *fe)
 
 	if (fe->ops.tuner_ops.set_params)
 		fe->ops.tuner_ops.set_params(fe);
-	
+
 
 	ds3103_writereg(state, 0xb2, 0x01);
 		ds3103_writereg(state, 0x00, 0x01);
@@ -1147,7 +1147,7 @@ static int ds3103_tune(struct dvb_frontend *fe,
 			bool re_tune,
 			unsigned int mode_flags,
 			unsigned int *delay,
-			fe_status_t *status)
+			enum fe_status *status)
 {
 	if (re_tune) {
 		int ret = ds3103_set_frontend(fe);

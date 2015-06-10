@@ -5851,6 +5851,39 @@ struct saa7134_board saa7134_boards[] = {
 		.amux = LINE1,
 		} },
 	},
+	[SAA7134_BOARD_AVERMEDIA_505] = {
+		/* much like the "studio" version but without radio
+		* and another tuner (dbaryshkov@gmail.com) */
+		.name           = "AverMedia AverTV/505",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_FQ1216ME,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = LINE2,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE2,
+		}, {
+			.name = name_comp2,
+			.vmux = 3,
+			.amux = LINE2,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE2,
+		} },
+		.mute = {
+			.name = name_mute,
+			.amux = LINE1,
+		},
+	},
 
 };
 
@@ -7110,6 +7143,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x7007,
 		.driver_data  = SAA7134_BOARD_WIS_VOYAGER,
 	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0xa10a,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_505,
+	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -7449,8 +7488,9 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_KWORLD_VSTREAM_XPERT:
 	case SAA7134_BOARD_KWORLD_XPERT:
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_305:
-	case SAA7134_BOARD_AVERMEDIA_STUDIO_505:
 	case SAA7134_BOARD_AVERMEDIA_305:
+	case SAA7134_BOARD_AVERMEDIA_STUDIO_505:
+	case SAA7134_BOARD_AVERMEDIA_505:
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_307:
 	case SAA7134_BOARD_AVERMEDIA_307:
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_507:
@@ -7798,10 +7838,11 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	case SAA7134_BOARD_MD7134:
 	{
 		u8 subaddr;
-		u8 data[3];
+		u8 data[3], data1[] = { 0x09, 0x9f, 0x86, 0x11};
 		int ret, tuner_t;
-		struct i2c_msg msg[] = {{.addr=0x50, .flags=0, .buf=&subaddr, .len = 1},
-					{.addr=0x50, .flags=I2C_M_RD, .buf=data, .len = 3}};
+		struct i2c_msg msg[] = {{.addr = 0x50, .flags = 0, .buf = &subaddr, .len = 1},
+					{.addr = 0x50, .flags = I2C_M_RD, .buf = data, .len = 3}},
+				msg1 = {.addr = 0x61, .flags = 0, .buf = data1, .len = sizeof(data1)};
 
 		subaddr= 0x14;
 		tuner_t = 0;
@@ -7856,6 +7897,16 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		}
 
 		pr_info("%s Tuner type is %d\n", dev->name, dev->tuner_type);
+
+		/* The tuner TUNER_PHILIPS_FMD1216ME_MK3 after hardware    */
+		/* start has disabled IF and enabled DVB-T. When saa7134   */
+		/* scan I2C devices it will not detect IF tda9887 and can`t*/
+		/* watch TV without software reboot. To solve this problem */
+		/* switch the tuner to analog TV mode manually.            */
+		if (dev->tuner_type == TUNER_PHILIPS_FMD1216ME_MK3) {
+			if (i2c_transfer(&dev->i2c_adap, &msg1, 1) != 1)
+				printk(KERN_WARNING "%s: Unable to enable IF of the tuner.\n", dev->name);
+		}
 		break;
 	}
 	case SAA7134_BOARD_PHILIPS_EUROPA:
