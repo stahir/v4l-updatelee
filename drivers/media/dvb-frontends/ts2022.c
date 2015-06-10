@@ -350,10 +350,10 @@ static int ts2022_read_signal_strength(struct dvb_frontend *fe,
 	rfgain = ts2022_readreg(fe, 0x3d) & 0x1f;
 	bbgain = ts2022_readreg(fe, 0x21) & 0x1f;
 	rfagc = ts2022_readreg(fe, 0x3f);
-	sig_reading = rfagc * 16 -670;
-	if (sig_reading<0)
-		sig_reading =0;
-	nngain =ts2022_readreg(fe, 0x66);
+	sig_reading = rfagc * 16 - 670;
+	if (sig_reading < 0)
+		sig_reading = 0;
+	nngain = ts2022_readreg(fe, 0x66);
 	nngain = (nngain >> 3) & 0x07;
 	
 	if (rfgain < 0)
@@ -375,7 +375,6 @@ static int ts2022_read_signal_strength(struct dvb_frontend *fe,
 		sig_reading = 1600;
 	
 	gain = (u16) rfgain * 265 + (u16) bbgain * 338 + (u16) nngain * 285 + sig_reading * 176 / 100 - 3000;
-	
 	
 	*signal_strength = gain*100;
 	

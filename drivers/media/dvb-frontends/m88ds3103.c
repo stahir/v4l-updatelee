@@ -409,7 +409,7 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	u32 tuner_frequency, target_mclk;
 	s32 s32tmp;
 
-	dev_dbg(&priv->i2c->dev,
+	dev_info(&priv->i2c->dev,
 			"%s: delivery_system=%d modulation=%d frequency=%d symbol_rate=%d inversion=%d pilot=%d rolloff=%d\n",
 			__func__, c->delivery_system,
 			c->modulation, c->frequency, c->symbol_rate,
@@ -702,7 +702,7 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	dev_dbg(&priv->i2c->dev, "%s: carrier offset=%d\n", __func__,
+	dev_info(&priv->i2c->dev, "%s: carrier offset=%d\n", __func__,
 			(tuner_frequency - c->frequency));
 
 	s32tmp = 0x10000 * (tuner_frequency - c->frequency);
@@ -1401,6 +1401,39 @@ static int m88ds3103_deselect(struct i2c_adapter *adap, void *mux_priv,
 	return 0;
 }
 
+static int m88ds3103_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spectrum_scan *s)
+{
+	struct m88ds3103_priv *priv = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	int x;
+	u16 rf_level;
+
+	*s->type = SC_GAIN;
+
+	c->symbol_rate	= 1000000;
+	c->bandwidth_hz	= 5000000;
+	c->delivery_system = SYS_DVBS;
+	c->modulation	= QPSK;
+
+	/* reset */
+	m88ds3103_wr_reg(priv, 0x07, 0x80);
+	m88ds3103_wr_reg(priv, 0x07, 0x00);
+
+	for (x = 0 ; x < s->num_freq ; x++)
+	{
+		c->frequency = *(s->freq + x);
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
+		fe->ops.tuner_ops.set_params(fe);
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 0);
+
+		fe->ops.tuner_ops.get_rf_strength(fe, &rf_level);
+		*(s->rf_level + x) = 1953 - rf_level;
+	}
+	return 0;
+}
+
 /*
  * XXX: That is wrapper to m88ds3103_probe() via driver core in order to provide
  * proper I2C client for legacy media attach binding.
@@ -1461,7 +1494,8 @@ static struct dvb_frontend_ops m88ds3103_ops = {
 			FE_CAN_FEC_AUTO |
 			FE_CAN_QPSK |
 			FE_CAN_RECOVER |
-			FE_CAN_2G_MODULATION
+			FE_CAN_2G_MODULATION |
+			FE_CAN_SPECTRUMSCAN
 	},
 
 	.release = m88ds3103_release,
@@ -1483,6 +1517,8 @@ static struct dvb_frontend_ops m88ds3103_ops = {
 
 	.set_tone = m88ds3103_set_tone,
 	.set_voltage = m88ds3103_set_voltage,
+
+	.get_spectrum_scan = m88ds3103_get_spectrum_scan,
 };
 
 static struct dvb_frontend *m88ds3103_get_dvb_frontend(struct i2c_client *client)

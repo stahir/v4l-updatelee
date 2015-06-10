@@ -362,23 +362,22 @@ static int ts2020_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 static int ts2020_read_signal_strength(struct dvb_frontend *fe,
 						u16 *signal_strength)
 {
-	u16 sig_reading, sig_strength;
-	u8 rfgain, bbgain;
+	u8 rfgain, bbgain, nngain, rfagc;
+//	u32 gain = 0;
 
 	rfgain = ts2020_readreg(fe, 0x3d) & 0x1f;
 	bbgain = ts2020_readreg(fe, 0x21) & 0x1f;
+	rfagc = ts2020_readreg(fe, 0x3f);
+	rfagc = 63 - rfagc;
+	nngain = ts2020_readreg(fe, 0x66);
+	nngain = (nngain >> 3) & 0x07;
 
-	if (rfgain > 15)
-		rfgain = 15;
-	if (bbgain > 13)
-		bbgain = 13;
+//	gain = (u16) rfgain * 265 + (u16) bbgain * 338 + (u16) nngain * 285 + rfagc * 176 / 100 - 3000;
+//	*signal_strength = gain * 100;
 
-	sig_reading = rfgain * 2 + bbgain * 3;
+	*signal_strength = bbgain * rfagc;
 
-	sig_strength = 40 + (64 - sig_reading) * 50 / 64 ;
-
-	/* cook the value to be suitable for szap-s2 human readable output */
-	*signal_strength = sig_strength * 1000;
+//	printk("%s: rfgain  = %u, bbgain = %u, rfagc = %u, nngain = %u \n", __func__, rfgain, bbgain, rfagc, nngain);
 
 	return 0;
 }
