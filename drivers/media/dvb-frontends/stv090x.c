@@ -1163,7 +1163,6 @@ unsigned char modcod(struct stv090x_state *state, unsigned int bit)
 	} else {
 		ret = 0xf;
 	}
-	dprintk(FE_DEBUG, 1, "modcod: %01x", ret);
 
 	return ret;
 }
