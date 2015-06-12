@@ -1909,6 +1909,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			/* attach tuner */
 			memset(&ts2020_config, 0, sizeof(ts2020_config));
 			ts2020_config.fe = fe0->dvb.frontend;
+			ts2020_config.get_agc_pwm = m88ds3103_get_agc_pwm;
 			memset(&info, 0, sizeof(struct i2c_board_info));
 			strlcpy(info.type, "ts2020", I2C_NAME_SIZE);
 			info.addr = 0x60;
@@ -2040,6 +2041,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		/* attach tuner */
 		memset(&ts2020_config, 0, sizeof(ts2020_config));
 		ts2020_config.fe = fe0->dvb.frontend;
+		ts2020_config.get_agc_pwm = m88ds3103_get_agc_pwm;
 		memset(&info, 0, sizeof(struct i2c_board_info));
 		strlcpy(info.type, "ts2020", I2C_NAME_SIZE);
 		info.addr = 0x60;
@@ -2085,6 +2087,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		/* attach tuner */
 		memset(&ts2020_config, 0, sizeof(ts2020_config));
 		ts2020_config.fe = fe0->dvb.frontend;
+		ts2020_config.get_agc_pwm = m88ds3103_get_agc_pwm;
 		memset(&info, 0, sizeof(struct i2c_board_info));
 		strlcpy(info.type, "ts2020", I2C_NAME_SIZE);
 		info.addr = 0x60;
