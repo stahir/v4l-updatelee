@@ -125,10 +125,24 @@ struct dvb_usb_device *d = i2c_get_adapdata(adap);
 			//info("TBS5925_RC_QUERY %x %x %x %x\n",buf6[0],buf6[1],buf6[2],buf6[3]);
 			break;
 		case (TBS5925_VOLTAGE_CTRL):
-			buf6[0] = 3;
-			buf6[1] = msg[0].buf[0];
-			tbs5925_op_rw(d->udev, 0x8a, 0, 0,
-					buf6, 2, TBS5925_WRITE_MSG);
+			if (msg[0].buf[1] == 0x00) { // Voltage off
+				buf6[0] = 1;
+				buf6[1] = 0x00;
+				tbs5925_op_rw(d->udev, 0x8a, 0, 0,
+						buf6, 2, TBS5925_WRITE_MSG);
+				info("Voltage: OFF");
+			} else {
+				buf6[0] = 1;
+				buf6[1] = 0x01;
+				tbs5925_op_rw(d->udev, 0x8a, 0, 0,
+						buf6, 2, TBS5925_WRITE_MSG);
+
+				buf6[0] = 3;
+				buf6[1] = msg[0].buf[0];
+				tbs5925_op_rw(d->udev, 0x8a, 0, 0,
+						buf6, 2, TBS5925_WRITE_MSG);
+				info("Voltage: ON");
+			}
 			break;
 		case (TBS5925_LED_CTRL):
 			buf6[0] = 5;
@@ -253,18 +267,22 @@ static int tbs5925_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 static int tbs5925_set_voltage(struct dvb_frontend *fe, 
 						enum fe_sec_voltage voltage)
 {
-	static u8 command_13v[1] = {0x00};
-	static u8 command_18v[1] = {0x01};
+	static u8 command_13v[] = {0x00, 0x01};
+	static u8 command_18v[] = {0x01, 0x01};
+	static u8 command_off[] = {0x00, 0x00};
 	struct i2c_msg msg[] = {
 		{.addr = TBS5925_VOLTAGE_CTRL, .flags = 0,
-			.buf = command_13v, .len = 1},
+			.buf = command_off, .len = 2},
 	};
 	
 	struct dvb_usb_adapter *udev_adap =
 		(struct dvb_usb_adapter *)(fe->dvb->priv);
+
+	if (voltage == SEC_VOLTAGE_13)
+		msg[0].buf = command_13v;
 	if (voltage == SEC_VOLTAGE_18)
 		msg[0].buf = command_18v;
-	//info("tbs5925_set_voltage %d",voltage);
+
 	i2c_transfer(&udev_adap->dev->i2c_adap, msg, 1);
 	return 0;
 }

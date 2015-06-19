@@ -321,6 +321,7 @@ static struct stv090x_reg stv0900_initval[] = {
 	{ STV090x_P2_ACLC,		0x1A },
 	{ STV090x_P2_BCLC,		0x09 },
 	{ STV090x_P2_CARHDR,		0x08 },
+	{ STV090x_P2_KTTMG,		0xaa },
 	{ STV090x_P2_KREFTMG,		0xc1 },
 	{ STV090x_P2_SFRUPRATIO,	0xf0 },
 	{ STV090x_P2_SFRLOWRATIO,	0x70 },
@@ -383,6 +384,7 @@ static struct stv090x_reg stv0900_initval[] = {
 	{ STV090x_P1_ACLC,		0x1A },
 	{ STV090x_P1_BCLC,		0x09 },
 	{ STV090x_P1_CARHDR,		0x08 },
+	{ STV090x_P1_KTTMG,		0xaa },
 	{ STV090x_P1_KREFTMG,		0xc1 },
 	{ STV090x_P1_SFRSTEP,		0x58 },
 	{ STV090x_P1_TMGCFG2,		0x01 },
@@ -1675,6 +1677,8 @@ static u32 stv090x_srate_srch_coarse(struct stv090x_state *state)
 	u32 srate_coarse = 0, agc2 = 0, car_step = 1200, reg;
 	u32 agc2th;
 
+	dprintk(FE_DEBUG, 1, "");
+
 	if (state->internal->dev_ver >= 0x30)
 		agc2th = 0x2e00;
 	else
@@ -1970,9 +1974,11 @@ static int stv090x_blind_search(struct stv090x_state *state)
 {
 	u32 agc2, reg, srate_coarse;
 	s32 cpt_fail, agc2_ovflw, i;
-	u8 k_ref, k_max, k_min;
+	s8 k_ref, k_max, k_min;
 	int coarse_fail = 0;
 	int lock;
+
+	dprintk(FE_DEBUG, 1, "");
 
 	k_max = 110;
 	k_min = 10;
@@ -1998,6 +2004,9 @@ static int stv090x_blind_search(struct stv090x_state *state)
 			goto err;
 
 		if (state->internal->dev_ver >= 0x30) {
+			if (STV090x_WRITE_DEMOD(state, KTTMG, 0x55) < 0)
+				goto err;
+
 			if (state->srate < 10000000) {
 				if (STV090x_WRITE_DEMOD(state, AGC2O, 0x5b) < 0)
 					goto err;
@@ -2020,6 +2029,8 @@ static int stv090x_blind_search(struct stv090x_state *state)
 
 		k_ref = k_max;
 		do {
+			dprintk(FE_DEBUG, 1, "k_ref = %d, k_min = %d", k_ref, k_min);
+
 			if (STV090x_WRITE_DEMOD(state, KREFTMG, k_ref) < 0)
 				goto err;
 			if (stv090x_srate_srch_coarse(state) != 0) {
@@ -2050,8 +2061,14 @@ static int stv090x_blind_search(struct stv090x_state *state)
 
 				lock = 0;
 			}
-			k_ref -= 20;
+			k_ref -= 50;
+			dprintk(FE_DEBUG, 1, "lock = %d", lock);
 		} while ((k_ref >= k_min) && (!lock) && (!coarse_fail));
+	}
+
+	if (state->internal->dev_ver >= 0x30) {
+		if (STV090x_WRITE_DEMOD(state, AGC2O, 0x5b) < 0)
+			goto err;
 	}
 
 	return lock;
@@ -3342,6 +3359,8 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 	u32 reg;
 	s32 agc1_power, power_iq = 0, i;
 	int lock = 0, low_sr = 0;
+
+	dprintk(FE_DEBUG, 1, "");
 
 	reg = STV090x_READ_DEMOD(state, TSCFGH);
 	STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 1); /* Stop path 1 stream merger */
