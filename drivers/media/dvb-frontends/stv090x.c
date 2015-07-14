@@ -3727,6 +3727,8 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe)
 	state->fec = STV090x_PRERR;
 	state->enable_modcod = props->enable_modcod;
 
+	props->enable_modcod = 0x0fffffff;
+
 	if (props->enable_modcod == 0x0fffffff) {
 		state->algo = STV090x_BLIND_SEARCH;
 		dprintk(FE_DEBUG, 1, "mod %08x state->algo = STV090x_BLIND_SEARCH", props->enable_modcod);
