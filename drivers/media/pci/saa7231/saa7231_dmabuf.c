@@ -28,6 +28,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
+#include <linux/vmalloc.h>
 
 #include "saa7231_priv.h"
 #include "saa7231_dmabuf.h"

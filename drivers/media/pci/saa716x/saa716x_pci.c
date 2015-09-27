@@ -1,4 +1,8 @@
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/pci.h>
 #include <asm/io.h>
+#include <linux/ioport.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <linux/kmod.h>
