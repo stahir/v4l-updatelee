@@ -265,7 +265,7 @@ struct stripe_head_state {
 	int dec_preread_active;
 	unsigned long ops_request;
 
-	struct bio *return_bi;
+	struct bio_list return_bi;
 	struct md_rdev *blocked_rdev;
 	int handle_bad_blocks;
 };
@@ -337,9 +337,12 @@ enum {
 	STRIPE_ON_RELEASE_LIST,
 	STRIPE_BATCH_READY,
 	STRIPE_BATCH_ERR,
+	STRIPE_BITMAP_PENDING,	/* Being added to bitmap, don't add
+				 * to batch yet.
+				 */
 };
 
-#define STRIPE_EXPAND_SYNC_FLAG \
+#define STRIPE_EXPAND_SYNC_FLAGS \
 	((1 << STRIPE_EXPAND_SOURCE) |\
 	(1 << STRIPE_EXPAND_READY) |\
 	(1 << STRIPE_EXPANDING) |\
@@ -473,13 +476,17 @@ struct r5conf {
 	int			skip_copy; /* Don't copy data from bio to stripe cache */
 	struct list_head	*last_hold; /* detect hold_list promotions */
 
+	/* bios to have bi_end_io called after metadata is synced */
+	struct bio_list		return_bi;
+
 	atomic_t		reshape_stripes; /* stripes with pending writes for reshape */
 	/* unfortunately we need two cache names as we temporarily have
 	 * two caches.
 	 */
 	int			active_name;
 	char			cache_name[2][32];
-	struct kmem_cache		*slab_cache; /* for allocating stripes */
+	struct kmem_cache	*slab_cache; /* for allocating stripes */
+	struct mutex		cache_size_mutex; /* Protect changes to cache size */
 
 	int			seq_flush, seq_write;
 	int			quiesce;
@@ -508,7 +515,8 @@ struct r5conf {
 	struct list_head	inactive_list[NR_STRIPE_HASH_LOCKS];
 	atomic_t		empty_inactive_list_nr;
 	struct llist_head	released_stripes;
-	wait_queue_head_t	wait_for_stripe;
+	wait_queue_head_t	wait_for_quiescent;
+	wait_queue_head_t	wait_for_stripe[NR_STRIPE_HASH_LOCKS];
 	wait_queue_head_t	wait_for_overlap;
 	unsigned long		cache_state;
 #define R5_INACTIVE_BLOCKED	1	/* release of inactive stripes blocked,

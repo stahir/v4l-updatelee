@@ -615,14 +615,14 @@ xfs_default_resblks(xfs_mount_t *mp)
  */
 int
 xfs_mountfs(
-	xfs_mount_t	*mp)
+	struct xfs_mount	*mp)
 {
-	xfs_sb_t	*sbp = &(mp->m_sb);
-	xfs_inode_t	*rip;
-	__uint64_t	resblks;
-	uint		quotamount = 0;
-	uint		quotaflags = 0;
-	int		error = 0;
+	struct xfs_sb		*sbp = &(mp->m_sb);
+	struct xfs_inode	*rip;
+	__uint64_t		resblks;
+	uint			quotamount = 0;
+	uint			quotaflags = 0;
+	int			error = 0;
 
 	xfs_sb_mount_common(mp, sbp);
 
@@ -725,6 +725,22 @@ xfs_mountfs(
 	}
 
 	/*
+	 * If enabled, sparse inode chunk alignment is expected to match the
+	 * cluster size. Full inode chunk alignment must match the chunk size,
+	 * but that is checked on sb read verification...
+	 */
+	if (xfs_sb_version_hassparseinodes(&mp->m_sb) &&
+	    mp->m_sb.sb_spino_align !=
+			XFS_B_TO_FSBT(mp, mp->m_inode_cluster_size)) {
+		xfs_warn(mp,
+	"Sparse inode block alignment (%u) must match cluster size (%llu).",
+			 mp->m_sb.sb_spino_align,
+			 XFS_B_TO_FSBT(mp, mp->m_inode_cluster_size));
+		error = -EINVAL;
+		goto out_remove_uuid;
+	}
+
+	/*
 	 * Set inode alignment fields
 	 */
 	xfs_set_inoalignment(mp);
@@ -783,7 +799,9 @@ xfs_mountfs(
 	}
 
 	/*
-	 * log's mount-time initialization. Perform 1st part recovery if needed
+	 * Log's mount-time initialization. The first part of recovery can place
+	 * some items on the AIL, to be handled when recovery is finished or
+	 * cancelled.
 	 */
 	error = xfs_log_mount(mp, mp->m_logdev_targp,
 			      XFS_FSB_TO_DADDR(mp, sbp->sb_logstart),
@@ -894,9 +912,9 @@ xfs_mountfs(
 	}
 
 	/*
-	 * Finish recovering the file system.  This part needed to be
-	 * delayed until after the root and real-time bitmap inodes
-	 * were consistently read in.
+	 * Finish recovering the file system.  This part needed to be delayed
+	 * until after the root and real-time bitmap inodes were consistently
+	 * read in.
 	 */
 	error = xfs_log_mount_finish(mp);
 	if (error) {
@@ -939,8 +957,10 @@ xfs_mountfs(
 	xfs_rtunmount_inodes(mp);
  out_rele_rip:
 	IRELE(rip);
+	cancel_delayed_work_sync(&mp->m_reclaim_work);
+	xfs_reclaim_inodes(mp, SYNC_WAIT);
  out_log_dealloc:
-	xfs_log_unmount(mp);
+	xfs_log_mount_cancel(mp);
  out_fail_wait:
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
 		xfs_wait_buftarg(mp->m_logdev_targp);
@@ -1084,14 +1104,18 @@ xfs_log_sbcount(xfs_mount_t *mp)
 	return xfs_sync_sb(mp, true);
 }
 
+/*
+ * Deltas for the inode count are +/-64, hence we use a large batch size
+ * of 128 so we don't need to take the counter lock on every update.
+ */
+#define XFS_ICOUNT_BATCH	128
 int
 xfs_mod_icount(
 	struct xfs_mount	*mp,
 	int64_t			delta)
 {
-	/* deltas are +/-64, hence the large batch size of 128. */
-	__percpu_counter_add(&mp->m_icount, delta, 128);
-	if (percpu_counter_compare(&mp->m_icount, 0) < 0) {
+	__percpu_counter_add(&mp->m_icount, delta, XFS_ICOUNT_BATCH);
+	if (__percpu_counter_compare(&mp->m_icount, 0, XFS_ICOUNT_BATCH) < 0) {
 		ASSERT(0);
 		percpu_counter_add(&mp->m_icount, -delta);
 		return -EINVAL;
@@ -1113,6 +1137,14 @@ xfs_mod_ifree(
 	return 0;
 }
 
+/*
+ * Deltas for the block count can vary from 1 to very large, but lock contention
+ * only occurs on frequent small block count updates such as in the delayed
+ * allocation path for buffered writes (page a time updates). Hence we set
+ * a large batch count (1024) to minimise global counter updates except when
+ * we get near to ENOSPC and we have to be very accurate with our updates.
+ */
+#define XFS_FDBLOCKS_BATCH	1024
 int
 xfs_mod_fdblocks(
 	struct xfs_mount	*mp,
@@ -1151,25 +1183,19 @@ xfs_mod_fdblocks(
 	 * Taking blocks away, need to be more accurate the closer we
 	 * are to zero.
 	 *
-	 * batch size is set to a maximum of 1024 blocks - if we are
-	 * allocating of freeing extents larger than this then we aren't
-	 * going to be hammering the counter lock so a lock per update
-	 * is not a problem.
-	 *
 	 * If the counter has a value of less than 2 * max batch size,
 	 * then make everything serialise as we are real close to
 	 * ENOSPC.
 	 */
-#define __BATCH	1024
-	if (percpu_counter_compare(&mp->m_fdblocks, 2 * __BATCH) < 0)
+	if (__percpu_counter_compare(&mp->m_fdblocks, 2 * XFS_FDBLOCKS_BATCH,
+				     XFS_FDBLOCKS_BATCH) < 0)
 		batch = 1;
 	else
-		batch = __BATCH;
-#undef __BATCH
+		batch = XFS_FDBLOCKS_BATCH;
 
 	__percpu_counter_add(&mp->m_fdblocks, delta, batch);
-	if (percpu_counter_compare(&mp->m_fdblocks,
-				   XFS_ALLOC_SET_ASIDE(mp)) >= 0) {
+	if (__percpu_counter_compare(&mp->m_fdblocks, XFS_ALLOC_SET_ASIDE(mp),
+				     XFS_FDBLOCKS_BATCH) >= 0) {
 		/* we had space! */
 		return 0;
 	}

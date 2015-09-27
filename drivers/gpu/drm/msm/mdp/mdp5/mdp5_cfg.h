@@ -42,6 +42,13 @@ struct mdp5_sub_block {
 struct mdp5_lm_block {
 	MDP5_SUB_BLOCK_DEFINITION;
 	uint32_t nb_stages;		/* number of stages per blender */
+	uint32_t max_width;		/* Maximum output resolution */
+	uint32_t max_height;
+};
+
+struct mdp5_pipe_block {
+	MDP5_SUB_BLOCK_DEFINITION;
+	uint32_t caps;			/* pipe capabilities */
 };
 
 struct mdp5_ctl_block {
@@ -59,22 +66,25 @@ struct mdp5_smp_block {
 
 #define MDP5_INTF_NUM_MAX	5
 
+struct mdp5_intf_block {
+	uint32_t base[MAX_BASES];
+	u32 connect[MDP5_INTF_NUM_MAX]; /* array of enum mdp5_intf_type */
+};
+
 struct mdp5_cfg_hw {
 	char  *name;
 
 	struct mdp5_sub_block mdp;
 	struct mdp5_smp_block smp;
 	struct mdp5_ctl_block ctl;
-	struct mdp5_sub_block pipe_vig;
-	struct mdp5_sub_block pipe_rgb;
-	struct mdp5_sub_block pipe_dma;
+	struct mdp5_pipe_block pipe_vig;
+	struct mdp5_pipe_block pipe_rgb;
+	struct mdp5_pipe_block pipe_dma;
 	struct mdp5_lm_block  lm;
 	struct mdp5_sub_block dspp;
 	struct mdp5_sub_block ad;
 	struct mdp5_sub_block pp;
-	struct mdp5_sub_block intf;
-
-	u32 intfs[MDP5_INTF_NUM_MAX]; /* array of enum mdp5_intf_type */
+	struct mdp5_intf_block intf;
 
 	uint32_t max_clk;
 };

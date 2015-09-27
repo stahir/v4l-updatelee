@@ -1,16 +1,6 @@
 #ifndef MPLS_INTERNAL_H
 #define MPLS_INTERNAL_H
 
-#define LABEL_IPV4_EXPLICIT_NULL	0 /* RFC3032 */
-#define LABEL_ROUTER_ALERT_LABEL	1 /* RFC3032 */
-#define LABEL_IPV6_EXPLICIT_NULL	2 /* RFC3032 */
-#define LABEL_IMPLICIT_NULL		3 /* RFC3032 */
-#define LABEL_ENTROPY_INDICATOR		7 /* RFC6790 */
-#define LABEL_GAL			13 /* RFC5586 */
-#define LABEL_OAM_ALERT			14 /* RFC3429 */
-#define LABEL_EXTENSION			15 /* RFC7274 */
-
-
 struct mpls_shim_hdr {
 	__be32 label_stack_entry;
 };
@@ -26,6 +16,7 @@ struct mpls_dev {
 	int			input_enabled;
 
 	struct ctl_table_header *sysctl;
+	struct rcu_head		rcu;
 };
 
 struct sk_buff;
@@ -59,7 +50,12 @@ static inline struct mpls_entry_decoded mpls_entry_decode(struct mpls_shim_hdr *
 	return result;
 }
 
-int nla_put_labels(struct sk_buff *skb, int attrtype,  u8 labels, const u32 label[]);
-int nla_get_labels(const struct nlattr *nla, u32 max_labels, u32 *labels, u32 label[]);
+int nla_put_labels(struct sk_buff *skb, int attrtype,  u8 labels,
+		   const u32 label[]);
+int nla_get_labels(const struct nlattr *nla, u32 max_labels, u32 *labels,
+		   u32 label[]);
+bool mpls_output_possible(const struct net_device *dev);
+unsigned int mpls_dev_mtu(const struct net_device *dev);
+bool mpls_pkt_too_big(const struct sk_buff *skb, unsigned int mtu);
 
 #endif /* MPLS_INTERNAL_H */
