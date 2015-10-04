@@ -356,6 +356,27 @@ static int si2157_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
+static int si2157_get_rf_strength(struct dvb_frontend *fe,
+				       u16 *signal_strength)
+{
+	struct i2c_client *client = fe->tuner_priv;
+	struct si2157_cmd cmd;
+	int ret;
+
+	memcpy(cmd.args, "\x42\x00", 2);
+	cmd.wlen = 2;
+	cmd.rlen = 12;
+	ret = si2157_cmd_execute(client, &cmd);
+	if (ret) {
+		dev_dbg(&client->dev, "failed=%d\n", ret);
+		return -1;
+	}
+
+	*signal_strength = cmd.args[3] * 1000;
+
+	return 0;
+}
+
 static const struct dvb_tuner_ops si2157_ops = {
 	.info = {
 		.name           = "Silicon Labs Si2146/2147/2148/2157/2158",
@@ -367,6 +388,7 @@ static const struct dvb_tuner_ops si2157_ops = {
 	.sleep = si2157_sleep,
 	.set_params = si2157_set_params,
 	.get_if_frequency = si2157_get_if_frequency,
+	.get_rf_strength = si2157_get_rf_strength,
 };
 
 static void si2157_stat_work(struct work_struct *work)

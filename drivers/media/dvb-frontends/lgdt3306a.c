@@ -1491,12 +1491,11 @@ static u32 lgdt3306a_calculate_snr_x100(struct lgdt3306a_state *state)
 	pwr = (read_reg(state, 0x00e8) << 8) |
 	      (read_reg(state, 0x00e9));
 
-	if (mse == 0) /* no signal */
+	if (pwr == 0) /* no signal */
 		return 0;
 
 	snr_x100 = log10_x1000((pwr * 10000) / mse) - 3000;
 	dbg_info("mse=%u, pwr=%u, snr_x100=%d\n", mse, pwr, snr_x100);
-
 	return snr_x100;
 }
 
@@ -1847,6 +1846,55 @@ fail:
 }
 EXPORT_SYMBOL(lgdt3306a_attach);
 
+static int lgdt3306a_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spectrum_scan *s)
+{
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	struct lgdt3306a_state *state = fe->demodulator_priv;
+	int x, ret;
+
+	p->frequency		= 0;
+	p->bandwidth_hz		= 1000000;
+	p->delivery_system	= SYS_ATSC;
+	p->modulation		= VSB_8;
+
+	*s->type = SC_DB;
+
+	state->current_frequency = -1;
+	state->current_modulation = -1;
+
+	ret = lgdt3306a_power(state, 1); /* power up */
+	if (lg_chkerr(ret))
+		goto fail;
+
+	if (fe->ops.tuner_ops.set_params) {
+		for (x = 0; x < s->num_freq; x++)
+		{
+			p->frequency = *(s->freq + x);
+			dbg_info("freq: %d \n", p->frequency);
+
+			if (fe->ops.tuner_ops.set_params) {
+				ret = fe->ops.tuner_ops.set_params(fe);
+				if (fe->ops.i2c_gate_ctrl)
+					fe->ops.i2c_gate_ctrl(fe, 0);
+				if (lg_chkerr(ret))
+					goto fail;
+				state->current_frequency = p->frequency;
+			}
+
+			ret = lgdt3306a_set_modulation(state, p);
+			if (lg_chkerr(ret))
+				goto fail;
+
+			ret = fe->ops.tuner_ops.get_rf_strength(fe, (s->rf_level + x));
+			if (lg_chkerr(ret))
+				goto fail;
+		}
+	}
+	return 0;
+fail:
+	return ret;
+}
+
 #ifdef DBG_DUMP
 
 static const short regtab[] = {
@@ -2112,13 +2160,13 @@ static void lgdt3306a_DumpRegs(struct lgdt3306a_state *state)
 
 
 static struct dvb_frontend_ops lgdt3306a_ops = {
-	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
+	.delsys = { SYS_DVBC_ANNEX_B, SYS_ATSC },
 	.info = {
 		.name = "LG Electronics LGDT3306A VSB/QAM Frontend",
 		.frequency_min      = 54000000,
 		.frequency_max      = 858000000,
 		.frequency_stepsize = 62500,
-		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
+		.caps = FE_CAN_8VSB | FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_SPECTRUMSCAN
 	},
 	.i2c_gate_ctrl        = lgdt3306a_i2c_gate_ctrl,
 	.init                 = lgdt3306a_init,
@@ -2137,6 +2185,7 @@ static struct dvb_frontend_ops lgdt3306a_ops = {
 	.release              = lgdt3306a_release,
 	.ts_bus_ctrl          = lgdt3306a_ts_bus_ctrl,
 	.search               = lgdt3306a_search,
+	.get_spectrum_scan    = lgdt3306a_get_spectrum_scan,
 };
 
 MODULE_DESCRIPTION("LG Electronics LGDT3306A ATSC/QAM-B Demodulator Driver");
