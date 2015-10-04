@@ -206,7 +206,8 @@ static int lgdt3306a_soft_reset(struct lgdt3306a_state *state)
 	if (lg_chkerr(ret))
 		goto fail;
 
-	msleep(20);
+	msleep(10);
+
 	ret = lgdt3306a_set_reg_bit(state, 0x0000, 7, 1);
 	lg_chkerr(ret);
 
@@ -1851,6 +1852,7 @@ static int lgdt3306a_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_sp
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct lgdt3306a_state *state = fe->demodulator_priv;
 	int x, ret;
+	u8 val;
 
 	p->frequency		= 0;
 	p->bandwidth_hz		= 1000000;
@@ -1863,6 +1865,14 @@ static int lgdt3306a_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_sp
 	state->current_modulation = -1;
 
 	ret = lgdt3306a_power(state, 1); /* power up */
+	if (lg_chkerr(ret))
+		goto fail;
+
+	/* 2. Bandwidth mode for VSB(6MHz) */
+	ret = lgdt3306a_read_reg(state, 0x0009, &val);
+	val &= 0xe3;
+	val |= 0x0c; /* STDOPDETTMODE[2:0]=3 */
+	ret = lgdt3306a_write_reg(state, 0x0009, val);
 	if (lg_chkerr(ret))
 		goto fail;
 
@@ -1881,9 +1891,11 @@ static int lgdt3306a_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_sp
 				state->current_frequency = p->frequency;
 			}
 
-			ret = lgdt3306a_set_modulation(state, p);
+			ret = lgdt3306a_soft_reset(state);
 			if (lg_chkerr(ret))
 				goto fail;
+
+			msleep(10);
 
 			ret = fe->ops.tuner_ops.get_rf_strength(fe, (s->rf_level + x));
 			if (lg_chkerr(ret))
