@@ -1857,7 +1857,7 @@ static int lgdt3306a_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_sp
 	p->delivery_system	= SYS_ATSC;
 	p->modulation		= VSB_8;
 
-	*s->type = SC_DB;
+	*s->type = SC_DBM;
 
 	state->current_frequency = -1;
 	state->current_modulation = -1;
