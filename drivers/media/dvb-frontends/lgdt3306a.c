@@ -65,6 +65,8 @@ struct lgdt3306a_state {
 	enum fe_modulation current_modulation;
 	u32 current_frequency;
 	u32 snr;
+
+	enum lgdt3306a_algo algo;
 };
 
 /*
@@ -106,7 +108,6 @@ enum lgdt3306a_lock_check {
 	LG3306_TR_LOCK,
 	LG3306_AGC_LOCK,
 };
-
 
 #ifdef DBG_DUMP
 static void lgdt3306a_DumpAllRegs(struct lgdt3306a_state *state);
@@ -200,7 +201,7 @@ static int lgdt3306a_soft_reset(struct lgdt3306a_state *state)
 {
 	int ret;
 
-	dbg_info("\n");
+	dbg_info("lgdt3306a_soft_reset\n");
 
 	ret = lgdt3306a_set_reg_bit(state, 0x0000, 7, 0);
 	if (lg_chkerr(ret))
@@ -221,7 +222,7 @@ static int lgdt3306a_mpeg_mode(struct lgdt3306a_state *state,
 	u8 val;
 	int ret;
 
-	dbg_info("(%d)\n", mode);
+	dbg_info("lgdt3306a_mpeg_mode: (%d)\n", mode);
 	/* transport packet format - TPSENB=0x80 */
 	ret = lgdt3306a_set_reg_bit(state, 0x0071, 7,
 				     mode == LGDT3306A_MPEG_PARALLEL ? 1 : 0);
@@ -285,7 +286,7 @@ static int lgdt3306a_mpeg_tristate(struct lgdt3306a_state *state,
 	u8 val;
 	int ret;
 
-	dbg_info("(%d)\n", mode);
+	dbg_info("lgdt3306a_mpeg_tristate: (%d)\n", mode);
 
 	if (mode) {
 		ret = lgdt3306a_read_reg(state, 0x0070, &val);
@@ -340,7 +341,7 @@ static int lgdt3306a_power(struct lgdt3306a_state *state,
 {
 	int ret;
 
-	dbg_info("(%d)\n", mode);
+	dbg_info("lgdt3306a_power: (%d)\n", mode);
 
 	if (mode == 0) {
 		/* into reset */
@@ -378,7 +379,7 @@ static int lgdt3306a_set_vsb(struct lgdt3306a_state *state)
 	u8 val;
 	int ret;
 
-	dbg_info("\n");
+	dbg_info("lgdt3306a_set_vsb\n");
 
 	/* 0. Spectrum inversion detection manual; spectrum inverted */
 	ret = lgdt3306a_read_reg(state, 0x0002, &val);
@@ -610,7 +611,7 @@ static int lgdt3306a_set_modulation(struct lgdt3306a_state *state,
 {
 	int ret;
 
-	dbg_info("\n");
+	dbg_info("lgdt3306a_set_modulation\n");
 
 	switch (p->modulation) {
 	case VSB_8:
@@ -640,7 +641,7 @@ static int lgdt3306a_agc_setup(struct lgdt3306a_state *state,
 			      struct dtv_frontend_properties *p)
 {
 	/* TODO: anything we want to do here??? */
-	dbg_info("\n");
+	dbg_info("lgdt3306a_agc_setup\n");
 
 	switch (p->modulation) {
 	case VSB_8:
@@ -788,7 +789,7 @@ static int lgdt3306a_sleep(struct lgdt3306a_state *state)
 {
 	int ret;
 
-	dbg_info("\n");
+	state->algo = LG3306_NOTUNE;
 	state->current_frequency = -1; /* force re-tune, when we wake */
 
 	ret = lgdt3306a_mpeg_tristate(state, 1); /* disable data bus */
@@ -815,7 +816,9 @@ static int lgdt3306a_init(struct dvb_frontend *fe)
 	u8 val;
 	int ret;
 
-	dbg_info("\n");
+	state->algo = LG3306_NOTUNE;
+
+	dbg_info("lgdt3306a_init\n");
 
 	/* 1. Normal operation mode */
 	ret = lgdt3306a_set_reg_bit(state, 0x0001, 0, 1); /* SIMFASTENB=0x01 */
@@ -973,13 +976,14 @@ static int lgdt3306a_set_parameters(struct dvb_frontend *fe)
 	struct lgdt3306a_state *state = fe->demodulator_priv;
 	int ret;
 
-	dbg_info("(%d, %d)\n", p->frequency, p->modulation);
+	dbg_info("lgdt3306a_set_parameters: (%d, %d)\n", p->frequency, p->modulation);
 
-	if (state->current_frequency  == p->frequency &&
+	if (state->current_frequency == p->frequency &&
 	   state->current_modulation == p->modulation) {
 		dbg_info(" (already set, skipping ...)\n");
 		return 0;
 	}
+	state->algo = LG3306_TUNE;
 	state->current_frequency = -1;
 	state->current_modulation = -1;
 
@@ -1041,12 +1045,32 @@ fail:
 	return ret;
 }
 
+static int lgdt3306a_set_property(struct dvb_frontend *fe,
+				struct dtv_property *tvp)
+{
+	struct lgdt3306a_state *state = fe->demodulator_priv;
+
+	if (tvp->cmd == DTV_TUNE) {
+		dbg_info("lgdt3306a_set_property\n");
+		state->algo = LG3306_TUNE;
+	}
+
+	return 0;
+}
+
+static int lgdt3306a_get_property(struct dvb_frontend *fe,
+				struct dtv_property *tvp)
+{
+	return 0;
+}
+
+
 static int lgdt3306a_get_frontend(struct dvb_frontend *fe)
 {
 	struct lgdt3306a_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
-	dbg_info("(%u, %d)\n",
+	dbg_info("lgdt3306a_get_frontend: (%u, %d)\n",
 		 state->current_frequency, state->current_modulation);
 
 	p->modulation = state->current_modulation;
@@ -1056,11 +1080,13 @@ static int lgdt3306a_get_frontend(struct dvb_frontend *fe)
 
 static enum dvbfe_algo lgdt3306a_get_frontend_algo(struct dvb_frontend *fe)
 {
-#if 1
-	return DVBFE_ALGO_CUSTOM;
-#else
-	return DVBFE_ALGO_HW;
-#endif
+	struct lgdt3306a_state *state = fe->demodulator_priv;
+
+	if (state->algo == LG3306_NOTUNE) {
+		return DVBFE_ALGO_NOTUNE;
+	} else {
+		return DVBFE_ALGO_CUSTOM;
+	}
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1267,7 +1293,7 @@ lgdt3306a_check_neverlock_status(struct lgdt3306a_state *state)
 		return ret;
 	lockStatus = (enum lgdt3306a_neverlock_status)(val & 0x03);
 
-	dbg_info("NeverLock=%d", lockStatus);
+	dbg_info("NeverLock=%d \n", lockStatus);
 
 	return lockStatus;
 }
@@ -1410,6 +1436,10 @@ lgdt3306a_neverlock_poll(struct lgdt3306a_state *state)
 
 		if (NLLockStatus == LG3306_NL_LOCK) {
 			dbg_info("NL_LOCK(%d)\n", i);
+			return NLLockStatus;
+		}
+		if (NLLockStatus == LG3306_NL_FAIL) {
+			state->algo = LG3306_NOTUNE;
 			return NLLockStatus;
 		}
 	}
@@ -1584,7 +1614,6 @@ static int lgdt3306a_read_status(struct dvb_frontend *fe,
 			if (lgdt3306a_qam_lock_poll(state) == LG3306_LOCK) {
 				*status |= FE_HAS_VITERBI;
 				*status |= FE_HAS_SYNC;
-
 				*status |= FE_HAS_LOCK;
 			}
 			break;
@@ -1592,7 +1621,6 @@ static int lgdt3306a_read_status(struct dvb_frontend *fe,
 			if (lgdt3306a_vsb_lock_poll(state) == LG3306_LOCK) {
 				*status |= FE_HAS_VITERBI;
 				*status |= FE_HAS_SYNC;
-
 				*status |= FE_HAS_LOCK;
 
 				ret = lgdt3306a_monitor_vsb(state);
@@ -1601,6 +1629,10 @@ static int lgdt3306a_read_status(struct dvb_frontend *fe,
 		default:
 			ret = -EINVAL;
 		}
+	} else {
+		dbg_info("FE_TIMEDOUT\n");
+		*status |= FE_TIMEDOUT;
+		state->algo = LG3306_NOTUNE;
 	}
 	return ret;
 }
@@ -1710,6 +1742,7 @@ static int lgdt3306a_tune(struct dvb_frontend *fe, bool re_tune,
 {
 	int ret = 0;
 	struct lgdt3306a_state *state = fe->demodulator_priv;
+	state->algo = LG3306_TUNE;
 
 	dbg_info("re_tune=%u\n", re_tune);
 
@@ -1730,14 +1763,19 @@ static int lgdt3306a_get_tune_settings(struct dvb_frontend *fe,
 				       *fe_tune_settings)
 {
 	fe_tune_settings->min_delay_ms = 100;
-	dbg_info("\n");
+	dbg_info("lgdt3306a_get_tune_settings\n");
 	return 0;
 }
 
 static int lgdt3306a_search(struct dvb_frontend *fe)
 {
+	struct lgdt3306a_state *state = fe->demodulator_priv;
 	enum fe_status status = 0;
 	int i, ret;
+
+	dbg_info("lgdt3306a_search \n");
+
+	state->algo = LG3306_TUNE;
 
 	/* set frontend */
 	ret = lgdt3306a_set_parameters(fe);
@@ -1754,16 +1792,23 @@ static int lgdt3306a_search(struct dvb_frontend *fe)
 
 		if (status & FE_HAS_LOCK)
 			break;
+		if (status & FE_TIMEDOUT) {
+			state->algo = LG3306_NOTUNE;
+			return DVBFE_ALGO_SEARCH_FAILED;
+		}
 	}
 
 	/* check if we have a valid signal */
 	if (status & FE_HAS_LOCK)
 		return DVBFE_ALGO_SEARCH_SUCCESS;
-	else
-		return DVBFE_ALGO_SEARCH_AGAIN;
+	else {
+		state->algo = LG3306_NOTUNE;
+		return DVBFE_ALGO_SEARCH_FAILED;
+	}
 
 error:
 	dbg_info("failed (%d)\n", ret);
+	state->algo = LG3306_NOTUNE;
 	return DVBFE_ALGO_SEARCH_ERROR;
 }
 
@@ -1771,7 +1816,7 @@ static void lgdt3306a_release(struct dvb_frontend *fe)
 {
 	struct lgdt3306a_state *state = fe->demodulator_priv;
 
-	dbg_info("\n");
+	dbg_info("lgdt3306a_release\n");
 	kfree(state);
 }
 
@@ -1784,7 +1829,7 @@ struct dvb_frontend *lgdt3306a_attach(const struct lgdt3306a_config *config,
 	int ret;
 	u8 val;
 
-	dbg_info("(%d-%04x)\n",
+	dbg_info("lgdt3306a_attach: (%d-%04x)\n",
 	       i2c_adap ? i2c_adapter_id(i2c_adap) : 0,
 	       config ? config->i2c_addr : 0);
 
@@ -1861,6 +1906,7 @@ static int lgdt3306a_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_sp
 
 	*s->type = SC_DBM;
 
+	state->algo = LG3306_NOTUNE;
 	state->current_frequency = -1;
 	state->current_modulation = -1;
 
@@ -1880,7 +1926,6 @@ static int lgdt3306a_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_sp
 		for (x = 0; x < s->num_freq; x++)
 		{
 			p->frequency = *(s->freq + x);
-			dbg_info("freq: %d \n", p->frequency);
 
 			if (fe->ops.tuner_ops.set_params) {
 				ret = fe->ops.tuner_ops.set_params(fe);
@@ -2156,7 +2201,7 @@ static void lgdt3306a_DumpRegs(struct lgdt3306a_state *state)
 		return;
 	debug &= ~DBG_REG; /* suppress DBG_REG during reg dump */
 
-	lg_debug("\n");
+	lg_debug("lgdt3306a_DumpRegs\n");
 
 	for (i = 0; i < numDumpRegs; i++) {
 		lgdt3306a_read_reg(state, regtab[i], &regval1[i]);
@@ -2185,6 +2230,8 @@ static struct dvb_frontend_ops lgdt3306a_ops = {
 	.sleep                = lgdt3306a_fe_sleep,
 	/* if this is set, it overrides the default swzigzag */
 	.tune                 = lgdt3306a_tune,
+	.set_property         = lgdt3306a_set_property,
+	.get_property         = lgdt3306a_get_property,
 	.set_frontend         = lgdt3306a_set_parameters,
 	.get_frontend         = lgdt3306a_get_frontend,
 	.get_frontend_algo    = lgdt3306a_get_frontend_algo,

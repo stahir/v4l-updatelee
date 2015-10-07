@@ -37,6 +37,11 @@ enum lgdt3306a_tp_valid_polarity {
 	LGDT3306A_TP_VALID_HIGH = 1,
 };
 
+enum lgdt3306a_algo {
+	LG3306_NOTUNE,
+	LG3306_TUNE,
+};
+
 struct lgdt3306a_config {
 	u8 i2c_addr;
 
