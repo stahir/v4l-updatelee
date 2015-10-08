@@ -19,6 +19,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define DEBUG
 #include "dvb_frontend.h"
 #include "ts2020.h"
 #include <linux/regmap.h>
@@ -155,7 +156,7 @@ static int ts2020_init(struct dvb_frontend *fe)
 	/* Initialise v5 stats here */
 	c->strength.len = 1;
 	c->strength.stat[0].scale = FE_SCALE_DECIBEL;
-	c->strength.stat[0].uvalue = 0;
+	c->strength.stat[0].svalue = 0;
 
 	/* Start statistics polling by invoking the work function */
 	ts2020_stat_work(&priv->stat_work.work);
@@ -369,11 +370,12 @@ static int ts2020_read_tuner_gain(struct dvb_frontend *fe, unsigned v_agc,
 		gain2 = clamp_t(long, gain2, 0, 13);
 		v_agc = clamp_t(long, v_agc, 400, 1100);
 
-		*_gain = -(gain1 * 2330 +
+		*_gain = -(int64_t)(gain1 * 2330 +
 			   gain2 * 3500 +
 			   v_agc * 24 / 10 * 10 +
 			   10000);
 		/* gain in range -19600 to -116850 in units of 0.001dB */
+		pr_debug("%s ts2020 gain=strength=%lld dB\n", __func__, *_gain);
 		break;
 
 	case TS2020_M88TS2022:
@@ -387,12 +389,13 @@ static int ts2020_read_tuner_gain(struct dvb_frontend *fe, unsigned v_agc,
 		gain3 = clamp_t(long, gain3, 0, 6);
 		v_agc = clamp_t(long, v_agc, 600, 1600);
 
-		*_gain = -(gain1 * 2650 +
+		*_gain = -(int64_t)(gain1 * 2650 +
 			   gain2 * 3380 +
 			   gain3 * 2850 +
 			   v_agc * 176 / 100 * 10 -
 			   30000);
 		/* gain in range -47320 to -158950 in units of 0.001dB */
+		pr_debug("%s ts2022 g1=%ld g2=%ld g3=%ld v_agc=%u gain=%lld dB\n", __func__, gain1, gain2, gain3, v_agc, *_gain);
 		break;
 	}
 
