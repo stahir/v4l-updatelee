@@ -288,7 +288,7 @@ static int saa716x_i2c_send(struct saa716x_i2c *i2c, u32 I2C_DEV, u32 data)
 	SAA716x_EPWR(I2C_DEV, TX_FIFO, data);
 
 	/* Check for data write */
-	for (i = 0; i < 1000; i++) {
+	for (i = 0; i < 100; i++) {
 		/* TODO! check for hotplug devices */
 		reg = SAA716x_EPRD(I2C_DEV, I2C_STATUS);
 		if (reg & I2C_TRANSMIT_CLEAR) {
@@ -317,7 +317,7 @@ static int saa716x_i2c_recv(struct saa716x_i2c *i2c, u32 I2C_DEV, u32 *data)
 	u32 reg;
 
 	/* Check FIFO status before RX */
-	for (i = 0; i < 1000; i++) {
+	for (i = 0; i < 100; i++) {
 		reg = SAA716x_EPRD(I2C_DEV, I2C_STATUS);
 		if (!(reg & SAA716x_I2C_RXBUSY)) {
 			break;

@@ -23,6 +23,8 @@
 #include "saa716x_gpio_reg.h"
 #include "saa716x_greg_reg.h"
 #include "saa716x_msi_reg.h"
+#include "saa716x_dma_reg.h"
+#include "saa716x_fgpi_reg.h"
 
 #include "saa716x_adap.h"
 #include "saa716x_i2c.h"
@@ -36,6 +38,8 @@
 #include "mb86a16.h"
 #include "stv6110x.h"
 #include "stv090x.h"
+#include "stv6120.h"
+#include "stv0910.h"
 #include "tas2101.h"
 #include "av201x.h"
 #include "cx24117.h"
@@ -487,7 +491,7 @@ static struct stv090x_config skystar2_stv090x_config = {
 	.ts2_mode		= STV090x_TSMODE_SERIAL_CONTINUOUS,
 
 	.repeater_level		= STV090x_RPTLEVEL_16,
-	.adc1_range			= STV090x_ADC_1Vpp,
+	.adc1_range		= STV090x_ADC_1Vpp,
 	.tuner_bbgain		= 6,
 
 	.tuner_init		= NULL,
@@ -1231,6 +1235,159 @@ static struct saa716x_config saa716x_tbs6922_config = {
 	},
 };
 
+#define SAA716x_MODEL_TBS6983	"TBS 6983"
+#define SAA716x_DEV_TBS6983	"DVB-S/S2"
+
+static struct stv0910_cfg tbs6983_stv0910_config = {
+	.adr      = 0x68,
+	.parallel = 1,
+	.rptlvl   = 4,
+	.clk      = 30000000,
+
+	.tuner_init		= NULL,
+	.tuner_set_mode		= NULL,
+	.tuner_set_frequency	= NULL,
+	.tuner_set_bandwidth	= NULL,
+	.tuner_set_params	= NULL,
+};
+
+static struct stv6120_config tbs6983_stv6120_0_config = {
+	.addr			= 0x60,
+	.refclk			= 30000000,
+	.clk_div		= 2,
+	.tuner			= 1,
+};
+
+static struct stv6120_config tbs6983_stv6120_1_config = {
+	.addr			= 0x60,
+	.refclk			= 30000000,
+	.clk_div		= 2,
+	.tuner			= 0,
+};
+
+static int saa716x_tbs6983_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage voltage)
+{
+	struct saa716x_adapter *adapter = fe->dvb->priv;
+	struct saa716x_dev *saa716x = adapter->saa716x;
+
+	u8 adapter_gpio_0 = adapter->count ? 16 : 5;
+	u8 adapter_gpio_1 = adapter->count ? 2  : 3;
+
+	saa716x_gpio_set_output(saa716x, adapter_gpio_0);
+	saa716x_gpio_set_output(saa716x, adapter_gpio_1);
+	msleep(1);
+
+	switch (voltage) {
+	case SEC_VOLTAGE_13:
+		dprintk(SAA716x_INFO, 1, "Adapter: %d, Polarization=[13V]", adapter->count);
+		saa716x_gpio_write(saa716x, adapter_gpio_0, 0);
+		saa716x_gpio_write(saa716x, adapter_gpio_1, 0);
+		break;
+	case SEC_VOLTAGE_18:
+		dprintk(SAA716x_INFO, 1, "Adapter: %d, Polarization=[18V]", adapter->count);
+		saa716x_gpio_write(saa716x, adapter_gpio_0, 1);
+		saa716x_gpio_write(saa716x, adapter_gpio_1, 0);
+		break;
+	case SEC_VOLTAGE_OFF:
+		dprintk(SAA716x_INFO, 1, "Adapter: %d, Polarization=[OFF]", adapter->count);
+		saa716x_gpio_write(saa716x, adapter_gpio_0, 1);
+		saa716x_gpio_write(saa716x, adapter_gpio_1, 1);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int saa716x_tbs6983_frontend_attach(struct saa716x_adapter *adapter, int count)
+{
+	struct saa716x_dev *saa716x = adapter->saa716x;
+	struct saa716x_i2c *i2c = &saa716x->i2c[1];
+	struct stv6120_devctl *ctl;
+
+	dprintk(SAA716x_NOTICE, 1, "TBS6983: %d", count);
+
+	if (count == 0) {
+		saa716x_gpio_set_output(saa716x, 17);
+		msleep(1);
+		saa716x_gpio_write(saa716x, 17, 0);
+		msleep(50);
+		saa716x_gpio_write(saa716x, 17, 1);
+		msleep(100);
+	}
+
+	adapter->fe = dvb_attach(stv0910_attach,
+				 &i2c->i2c_adapter,
+				 &tbs6983_stv0910_config,
+				 count);
+
+	if (adapter->fe == NULL) {
+		goto exit;
+	}
+	dprintk(SAA716x_NOTICE, 1, "found STV0910");
+
+
+	adapter->fe->ops.i2c_gate_ctrl(adapter->fe, true);
+	if (count == 0) {
+		ctl = dvb_attach(stv6120_attach,
+				 adapter->fe,
+				 &tbs6983_stv6120_0_config,
+				 &i2c->i2c_adapter);
+	} else {
+		ctl = dvb_attach(stv6120_attach,
+				 adapter->fe,
+				 &tbs6983_stv6120_1_config,
+				 &i2c->i2c_adapter);
+	}
+	adapter->fe->ops.i2c_gate_ctrl(adapter->fe, false);
+
+	if (ctl == NULL) {
+		goto exit;
+	}
+	dprintk(SAA716x_NOTICE, 1, "found STV6120");
+
+	tbs6983_stv0910_config.tuner_set_mode      = ctl->tuner_set_mode;
+	tbs6983_stv0910_config.tuner_set_params    = ctl->tuner_set_params;
+	tbs6983_stv0910_config.tuner_set_frequency = ctl->tuner_set_frequency;
+	tbs6983_stv0910_config.tuner_set_bandwidth = ctl->tuner_set_bandwidth;
+
+//	dprintk(SAA716x_NOTICE, 1, "init start");
+//	if (adapter->fe->ops.init)
+//		adapter->fe->ops.init(adapter->fe);
+//	dprintk(SAA716x_NOTICE, 1, "init complete");
+
+	adapter->fe->ops.set_voltage = saa716x_tbs6983_set_voltage;
+
+	dprintk(SAA716x_NOTICE, 1, "Done!");
+	return 0;
+exit:
+	printk(KERN_ERR "%s: frontend initialization failed\n",
+					adapter->saa716x->config->model_name);
+	dprintk(SAA716x_ERROR, 1, "Frontend attach failed");
+	return -ENODEV;
+}
+
+static struct saa716x_config saa716x_tbs6983_config = {
+	.model_name		= SAA716x_MODEL_TBS6983,
+	.dev_type		= SAA716x_DEV_TBS6983,
+	.boot_mode		= SAA716x_EXT_BOOT,
+	.adapters		= 2,
+	.frontend_attach	= saa716x_tbs6983_frontend_attach,
+	.irq_handler		= saa716x_budget_pci_irq,
+	.i2c_rate		= SAA716x_I2C_RATE_100,
+	.adap_config		= {
+		{ // adapter 0
+			.ts_port = 3,
+			.worker  = demux_worker
+		},
+		{ // adapter 1
+			.ts_port = 1,
+			.worker  = demux_worker
+		},
+	}
+};
+
 #define SAA716x_MODEL_TBS6925	"TBS 6925"
 #define SAA716x_DEV_TBS6925		"DVB-S/S2"
 
@@ -1246,7 +1403,7 @@ static struct stv090x_config tbs6925_stv090x_config = {
 	.ts2_mode		= STV090x_TSMODE_PARALLEL_PUNCTURED,
 
 	.repeater_level		= STV090x_RPTLEVEL_16,
-	.adc1_range			= STV090x_ADC_2Vpp,
+	.adc1_range		= STV090x_ADC_2Vpp,
 	.tuner_bbgain		= 8,
 
 	.tuner_get_frequency	= stb6100_get_frequency,
@@ -1267,6 +1424,9 @@ static int tbs6925_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage volt
 {
 	struct saa716x_adapter *adapter = fe->dvb->priv;
 	struct saa716x_dev *saa716x = adapter->saa716x;
+
+	// TODO
+	// GPIO 17 looks like it controls power on/off
 
 	saa716x_gpio_set_output(saa716x, 16);
 	msleep(1);
@@ -2074,6 +2234,8 @@ static struct pci_device_id saa716x_budget_pci_table[] = {
 	MAKE_ENTRY(TURBOSIGHT_TBS6985, TBS6985+1, SAA7160, &saa716x_tbs6985_config),
 	MAKE_ENTRY(TECHNOTREND,        TT4100,    SAA7160, &saa716x_tbs6922_config),
 	MAKE_ENTRY(TEVII, TEVII_S472, SAA7160, &tevii_s472_config),
+	MAKE_ENTRY(TURBOSIGHT_TBS6983, TBS6983, SAA7160, &saa716x_tbs6983_config),
+	MAKE_ENTRY(TURBOSIGHT_TBS6983, TBS6983+1, SAA7160, &saa716x_tbs6983_config),
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, saa716x_budget_pci_table);
