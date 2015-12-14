@@ -137,7 +137,7 @@ struct SInitTable {
 };
 
 struct SLookupSNTable {
-	s16  SignalToNoise;
+	s16  _snr;
 	u16  RefValue;
 };
 
@@ -386,7 +386,7 @@ static u8 S2CarLoop[] =	{
 	0x09,  0x09,  0x09,  0x09,  0x09,  0x09,  0x09,  0x09,  0x09,  0x09,
 };
 
-static u8 get_optim_cloop(struct stv *state,
+static u8 stv0910_get_optim_cloop(struct stv *state,
 			  enum FE_STV0910_ModCod ModCod, u32 Pilots)
 {
 	int i = 0;
@@ -412,7 +412,7 @@ static u8 get_optim_cloop(struct stv *state,
 	return S2CarLoop[i];
 }
 
-static int GetCurSymbolRate(struct stv *state, u32 *pSymbolRate)
+static int stv0910_get_SR(struct stv *state, u32 *pSymbolRate)
 {
 	int status = 0;
 	u8 SymbFreq0;
@@ -453,7 +453,7 @@ static int GetCurSymbolRate(struct stv *state, u32 *pSymbolRate)
 	return 0;
 }
 
-static int GetSignalParameters(struct stv *state)
+static int stv0910_get_signal_parameters(struct stv *state)
 {
 	if (!state->Started)
 		return -1;
@@ -477,12 +477,12 @@ static int GetSignalParameters(struct stv *state)
 	return 0;
 }
 
-static int TrackingOptimization(struct stv *state)
+static int stv0910_tracking_optimization(struct stv *state)
 {
 	u32 SymbolRate = 0;
 	u8 tmp;
 
-	GetCurSymbolRate(state, &SymbolRate);
+	stv0910_get_SR(state, &SymbolRate);
 	read_reg(state, RSTV0910_P2_DMDCFGMD + state->regoff, &tmp);
 	tmp &= ~0xC0;
 
@@ -502,7 +502,7 @@ static int TrackingOptimization(struct stv *state)
 			  BER_SRC_S2 | state->BERScale);
 
 		if (state->FECType == DVBS2_64K) {
-			u8 aclc = get_optim_cloop(state, state->ModCod,
+			u8 aclc = stv0910_get_optim_cloop(state, state->ModCod,
 						  state->Pilots);
 
 			if (state->ModCod <= FE_QPSK_910) {
@@ -552,7 +552,7 @@ static int TrackingOptimization(struct stv *state)
 	return 0;
 }
 
-static int GetSignalToNoise(struct stv *state, s32 *SignalToNoise)
+static int stv0910_get_snr(struct stv *state, s32 *_snr)
 {
 	int i;
 	u8 Data0;
@@ -561,7 +561,7 @@ static int GetSignalToNoise(struct stv *state, s32 *SignalToNoise)
 	int nLookup;
 	struct SLookupSNTable *Lookup;
 
-	*SignalToNoise = 0;
+	*_snr = 0;
 
 	if (!state->Started)
 		return 0;
@@ -579,18 +579,18 @@ static int GetSignalToNoise(struct stv *state, s32 *SignalToNoise)
 	}
 	Data = (((u16)Data1) << 8) | (u16) Data0;
 	if (Data > Lookup[0].RefValue) {
-		*SignalToNoise = Lookup[0].SignalToNoise;
+		*_snr = Lookup[0]._snr;
 	} else if (Data <= Lookup[nLookup-1].RefValue) {
-		*SignalToNoise = Lookup[nLookup-1].SignalToNoise;
+		*_snr = Lookup[nLookup-1]._snr;
 	} else {
 		for (i = 0; i < nLookup - 1; i += 1) {
 			if (Data <= Lookup[i].RefValue &&
 			    Data > Lookup[i+1].RefValue) {
-				*SignalToNoise =
-					(s32)(Lookup[i].SignalToNoise) +
+				*_snr =
+					(s32)(Lookup[i]._snr) +
 					((s32)(Data - Lookup[i].RefValue) *
-					 (s32)(Lookup[i+1].SignalToNoise -
-					       Lookup[i].SignalToNoise)) /
+					 (s32)(Lookup[i+1]._snr -
+					       Lookup[i]._snr)) /
 					((s32)(Lookup[i+1].RefValue) -
 					  (s32)(Lookup[i].RefValue));
 				break;
@@ -600,7 +600,7 @@ static int GetSignalToNoise(struct stv *state, s32 *SignalToNoise)
 	return 0;
 }
 
-static int GetBitErrorRateS(struct stv *state, u32 *BERNumerator,
+static int stv0910_get_ber_S(struct stv *state, u32 *BERNumerator,
 			    u32 *BERDenominator)
 {
 	u8 Regs[3];
@@ -673,7 +673,7 @@ static u32 DVBS2_nBCH(enum DVBS2_ModCod ModCod, enum DVBS2_FECType FECType)
 	return 64800;
 }
 
-static int GetBitErrorRateS2(struct stv *state, u32 *BERNumerator,
+static int stv0910_get_ber_S2(struct stv *state, u32 *BERNumerator,
 			     u32 *BERDenominator)
 {
 	u8 Regs[3];
@@ -715,10 +715,10 @@ static int GetBitErrorRate(struct stv *state, u32 *BERNumerator,
 
 	switch (state->ReceiveMode) {
 	case Mode_DVBS:
-		return GetBitErrorRateS(state, BERNumerator, BERDenominator);
+		return stv0910_get_ber_S(state, BERNumerator, BERDenominator);
 		break;
 	case Mode_DVBS2:
-		return GetBitErrorRateS2(state, BERNumerator, BERDenominator);
+		return stv0910_get_ber_S2(state, BERNumerator, BERDenominator);
 	default:
 		break;
 	}
@@ -752,7 +752,7 @@ static int stv0910_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	return 0;
 }
 
-static int init(struct dvb_frontend *fe)
+static int stv0910_init(struct dvb_frontend *fe)
 {
 	struct stv *state = fe->demodulator_priv;
 	printk("%s: demod: %d \n", __func__, state->nr);
@@ -760,7 +760,7 @@ static int init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int set_mclock(struct stv *state, u32 MasterClock)
+static int stv0910_set_mclock(struct stv *state, u32 MasterClock)
 {
 	u32 idf = 1;
 	u32 odf = 4;
@@ -824,7 +824,7 @@ static int set_mclock(struct stv *state, u32 MasterClock)
 	return 0;
 }
 
-static int Stop(struct stv *state)
+static int stv0910_stop(struct stv *state)
 {
 	printk("%s: demod: %d \n", __func__, state->nr);
 
@@ -847,7 +847,7 @@ static int Stop(struct stv *state)
 }
 
 
-static int Start(struct stv *state, struct dtv_frontend_properties *p)
+static int stv0910_start(struct stv *state, struct dtv_frontend_properties *p)
 {
 	s32 Freq;
 	u8  regDMDCFGMD;
@@ -944,7 +944,7 @@ static int Start(struct stv *state, struct dtv_frontend_properties *p)
 	return 0;
 }
 
-static int init_diseqc(struct stv *state)
+static int stv0910_init_diseqc(struct stv *state)
 {
 	u16 offs = state->nr ? 0x40 : 0;  /* Address offset */
 	u8 Freq = ((state->base->mclk + 11000 * 32) / (22000 * 32));
@@ -957,7 +957,7 @@ static int init_diseqc(struct stv *state)
 	return 0;
 }
 
-static int probe(struct stv *state)
+static int stv0910_probe(struct stv *state)
 {
 	u8 id;
 
@@ -992,7 +992,7 @@ static int probe(struct stv *state)
 	write_reg(state, RSTV0910_TSTRES0, 0x80); /* LDPC Reset */
 	write_reg(state, RSTV0910_TSTRES0, 0x00);
 
-	set_mclock(state, 135000000);
+	stv0910_set_mclock(state, 135000000);
 
 	/* TS output */
 	write_reg(state, RSTV0910_P1_TSCFGH , state->tscfgh | 0x01);
@@ -1020,11 +1020,11 @@ static int probe(struct stv *state)
 	write_reg(state, RSTV0910_P1_I2CRPT, state->i2crpt);
 	write_reg(state, RSTV0910_P2_I2CRPT, state->i2crpt);
 
-	init_diseqc(state);
+	stv0910_init_diseqc(state);
 	return 0;
 }
 
-static void release(struct dvb_frontend *fe)
+static void stv0910_release(struct dvb_frontend *fe)
 {
 	struct stv *state = fe->demodulator_priv;
 
@@ -1036,7 +1036,7 @@ static void release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static int set_parameters(struct dvb_frontend *fe)
+static int stv0910_set_parameters(struct dvb_frontend *fe)
 {
 	struct stv *state = fe->demodulator_priv;
 	const struct stv0910_cfg *config = state->config;
@@ -1046,19 +1046,19 @@ static int set_parameters(struct dvb_frontend *fe)
 	printk("%s: demod: %d \n", __func__, state->nr);
 	printk("%s: freq: %d, bw: %d \n", __func__, p->frequency, p->bandwidth_hz);
 
-	Stop(state);
+	stv0910_stop(state);
 
 	stv0910_i2c_gate_ctrl(fe, 1);
 	config->tuner_set_bandwidth(fe, p->bandwidth_hz);
 	config->tuner_set_frequency(fe, p->frequency);
 	stv0910_i2c_gate_ctrl(fe, 0);
 	state->SymbolRate = p->symbol_rate;
-	stat = Start(state, p);
+	stat = stv0910_start(state, p);
 	return stat;
 }
 
 
-static int read_status(struct dvb_frontend *fe, enum fe_status *status)
+static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct stv *state = fe->demodulator_priv;
 	u8 DmdState = 0;
@@ -1118,7 +1118,7 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 		u8 tmp;
 
 		state->FirstTimeLock = 0;
-		GetSignalParameters(state);
+		stv0910_get_signal_parameters(state);
 
 		if (state->ReceiveMode == Mode_DVBS2) {
 			/* FSTV0910_P2_MANUALSX_ROLLOFF,
@@ -1157,12 +1157,12 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 		  infinit error count mode )*/
 		write_reg(state, RSTV0910_P2_ERRCTRL2 + state->regoff, 0xc1);
 
-		TrackingOptimization(state);
+		stv0910_tracking_optimization(state);
 	}
 	return 0;
 }
 
-static int tune(struct dvb_frontend *fe, bool re_tune,
+static int stv0910_tune(struct dvb_frontend *fe, bool re_tune,
 		unsigned int mode_flags,
 		unsigned int *delay, enum fe_status *status)
 {
@@ -1170,7 +1170,7 @@ static int tune(struct dvb_frontend *fe, bool re_tune,
 	int r;
 
 	if (re_tune) {
-		r = set_parameters(fe);
+		r = stv0910_set_parameters(fe);
 		if (r)
 			return r;
 		state->tune_time = jiffies;
@@ -1179,14 +1179,14 @@ static int tune(struct dvb_frontend *fe, bool re_tune,
 		return 0;
 	*delay = HZ;
 
-	r = read_status(fe, status);
+	r = stv0910_read_status(fe, status);
 	if (r)
 		return r;
 	return 0;
 }
 
 
-static int get_algo(struct dvb_frontend *fe)
+static int stv0910_get_frontend_algo(struct dvb_frontend *fe)
 {
 	struct stv *state = fe->demodulator_priv;
 	if (state->algo == STV0910_NOTUNE) {
@@ -1196,7 +1196,7 @@ static int get_algo(struct dvb_frontend *fe)
 	}
 }
 
-static int set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
+static int stv0910_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 {
 	struct stv *state = fe->demodulator_priv;
 	u16 offs = state->nr ? 0x40 : 0;
@@ -1218,7 +1218,7 @@ static enum dvbfe_search stv0910_search(struct dvb_frontend *fe)
 
 	printk("%s: demod: %d \n", __func__, state->nr);
 
-	set_parameters(fe);
+	stv0910_set_parameters(fe);
 
 	// UDL: This is wrong, where's the check?
 	return DVBFE_ALGO_SEARCH_SUCCESS;
@@ -1255,7 +1255,7 @@ static int stv0910_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int wait_dis(struct stv *state, u8 flag, u8 val)
+static int stv0910_wait_dis(struct stv *state, u8 flag, u8 val)
 {
 	int i;
 	u8 stat;
@@ -1270,7 +1270,7 @@ static int wait_dis(struct stv *state, u8 flag, u8 val)
 	return -1;
 }
 
-static int send_master_cmd(struct dvb_frontend *fe,
+static int stv0910_send_master_cmd(struct dvb_frontend *fe,
 			   struct dvb_diseqc_master_cmd *cmd)
 {
 	struct stv *state = fe->demodulator_priv;
@@ -1281,21 +1281,21 @@ static int send_master_cmd(struct dvb_frontend *fe,
 	  cmd->msg[0],  cmd->msg[1],  cmd->msg[2],  cmd->msg[3]);*/
 	write_reg(state, RSTV0910_P1_DISTXCFG + offs, 0x3E);
 	for (i = 0; i < cmd->msg_len; i++) {
-		wait_dis(state, 0x40, 0x00);
+		stv0910_wait_dis(state, 0x40, 0x00);
 		write_reg(state, RSTV0910_P1_DISTXFIFO + offs, cmd->msg[i]);
 	}
 	write_reg(state, RSTV0910_P1_DISTXCFG + offs, 0x3A);
-	wait_dis(state, 0x20, 0x20);
+	stv0910_wait_dis(state, 0x20, 0x20);
 	return 0;
 }
 
-static int recv_slave_reply(struct dvb_frontend *fe,
+static int stv0910_recv_slave_reply(struct dvb_frontend *fe,
 			    struct dvb_diseqc_slave_reply *reply)
 {
 	return 0;
 }
 
-static int send_burst(struct dvb_frontend *fe, enum fe_sec_mini_cmd burst)
+static int stv0910_send_burst(struct dvb_frontend *fe, enum fe_sec_mini_cmd burst)
 {
 #if 0
 	struct stv *state = fe->demodulator_priv;
@@ -1317,29 +1317,29 @@ static int send_burst(struct dvb_frontend *fe, enum fe_sec_mini_cmd burst)
 	return 0;
 }
 
-static int sleep(struct dvb_frontend *fe)
+static int stv0910_sleep(struct dvb_frontend *fe)
 {
 	struct stv *state = fe->demodulator_priv;
 
-	Stop(state);
+	stv0910_stop(state);
 	state->algo = STV0910_NOTUNE;
 
 	return 0;
 }
 
-static int read_snr(struct dvb_frontend *fe, u16 *snr)
+static int stv0910_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct stv *state = fe->demodulator_priv;
 	s32 SNR;
 
 	*snr = 0;
-	if (GetSignalToNoise(state, &SNR))
+	if (stv0910_get_snr(state, &SNR))
 		return -EIO;
 	*snr = SNR;
 	return 0;
 }
 
-static int read_ber(struct dvb_frontend *fe, u32 *ber)
+static int stv0910_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct stv *state = fe->demodulator_priv;
 	u32 n, d;
@@ -1352,7 +1352,7 @@ static int read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
-static int read_signal_strength(struct dvb_frontend *fe, u16 *strength)
+static int stv0910_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
 	struct stv *state = fe->demodulator_priv;
 	u8 Agc1, Agc0;
@@ -1381,7 +1381,7 @@ static int stv0910_read_signal_strength2(struct dvb_frontend *fe, s16 *strength)
 	return 0;
 }
 
-static int read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
+static int stv0910_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	return 0;
 }
@@ -1439,28 +1439,28 @@ static struct dvb_frontend_ops stv0910_ops = {
 					  FE_CAN_2G_MODULATION  |
 					  FE_CAN_SPECTRUMSCAN
 	},
-	.init				= init,
-	.sleep				= sleep,
-	.release                        = release,
+	.init				= stv0910_init,
+	.sleep				= stv0910_sleep,
+	.release                        = stv0910_release,
 	.i2c_gate_ctrl                  = stv0910_i2c_gate_ctrl,
-	.get_frontend_algo              = get_algo,
-	.tune                           = tune,
-	.read_status			= read_status,
-	.set_tone			= set_tone,
+	.get_frontend_algo              = stv0910_get_frontend_algo,
+	.tune                           = stv0910_tune,
+	.read_status			= stv0910_read_status,
+	.set_tone			= stv0910_set_tone,
 
 	.search				= stv0910_search,
 	.set_property			= stv0910_set_property,
 	.get_property			= stv0910_get_property,
 	.set_frontend			= stv0910_set_frontend,
 
-	.diseqc_send_master_cmd		= send_master_cmd,
-	.diseqc_send_burst		= send_burst,
-	.diseqc_recv_slave_reply	= recv_slave_reply,
+	.diseqc_send_master_cmd		= stv0910_send_master_cmd,
+	.diseqc_send_burst		= stv0910_send_burst,
+	.diseqc_recv_slave_reply	= stv0910_recv_slave_reply,
 
-	.read_snr			= read_snr,
-	.read_ber			= read_ber,
-	.read_signal_strength		= read_signal_strength,
-	.read_ucblocks			= read_ucblocks,
+	.read_snr			= stv0910_read_snr,
+	.read_ber			= stv0910_read_ber,
+	.read_signal_strength		= stv0910_read_signal_strength,
+	.read_ucblocks			= stv0910_read_ucblocks,
 
 	.get_spectrum_scan		= stv0910_get_spectrum_scan,
 };
@@ -1511,7 +1511,7 @@ struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
 		mutex_init(&base->i2c_lock);
 		mutex_init(&base->reg_lock);
 		state->base = base;
-		if (probe(state) < 0) {
+		if (stv0910_probe(state) < 0) {
 			kfree(base);
 			goto fail;
 		}
