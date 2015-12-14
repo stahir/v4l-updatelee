@@ -226,7 +226,7 @@ static int stv6120_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	N     = Fvco / FRdiv;
 	F     = ((Fvco % FRdiv) * 0x40000) / FRdiv;
 
-	printk(KERN_INFO "%s: Fxtl:%02x R:%02x FRdiv:%02x ICP:%02x PDiv:%02x \n", __func__, Fxtl, R, FRdiv, ICP, PDiv);
+	printk(KERN_INFO "%s: Fvco:%02x Fxtl:%02x R:%02x FRdiv:%02x ICP:%02x PDiv:%02x \n", __func__, Fvco, Fxtl, R, FRdiv, ICP, PDiv);
 	printk(KERN_INFO "%s: N:%08x F:%08x \n", __func__, N, F);
 
 	if (config->tuner == TUNER_1) {

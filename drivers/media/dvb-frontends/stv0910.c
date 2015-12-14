@@ -1370,12 +1370,14 @@ static int stv0910_read_signal_strength2(struct dvb_frontend *fe, s16 *strength)
 	u8 Agc1, Agc0;
 	s16 agc_gain;
 
+	printk("%s: demod: %d \n", __func__, state->nr);
+
 	read_reg(state, RSTV0910_P2_AGCIQIN1 + state->regoff, &Agc1);
 	read_reg(state, RSTV0910_P2_AGCIQIN0 + state->regoff, &Agc0);
 
 	agc_gain = ((Agc1 << 8) | Agc0) >> 1;
 
-	printk("%s: demod: agc: %02x %02x %04x %d\n", __func__, Agc1, Agc0, agc_gain, agc_gain);
+	printk("%s: agc: %02x %02x %04x %d\n", __func__, Agc1, Agc0, agc_gain, agc_gain);
 
 	*strength = agc_gain;
 	return 0;
@@ -1393,6 +1395,8 @@ static int stv0910_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 
 	u32 x;
 	u32 bw = 2000000;
+
+	printk("%s: demod: %d \n", __func__, state->nr);
 
 	state->algo = STV0910_NOTUNE;
 
