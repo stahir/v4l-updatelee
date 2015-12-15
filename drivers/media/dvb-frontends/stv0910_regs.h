@@ -4017,3 +4017,12 @@
 		stv0910_read_regs(__state, RSTV0910_P1_##__reg, __data, __count) : \
 		stv0910_read_regs(__state, RSTV0910_P2_##__reg, __data, __count))
 
+#define STV0910_WRITE_FIELD(__state, __reg, __data)                         \
+	(((__state)->nr == 0) ?                                           \
+		stv0910_write_field(__state, FSTV0910_P1_##__reg, __data) : \
+		stv0910_write_field(__state, FSTV0910_P2_##__reg, __data))
+
+#define STV0910_READ_FIELD(__state, __reg)                         \
+	(((__state)->nr == 0) ?                                           \
+		stv0910_read_field(__state, FSTV0910_P1_##__reg) : \
+		stv0910_read_field(__state, FSTV0910_P2_##__reg))

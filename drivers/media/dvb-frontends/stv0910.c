@@ -45,12 +45,11 @@
 
 LIST_HEAD(stvlist);
 
+enum FE_STV0910_frame_len { FE_LONGFRAME, FE_SHORTFRAME };
+
 enum ReceiveMode { Mode_None, Mode_DVBS, Mode_DVBS2, Mode_Auto };
 
-
-enum DVBS2_FECType { DVBS2_64K, DVBS2_16K };
-
-enum DVBS2_ModCod {
+enum DVBS2_modcod {
 	DVBS2_DUMMY_PLF, DVBS2_QPSK_1_4, DVBS2_QPSK_1_3, DVBS2_QPSK_2_5,
 	DVBS2_QPSK_1_2, DVBS2_QPSK_3_5, DVBS2_QPSK_2_3,	DVBS2_QPSK_3_4,
 	DVBS2_QPSK_4_5,	DVBS2_QPSK_5_6,	DVBS2_QPSK_8_9,	DVBS2_QPSK_9_10,
@@ -61,18 +60,37 @@ enum DVBS2_ModCod {
 	DVBS2_32APSK_9_10
 };
 
-enum FE_STV0910_ModCod {
-	FE_DUMMY_PLF, FE_QPSK_14, FE_QPSK_13, FE_QPSK_25,
-	FE_QPSK_12, FE_QPSK_35, FE_QPSK_23, FE_QPSK_34,
-	FE_QPSK_45, FE_QPSK_56, FE_QPSK_89, FE_QPSK_910,
-	FE_8PSK_35, FE_8PSK_23, FE_8PSK_34, FE_8PSK_56,
-	FE_8PSK_89, FE_8PSK_910, FE_16APSK_23, FE_16APSK_34,
-	FE_16APSK_45, FE_16APSK_56, FE_16APSK_89, FE_16APSK_910,
-	FE_32APSK_34, FE_32APSK_45, FE_32APSK_56, FE_32APSK_89,
+enum FE_STV0910_modcod {
+	FE_DUMMY_PLF,
+	FE_QPSK_14,
+	FE_QPSK_13,
+	FE_QPSK_25,
+	FE_QPSK_12,
+	FE_QPSK_35,
+	FE_QPSK_23,
+	FE_QPSK_34,
+	FE_QPSK_45,
+	FE_QPSK_56,
+	FE_QPSK_89,
+	FE_QPSK_910,
+	FE_8PSK_35,
+	FE_8PSK_23,
+	FE_8PSK_34,
+	FE_8PSK_56,
+	FE_8PSK_89,
+	FE_8PSK_910,
+	FE_16APSK_23,
+	FE_16APSK_34,
+	FE_16APSK_45,
+	FE_16APSK_56,
+	FE_16APSK_89,
+	FE_16APSK_910,
+	FE_32APSK_34,
+	FE_32APSK_45,
+	FE_32APSK_56,
+	FE_32APSK_89,
 	FE_32APSK_910
 };
-
-enum FE_STV0910_RollOff { FE_SAT_35, FE_SAT_25, FE_SAT_20, FE_SAT_15 };
 
 static inline u32 MulDiv32(u32 a, u32 b, u32 c)
 {
@@ -99,7 +117,7 @@ struct stv_base {
 
 struct stv0910_state {
 	struct stv_base     *base;
-	struct dvb_frontend  fe;
+	struct dvb_frontend  frontend;
 	const struct stv0910_cfg *config;
 	int                  nr;
 	u8                   i2crpt;
@@ -115,14 +133,17 @@ struct stv0910_state {
 	u32                  FecTimeout;
 	u32                  FirstTimeLock;
 	u8                   DEMOD;
-	u32                  SymbolRate;
+	u32                  symbol_rate;
 
 	u8                      LastViterbiRate;
 	enum fe_code_rate       PunctureRate;
-	enum FE_STV0910_ModCod  ModCod;
-	enum DVBS2_FECType      FECType;
-	u32                     Pilots;
-	enum FE_STV0910_RollOff FERollOff;
+
+	u8 fec;
+	u8 modcod;
+	u8 frame_len;
+	u8 pilot;
+	u8 rolloff;
+
 	enum stv0910_algo	algo;
 
 	u32   LastBERNumerator;
@@ -427,34 +448,34 @@ static u8 S2CarLoop[] =	{
 };
 
 static u8 stv0910_get_optim_cloop(struct stv0910_state *state,
-			  enum FE_STV0910_ModCod ModCod, u32 Pilots)
+			  enum FE_STV0910_modcod modcod, u32 pilot)
 {
 	int i = 0;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
-	if (ModCod >= FE_32APSK_910)
+	if (modcod >= FE_32APSK_910)
 		i = ((int)FE_32APSK_910 - (int)FE_QPSK_14) * 10;
-	else if (ModCod >= FE_QPSK_14)
-		i = ((int)ModCod - (int)FE_QPSK_14) * 10;
+	else if (modcod >= FE_QPSK_14)
+		i = ((int)modcod - (int)FE_QPSK_14) * 10;
 
-	if (state->SymbolRate <= 3000000)
+	if (state->symbol_rate <= 3000000)
 		i += 0;
-	else if (state->SymbolRate <=  7000000)
+	else if (state->symbol_rate <=  7000000)
 		i += 2;
-	else if (state->SymbolRate <= 15000000)
+	else if (state->symbol_rate <= 15000000)
 		i += 4;
-	else if (state->SymbolRate <= 25000000)
+	else if (state->symbol_rate <= 25000000)
 		i += 6;
 	else
 		i += 8;
 
-	if (!Pilots)
+	if (!pilot)
 		i += 1;
 
 	return S2CarLoop[i];
 }
 
-static int stv0910_get_SR(struct stv0910_state *state, u32 *pSymbolRate)
+static int stv0910_get_SR(struct stv0910_state *state, u32 *psymbol_rate)
 {
 	int status = 0;
 	u8 SymbFreq0;
@@ -464,11 +485,11 @@ static int stv0910_get_SR(struct stv0910_state *state, u32 *pSymbolRate)
 	u8 TimOffs0;
 	u8 TimOffs1;
 	u8 TimOffs2;
-	u32 SymbolRate;
+	u32 symbol_rate;
 	s32 TimingOffset;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
-	*pSymbolRate = 0;
+	*psymbol_rate = 0;
 	if (!state->Started)
 		return status;
 
@@ -480,7 +501,7 @@ static int stv0910_get_SR(struct stv0910_state *state, u32 *pSymbolRate)
 	TimOffs1  = STV0910_READ_REG(state, TMGREG1);
 	TimOffs0  = STV0910_READ_REG(state, TMGREG0);
 
-	SymbolRate = ((u32) SymbFreq3 << 24) | ((u32) SymbFreq2 << 16) |
+	symbol_rate = ((u32) SymbFreq3 << 24) | ((u32) SymbFreq2 << 16) |
 		((u32) SymbFreq1 << 8) | (u32) SymbFreq0;
 	TimingOffset = ((u32) TimOffs2 << 16) | ((u32) TimOffs1 << 8) |
 		(u32) TimOffs0;
@@ -488,46 +509,176 @@ static int stv0910_get_SR(struct stv0910_state *state, u32 *pSymbolRate)
 	if ((TimingOffset & (1<<23)) != 0)
 		TimingOffset |= 0xFF000000; /* Sign extent */
 
-	SymbolRate = (u32) (((u64) SymbolRate * state->base->mclk) >> 32);
-	TimingOffset = (s32) (((s64) SymbolRate * (s64) TimingOffset) >> 29);
+	symbol_rate = (u32) (((u64) symbol_rate * state->base->mclk) >> 32);
+	TimingOffset = (s32) (((s64) symbol_rate * (s64) TimingOffset) >> 29);
 
-	*pSymbolRate = SymbolRate + TimingOffset;
+	*psymbol_rate = symbol_rate + TimingOffset;
 
 	return 0;
 }
 
 static int stv0910_get_signal_parameters(struct stv0910_state *state)
 {
-	u8 tmp;
+	struct dvb_frontend *fe = &state->frontend;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+
+	u8 FE_STV0910_fec_dvbs[] = {
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_1_2,
+		FEC_3_5,
+		FEC_2_3,
+		FEC_3_4,
+		FEC_NONE,
+		FEC_5_6,
+		FEC_6_7,
+		FEC_7_8,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE
+	};
+
+	u8 FE_STV0910_fec_dvbs2[] = {
+		FEC_NONE,
+		FEC_1_4,
+		FEC_1_3,
+		FEC_2_5,
+		FEC_1_2,
+		FEC_3_5,
+		FEC_2_3,
+		FEC_3_4,
+		FEC_4_5,
+		FEC_5_6,
+		FEC_8_9,
+		FEC_9_10,
+		FEC_3_5,
+		FEC_2_3,
+		FEC_3_4,
+		FEC_5_6,
+		FEC_8_9,
+		FEC_9_10,
+		FEC_2_3,
+		FEC_3_4,
+		FEC_4_5,
+		FEC_5_6,
+		FEC_8_9,
+		FEC_9_10,
+		FEC_3_4,
+		FEC_4_5,
+		FEC_5_6,
+		FEC_8_9,
+		FEC_9_10,
+		FEC_NONE,
+		FEC_NONE,
+		FEC_NONE
+	};
+
+	u8 FE_STV0910_rolloff[] = {
+		ROLLOFF_35,
+		ROLLOFF_25,
+		ROLLOFF_20,
+		ROLLOFF_AUTO
+	};
+
+	u8 FE_STV0910_modulation[] = {
+		QPSK,
+		QPSK,
+		QPSK,
+		QPSK,
+		QPSK,
+		QPSK,
+		QPSK,
+		QPSK,
+		QPSK,
+		QPSK,
+		QPSK,
+		QPSK,
+		PSK_8,
+		PSK_8,
+		PSK_8,
+		PSK_8,
+		PSK_8,
+		PSK_8,
+		APSK_16,
+		APSK_16,
+		APSK_16,
+		APSK_16,
+		APSK_16,
+		APSK_16,
+		APSK_32,
+		APSK_32,
+		APSK_32,
+		APSK_32,
+		APSK_32
+	};
 
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	if (!state->Started)
 		return -1;
 
-	if (state->ReceiveMode == Mode_DVBS2) {
-		tmp = STV0910_READ_REG(state, DMDMODCOD);
-		state->ModCod = (enum FE_STV0910_ModCod) ((tmp & 0x7c) >> 2);
-		state->Pilots = (tmp & 0x01) != 0;
-		state->FECType = (enum DVBS2_FECType) ((tmp & 0x02) >> 1);
+	stv0910_get_SR(state, &state->symbol_rate);
 
-		tmp = STV0910_READ_REG(state, TMGOBS);
-		tmp = tmp >> 6;
-		state->FERollOff = (enum FE_STV0910_RollOff) tmp;
+	state->modcod      = STV0910_READ_FIELD(state, DEMOD_MODCOD);
+	state->pilot       = STV0910_READ_FIELD(state, DEMOD_TYPE) & 0x01;
+	state->frame_len   = (STV0910_READ_FIELD(state, DEMOD_TYPE) & 0x02) >> 1;
+	state->rolloff     = STV0910_READ_FIELD(state, ROLLOFF_STATUS);
 
-	} else if (state->ReceiveMode == Mode_DVBS) {
-		/* todo */
+	switch (STV0910_READ_FIELD(state, HEADER_MODE)) {
+	case 2:
+		state->ReceiveMode = Mode_DVBS2;
+		p->delivery_system = SYS_DVBS2;
+		p->fec_inner       = FE_STV0910_fec_dvbs2[state->modcod];
+		break;
+	case 3:
+		state->ReceiveMode = Mode_DVBS;
+		if (STV0910_READ_FIELD(state, DSS_DVB)) {
+			p->delivery_system = SYS_DSS;
+		} else {
+			p->delivery_system = SYS_DVBS;
+		}
+		p->fec_inner = FE_STV0910_fec_dvbs[state->modcod];
+		break;
+	default:
+		state->ReceiveMode = Mode_None;
+		p->delivery_system = SYS_UNDEFINED;
+		break;
 	}
+	p->modulation  = FE_STV0910_modulation[state->modcod];
+	p->rolloff     = FE_STV0910_rolloff[state->rolloff];
+	p->pilot       = state->pilot;
+	p->inversion   = STV0910_READ_FIELD(state, IQINV);
+	p->symbol_rate = state->symbol_rate;
+
 	return 0;
 }
 
 static int stv0910_tracking_optimization(struct stv0910_state *state)
 {
-	u32 SymbolRate = 0;
+	u32 symbol_rate = 0;
 	u8 tmp;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
-	stv0910_get_SR(state, &SymbolRate);
+	stv0910_get_SR(state, &symbol_rate);
 	tmp = STV0910_READ_REG(state, DMDCFGMD);
 	tmp &= ~0xC0;
 
@@ -545,19 +696,18 @@ static int stv0910_tracking_optimization(struct stv0910_state *state)
 		/* force to PRE BCH Rate */
 		STV0910_WRITE_REG(state, ERRCTRL1, BER_SRC_S2 | state->BERScale);
 
-		if (state->FECType == DVBS2_64K) {
-			u8 aclc = stv0910_get_optim_cloop(state, state->ModCod,
-						  state->Pilots);
+		if (state->frame_len == FE_LONGFRAME) {
+			u8 aclc = stv0910_get_optim_cloop(state, state->modcod, state->pilot);
 
-			if (state->ModCod <= FE_QPSK_910) {
+			if (state->modcod <= FE_QPSK_910) {
 				STV0910_WRITE_REG(state, ACLC2S2Q, aclc);
-			} else if (state->ModCod <= FE_8PSK_910) {
+			} else if (state->modcod <= FE_8PSK_910) {
 				STV0910_WRITE_REG(state, ACLC2S2Q, 0x2a);
 				STV0910_WRITE_REG(state, ACLC2S28, aclc);
-			} else if (state->ModCod <= FE_16APSK_910) {
+			} else if (state->modcod <= FE_16APSK_910) {
 				STV0910_WRITE_REG(state, ACLC2S2Q, 0x2a);
 				STV0910_WRITE_REG(state, ACLC2S216A, aclc);
-			} else if (state->ModCod <= FE_32APSK_910) {
+			} else if (state->modcod <= FE_32APSK_910) {
 				STV0910_WRITE_REG(state, ACLC2S2Q, 0x2a);
 				STV0910_WRITE_REG(state, ACLC2S232A, aclc);
 			}
@@ -669,7 +819,7 @@ static int stv0910_get_ber_S(struct stv0910_state *state, u32 *BERNumerator,
 	return 0;
 }
 
-static u32 DVBS2_nBCH(enum DVBS2_ModCod ModCod, enum DVBS2_FECType FECType)
+static u32 DVBS2_nBCH(enum DVBS2_modcod modcod, u8 frame_len)
 {
 	static u32 nBCH[][2] = {
 		{16200,  3240}, /* QPSK_1_4, */
@@ -702,9 +852,8 @@ static u32 DVBS2_nBCH(enum DVBS2_ModCod ModCod, enum DVBS2_FECType FECType)
 		{58320, 16000}, /* 32APSK_9_10 */
 	};
 
-	if (ModCod >= DVBS2_QPSK_1_4 &&
-	    ModCod <= DVBS2_32APSK_9_10 && FECType <= DVBS2_16K)
-		return nBCH[FECType][ModCod];
+	if (modcod >= DVBS2_QPSK_1_4 && modcod <= DVBS2_32APSK_9_10 && frame_len == FE_SHORTFRAME )
+		return nBCH[frame_len][modcod];
 	return 64800;
 }
 
@@ -722,9 +871,7 @@ static int stv0910_get_ber_S2(struct stv0910_state *state, u32 *BERNumerator,
 
 	if ((Regs[0] & 0x80) == 0) {
 		state->LastBERDenominator =
-			DVBS2_nBCH((enum DVBS2_ModCod) state->ModCod,
-				   state->FECType) <<
-			(state->BERScale * 2);
+			DVBS2_nBCH((enum DVBS2_modcod) state->modcod, state->frame_len) << (state->BERScale * 2);
 		state->LastBERNumerator = (((u32) Regs[0] & 0x7F) << 16) |
 			((u32) Regs[1] << 8) | Regs[2];
 		if (state->LastBERNumerator < 256 && state->BERScale < 6) {
@@ -1085,7 +1232,7 @@ static int stv0910_set_parameters(struct dvb_frontend *fe)
 	config->tuner_set_bandwidth(fe, p->bandwidth_hz);
 	config->tuner_set_frequency(fe, p->frequency);
 	stv0910_i2c_gate_ctrl(fe, 0);
-	state->SymbolRate = p->symbol_rate;
+	state->symbol_rate = p->symbol_rate;
 	stat = stv0910_start(state, p);
 	return stat;
 }
@@ -1524,11 +1671,11 @@ struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
 		list_add(&base->stvlist, &stvlist);
 	}
 	state->config		    = cfg;
-	state->fe.ops               = stv0910_ops;
-	state->fe.demodulator_priv  = state;
+	state->frontend.ops               = stv0910_ops;
+	state->frontend.demodulator_priv  = state;
 	state->nr = nr;
 
-	return &state->fe;
+	return &state->frontend;
 
 fail:
 	kfree(state);
