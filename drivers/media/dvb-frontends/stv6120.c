@@ -33,12 +33,12 @@
 #include "stv6120.h"
 #include "stv6120_priv.h"
 
-/* Max transfer size done by I2C transfer functions */
-#define MAX_XFER_SIZE  64
-
 static unsigned int verbose;
 module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "Set Verbosity level");
+
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
 
 static void extract_mask_pos(u32 label, u8 *mask, u8 *pos)
 {
@@ -54,113 +54,110 @@ static void extract_mask_pos(u32 label, u8 *mask, u8 *pos)
 	(*pos) = (i - 1);
 }
 
-static int stv6120_read_reg(struct stv6120_state *stv6120, unsigned int reg)
+static int stv6120_read_regs(struct stv6120_state *state, u16 reg, u8 *data, u8 len)
 {
 	int ret;
-	const struct stv6120_config *config = stv6120->config;
-	u8 b0[] = { reg };
-	u8 buf;
+	u8 b0[] = { reg & 0xff };
 	struct i2c_msg msg[] = {
-		{ .addr = config->addr, .flags = 0, 	   .buf = b0, .len = 1 },
-		{ .addr = config->addr, .flags = I2C_M_RD, .buf = &buf, .len = 1 }
+		{ .addr = state->config->addr, .flags = 0,        .buf = b0,   .len = 1 },
+		{ .addr = state->config->addr, .flags = I2C_M_RD, .buf = data, .len = len }
 	};
 
-	ret = i2c_transfer(stv6120->i2c, msg, 2);
+	ret = i2c_transfer(state->i2c, msg, 2);
 	if (ret != 2) {
-		dprintk(FE_ERROR, 1, "I/O Error");
+		printk("I2C Error\n");
 		return -EREMOTEIO;
 	}
-	return (unsigned int) buf;
+	return 0;
 }
 
-static int stv6120_read_field(struct stv6120_state *stv6120, u32 label)
+static u8 stv6120_read_reg(struct stv6120_state *state, u16 reg)
 {
-	u8 val = 0xff;
-	u8 mask, pos;
+	u8 data = 0x00;
+	stv6120_read_regs(state, reg, &data, 1);
+	return data;
+}
+
+static u8 stv6120_read_field(struct stv6120_state *state, u32 label)
+{
+	u8 mask, pos, data;
 
 	extract_mask_pos(label, &mask, &pos);
 
-	val = stv6120_read_reg(stv6120, label >> 16);
-	val = (val & mask) >> pos;
+	data = stv6120_read_reg(state, label >> 16);
+	data = (data & mask) >> pos;
 
-	return val;
+	return data;
 }
 
-static int stv6120_write_regs(struct stv6120_state *stv6120, unsigned int reg, u8 *data, u32 len)
+static int stv6120_write_regs(struct stv6120_state *state, u16 reg, u8 *data, u8 len)
 {
 	int ret;
-	const struct stv6120_config *config = stv6120->config;
 	u8 buf[MAX_XFER_SIZE];
 
 	struct i2c_msg msg = {
-		.addr = config->addr,
+		.addr  = state->config->addr,
 		.flags = 0,
-		.buf = buf,
-		.len = len + 1
+		.buf   = buf,
+		.len   = len + 1
 	};
 
-	buf[0] = reg;
+	buf[0] = reg & 0xff;
 	memcpy(&buf[1], data, len);
 
-	ret = i2c_transfer(stv6120->i2c, &msg, 1);
+	ret = i2c_transfer(state->i2c, &msg, 1);
 	if (ret != 1) {
-		dprintk(FE_ERROR, 1, "I/O Error");
+		printk("I2C Error\n");
 		return -EREMOTEIO;
 	}
 
 	return 0;
 }
 
-static int stv6120_write_reg(struct stv6120_state *stv6120, unsigned int reg, u8 data)
+static int stv6120_write_reg(struct stv6120_state *state, u16 reg, u8 data)
 {
-	return stv6120_write_regs(stv6120, reg, &data, 1);
+	return stv6120_write_regs(state, reg, &data, 1);
 }
 
-static int stv6120_write_field(struct stv6120_state *stv6120, u32 label, u8 data)
+static int stv6120_write_field(struct stv6120_state *state, u32 label, u8 data)
 {
 	u8 reg, mask, pos;
 
-	reg = stv6120_read_reg(stv6120, (label >> 16) & 0xffff);
+	reg = stv6120_read_reg(state, (label >> 16) & 0xffff);
 	extract_mask_pos(label, &mask, &pos);
 
 	data = mask & (data << pos);
-
 	reg = (reg & (~mask)) | data;
-	return stv6120_write_reg(stv6120, (label >> 16) & 0xffff, reg);
+
+	return stv6120_write_reg(state, (label >> 16) & 0xffff, reg);
 }
 
 static int stv6120_init(struct dvb_frontend *fe)
 {
-	struct stv6120_state *stv6120 = fe->tuner_priv;
-//	const struct stv6120_config *config = stv6120->config;
+	struct stv6120_state *state = fe->tuner_priv;
+//	const struct stv6120_config *config = state->config;
 
-	printk(KERN_INFO "%s: tuner: %d \n", __func__, stv6120->tuner);
+	printk(KERN_INFO "%s: tuner: %d \n", __func__, state->tuner);
 
-	stv6120_write_reg(stv6120, RSTV6120_STAT1, 0x0E);
-	stv6120_write_reg(stv6120, RSTV6120_CTRL10, 0x03);
-	stv6120_write_reg(stv6120, RSTV6120_CTRL15, 0x0D);
-	stv6120_write_reg(stv6120, RSTV6120_STAT2, 0x0E);
-	stv6120_write_reg(stv6120, RSTV6120_CTRL18, 0x00);
-	stv6120_write_reg(stv6120, RSTV6120_CTRL19, 0x00);
-	stv6120_write_reg(stv6120, RSTV6120_CTRL20, 0x4C);
-	stv6120_write_reg(stv6120, RSTV6120_CTRL21, 0x00);
-	stv6120_write_reg(stv6120, RSTV6120_CTRL22, 0x00);
-	stv6120_write_reg(stv6120, RSTV6120_CTRL23, 0x4C);
-	stv6120_write_reg(stv6120, RSTV6120_CTRL10, 0x13);
-	stv6120_write_reg(stv6120, RSTV6120_CTRL10, 0x1B);
+	stv6120_write_reg(state, RSTV6120_STAT1,  0x0E);
+	stv6120_write_reg(state, RSTV6120_CTRL10, 0x03);
+	stv6120_write_reg(state, RSTV6120_CTRL15, 0x0D);
+	stv6120_write_reg(state, RSTV6120_STAT2,  0x0E);
+	stv6120_write_reg(state, RSTV6120_CTRL18, 0x00);
+	stv6120_write_reg(state, RSTV6120_CTRL19, 0x00);
+	stv6120_write_reg(state, RSTV6120_CTRL20, 0x4C);
+	stv6120_write_reg(state, RSTV6120_CTRL21, 0x00);
+	stv6120_write_reg(state, RSTV6120_CTRL22, 0x00);
+	stv6120_write_reg(state, RSTV6120_CTRL23, 0x4C);
+	stv6120_write_reg(state, RSTV6120_CTRL10, 0x13);
+	stv6120_write_reg(state, RSTV6120_CTRL10, 0x1B);
 
-//	stv6120_write_field(stv6120, FSTV6120_K, (config->refclk/1000000) - 16);
+//	stv6120_write_field(state, FSTV6120_K, (config->refclk/1000000) - 16);
 
 //	if (config->refclk >= 27000000) {
-//		stv6120_write_field(stv6120, FSTV6120_RDIV, 1);
+//		stv6120_write_field(state, FSTV6120_RDIV, 1);
 //	} else {
-//		stv6120_write_field(stv6120, FSTV6120_RDIV, 0);
-//	}
-
-//	if (stv6120->tuner == TUNER_1) {
-//		stv6120_write_field(stv6120, FSTV6120_RFSEL_1, 1);
-//	} else {
-//		stv6120_write_field(stv6120, FSTV6120_RFSEL_2, 0);
+//		stv6120_write_field(state, FSTV6120_RDIV, 0);
 //	}
 
 	return 0;
@@ -168,15 +165,15 @@ static int stv6120_init(struct dvb_frontend *fe)
 
 static int stv6120_set_frequency(struct dvb_frontend *fe, u32 frequency)
 {
-	struct stv6120_state *stv6120 = fe->tuner_priv;
-	const struct stv6120_config *config = stv6120->config;
+	struct stv6120_state *state = fe->tuner_priv;
+	const struct stv6120_config *config = state->config;
 
 	u32 Fxtl, Fvco, FRdiv, N, F;
 	u8  P, PDiv, R, ICP;
 
 	frequency /= 1000;
 
-	printk(KERN_INFO "%s: tuner: %d, freq: %d \n", __func__, stv6120->tuner, frequency);
+	printk(KERN_INFO "%s: tuner: %d, freq: %d \n", __func__, state->tuner, frequency);
 
 	if (frequency >= 250) {
 		P = 16;
@@ -229,32 +226,17 @@ static int stv6120_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	printk(KERN_INFO "%s: Fvco:%02x Fxtl:%02x R:%02x FRdiv:%02x ICP:%02x PDiv:%02x \n", __func__, Fvco, Fxtl, R, FRdiv, ICP, PDiv);
 	printk(KERN_INFO "%s: N:%08x F:%08x \n", __func__, N, F);
 
-	if (config->tuner == TUNER_1) {
-		stv6120_write_field(stv6120, FSTV6120_ICP_1, ICP);
-		stv6120_write_field(stv6120, FSTV6120_PDIV_1, PDiv);
-		stv6120_write_field(stv6120, FSTV6120_NDIV_1_LSB, (N & 0xFF));
-		stv6120_write_field(stv6120, FSTV6120_NDIV_1_MSB, ((N>>8) && 0x01));
-		stv6120_write_field(stv6120, FSTV6120_F_1_H, ((F>>15) & 0x07));
-		stv6120_write_field(stv6120, FSTV6120_F_1_M, ((F>>7) & 0xFF));
-		stv6120_write_field(stv6120, FSTV6120_F_1_L, (F & 0x7F));
-		stv6120_write_field(stv6120, FSTV6120_CALVCOSTRT_1, 1); // VCO Auto Calibration
+	STV6120_WRITE_FIELD(state, ICP, ICP);
+	STV6120_WRITE_FIELD(state, PDIV, PDiv);
+	STV6120_WRITE_FIELD(state, NDIV_LSB, (N & 0xFF));
+	STV6120_WRITE_FIELD(state, NDIV_MSB, ((N>>8) && 0x01));
+	STV6120_WRITE_FIELD(state, F_H, ((F>>15) & 0x07));
+	STV6120_WRITE_FIELD(state, F_M, ((F>>7) & 0xFF));
+	STV6120_WRITE_FIELD(state, F_L, (F & 0x7F));
+	STV6120_WRITE_FIELD(state, CALVCOSTRT, 1); // VCO Auto Calibration
 
-		while (!stv6120_read_field(stv6120, FSTV6120_LOCK_1)) {
-			msleep(10);
-		}
-	} else { // TUNER_2
-		stv6120_write_field(stv6120, FSTV6120_ICP_2, ICP);
-		stv6120_write_field(stv6120, FSTV6120_PDIV_2, PDiv);
-		stv6120_write_field(stv6120, FSTV6120_NDIV_2_LSB, (N & 0xFF));
-		stv6120_write_field(stv6120, FSTV6120_NDIV_2_MSB, ((N>>8) && 0x01));
-		stv6120_write_field(stv6120, FSTV6120_F_2_H, ((F>>15) & 0x07));
-		stv6120_write_field(stv6120, FSTV6120_F_2_M, ((F>>7) & 0xFF));
-		stv6120_write_field(stv6120, FSTV6120_F_2_L, (F & 0x7F));
-		stv6120_write_field(stv6120, FSTV6120_CALVCOSTRT_2, 1); // VCO Auto Calibration
-
-		while (!stv6120_read_field(stv6120, FSTV6120_LOCK_2)) {
-			msleep(10);
-		}
+	while (!STV6120_READ_FIELD(state, LOCK)) {
+		msleep(10);
 	}
 
 	return 0;
@@ -262,19 +244,19 @@ static int stv6120_set_frequency(struct dvb_frontend *fe, u32 frequency)
 
 static int stv6120_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
-	struct stv6120_state *stv6120 = fe->tuner_priv;
-	printk(KERN_INFO "%s: tuner: %d \n", __func__, stv6120->tuner);
+	struct stv6120_state *state = fe->tuner_priv;
+	printk(KERN_INFO "%s: tuner: %d \n", __func__, state->tuner);
 
 	return 0;
 }
 
 static int stv6120_set_bandwidth(struct dvb_frontend *fe, u32 bandwidth)
 {
-	struct stv6120_state *stv6120 = fe->tuner_priv;
+	struct stv6120_state *state = fe->tuner_priv;
 	u8 lpf;
 	s32 i;
 
-	printk(KERN_INFO "%s: tuner: %d, bw: %d \n", __func__, stv6120->tuner, bandwidth);
+	printk(KERN_INFO "%s: tuner: %d, bw: %d \n", __func__, state->tuner, bandwidth);
 
 	if ((bandwidth/2) > 36000000) // F[4:0] BW/2 max =31+5=36 mhz for F=31
 		lpf = 31;
@@ -283,26 +265,14 @@ static int stv6120_set_bandwidth(struct dvb_frontend *fe, u32 bandwidth)
 	else // if 5 < BW/2 < 36
 		lpf = (bandwidth/2)/1000000 - 5;
 
-	if (stv6120->tuner == TUNER_1) {
-		stv6120_write_field(stv6120, FSTV6120_CF_1, lpf); // Set the LPF value
-		stv6120_write_field(stv6120, FSTV6120_CALRCSTRT_1, 1); // Start LPF auto calibration
+	STV6120_WRITE_FIELD(state, CF, lpf); // Set the LPF value
+	STV6120_WRITE_FIELD(state, CALRCSTRT, 1); // Start LPF auto calibration
 
-		i=0;
-		while((i<10) && (stv6120_read_field(stv6120, FSTV6120_CALRCSTRT_1) != 0))
-		{
-			msleep(10); // wait for LPF auto calibration
-			i++;
-		}
-	} else {
-		stv6120_write_field(stv6120, FSTV6120_CF_2, lpf); // Set the LPF value
-		stv6120_write_field(stv6120, FSTV6120_CALRCSTRT_2, 1); //Start LPF auto calibration
-
-		i=0;
-		while((i<10) && (stv6120_read_field(stv6120, FSTV6120_CALRCSTRT_2) != 0))
-		{
-			msleep(10); // wait for LPF auto calibration
-			i++;
-		}
+	i=0;
+	while((i<10) && (STV6120_READ_FIELD(state, CALRCSTRT) != 0))
+	{
+		msleep(10); // wait for LPF auto calibration
+		i++;
 	}
 
 	printk(KERN_INFO "%s: LPF:%d \n", __func__, lpf);
@@ -311,76 +281,76 @@ static int stv6120_set_bandwidth(struct dvb_frontend *fe, u32 bandwidth)
 
 static int stv6120_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 {
-	struct stv6120_state *stv6120 = fe->tuner_priv;
-	printk(KERN_INFO "%s: tuner: %d \n", __func__, stv6120->tuner);
+	struct stv6120_state *state = fe->tuner_priv;
+	printk(KERN_INFO "%s: tuner: %d \n", __func__, state->tuner);
 
 	return 0;
 }
 
 static int stv6120_get_bbgain(struct dvb_frontend *fe, u32 *gain)
 {
-	struct stv6120_state *stv6120 = fe->tuner_priv;
-	printk(KERN_INFO "%s: tuner: %d \n", __func__, stv6120->tuner);
+	struct stv6120_state *state = fe->tuner_priv;
+	printk(KERN_INFO "%s: tuner: %d \n", __func__, state->tuner);
 
 	return 0;
 }
 
 static int stv6120_set_bbgain(struct dvb_frontend *fe, u32 gain)
 {
-	struct stv6120_state *stv6120 = fe->tuner_priv;
-	printk(KERN_INFO "%s: tuner: %d \n", __func__, stv6120->tuner);
+	struct stv6120_state *state = fe->tuner_priv;
+	printk(KERN_INFO "%s: tuner: %d \n", __func__, state->tuner);
 
 	return 0;
 }
 
 static int stv6120_set_refclock(struct dvb_frontend *fe, u32 refclock)
 {
-	struct stv6120_state *stv6120 = fe->tuner_priv;
-	printk(KERN_INFO "%s: tuner: %d \n", __func__, stv6120->tuner);
+	struct stv6120_state *state = fe->tuner_priv;
+	printk(KERN_INFO "%s: tuner: %d \n", __func__, state->tuner);
 
 	return 0;
 }
 
 static int stv6120_set_mode(struct dvb_frontend *fe, enum tuner_mode mode)
 {
-	struct stv6120_state *stv6120 = fe->tuner_priv;
+	struct stv6120_state *state = fe->tuner_priv;
 
 	switch (mode) {
 //	case TUNER_WAKE:
 //		printk(KERN_INFO "%s: TUNER_WAKE\n", __func__);
-//		if (stv6120->tuner == TUNER_1) {
-//			stv6120_write_field(stv6120, FSTV6120_SYN_1, 0);
-//			stv6120_write_field(stv6120, FSTV6120_SDOFF_1, 1);
-//			stv6120_write_field(stv6120, FSTV6120_PATHON_1, 0);
+//		if (state->tuner == TUNER_1) {
+//			stv6120_write_field(state, SYN_1, 0);
+//			stv6120_write_field(state, SDOFF_1, 1);
+//			stv6120_write_field(state, PATHON_1, 0);
 //		}
-//		if (stv6120->tuner == TUNER_2) {
-//			stv6120_write_field(stv6120, FSTV6120_SYN_2, 0);
-//			stv6120_write_field(stv6120, FSTV6120_SDOFF_1, 1);
-//			stv6120_write_field(stv6120, FSTV6120_PATHON_1, 0);
+//		if (state->tuner == TUNER_2) {
+//			stv6120_write_field(state, SYN_2, 0);
+//			stv6120_write_field(state, SDOFF_1, 1);
+//			stv6120_write_field(state, PATHON_1, 0);
 //		}
 		break;
 	case TUNER_WAKE:
-		printk(KERN_INFO "%s: tuner: %d TUNER_WAKE\n", __func__, stv6120->tuner);
+		printk(KERN_INFO "%s: tuner: %d TUNER_WAKE\n", __func__, state->tuner);
 
-//		stv6120_write_field(stv6120, FSTV6120_LNABON, 1);
-//		stv6120_write_field(stv6120, FSTV6120_LNACON, 1);
+//		stv6120_write_field(state, LNABON, 1);
+//		stv6120_write_field(state, LNACON, 1);
 
-//		stv6120_write_field(stv6120, FSTV6120_SYN_1, 1);
-//		stv6120_write_field(stv6120, FSTV6120_SDOFF_1, 0);
-//		stv6120_write_field(stv6120, FSTV6120_PATHON_1, 1);
-//		stv6120_write_field(stv6120, FSTV6120_SYN_2, 1);
-//		stv6120_write_field(stv6120, FSTV6120_SDOFF_2, 0);
-//		stv6120_write_field(stv6120, FSTV6120_PATHON_2, 1);
+//		stv6120_write_field(state, SYN_1, 1);
+//		stv6120_write_field(state, SDOFF_1, 0);
+//		stv6120_write_field(state, PATHON_1, 1);
+//		stv6120_write_field(state, SYN_2, 1);
+//		stv6120_write_field(state, SDOFF_2, 0);
+//		stv6120_write_field(state, PATHON_2, 1);
 		break;
 	case TUNER_SLEEP: // This actually TUNER_WAKE up the tuner, fix this
-		printk(KERN_INFO "%s: tuner: %d TUNER_SLEEP\n", __func__, stv6120->tuner);
+		printk(KERN_INFO "%s: tuner: %d TUNER_SLEEP\n", __func__, state->tuner);
 
-//		stv6120_write_field(stv6120, FSTV6120_SYN_1, 1);
-//		stv6120_write_field(stv6120, FSTV6120_SDOFF_1, 0);
-//		stv6120_write_field(stv6120, FSTV6120_PATHON_1, 1);
-//		stv6120_write_field(stv6120, FSTV6120_SYN_2, 1);
-//		stv6120_write_field(stv6120, FSTV6120_SDOFF_2, 0);
-//		stv6120_write_field(stv6120, FSTV6120_PATHON_2, 1);
+//		stv6120_write_field(state, SYN_1, 1);
+//		stv6120_write_field(state, SDOFF_1, 0);
+//		stv6120_write_field(state, PATHON_1, 1);
+//		stv6120_write_field(state, SYN_2, 1);
+//		stv6120_write_field(state, SDOFF_2, 0);
+//		stv6120_write_field(state, PATHON_2, 1);
 		break;
 	}
 
@@ -397,21 +367,13 @@ static int stv6120_sleep(struct dvb_frontend *fe)
 
 static int stv6120_get_status(struct dvb_frontend *fe, u32 *status)
 {
-	struct stv6120_state *stv6120 = fe->tuner_priv;
-	printk(KERN_INFO "%s: tuner: %d \n", __func__, stv6120->tuner);
+	struct stv6120_state *state = fe->tuner_priv;
+	printk(KERN_INFO "%s: tuner: %d \n", __func__, state->tuner);
 
-	if (stv6120->tuner == TUNER_1) {
-		if (stv6120_read_field(stv6120, FSTV6120_LOCK_1)) {
-			*status = TUNER_PHASELOCKED;
-		} else {
-			*status = 0;
-		}
+	if (STV6120_READ_FIELD(state, LOCK)) {
+		*status = TUNER_PHASELOCKED;
 	} else {
-		if (stv6120_read_field(stv6120, FSTV6120_LOCK_2)) {
-			*status = TUNER_PHASELOCKED;
-		} else {
-			*status = 0;
-		}
+		*status = 0;
 	}
 
 	return 0;
@@ -467,10 +429,10 @@ static int stv6120_set_state(struct dvb_frontend *fe,
 
 static int stv6120_release(struct dvb_frontend *fe)
 {
-	struct stv6120_state *stv6120 = fe->tuner_priv;
+	struct stv6120_state *state = fe->tuner_priv;
 
 	fe->tuner_priv = NULL;
-	kfree(stv6120);
+	kfree(state);
 
 	return 0;
 }
@@ -478,9 +440,9 @@ static int stv6120_release(struct dvb_frontend *fe)
 static int stv6120_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	struct stv6120_state *stv6120 = fe->tuner_priv;
+	struct stv6120_state *state = fe->tuner_priv;
 
-	printk(KERN_INFO "%s: tuner: %d\n", __func__, stv6120->tuner);
+	printk(KERN_INFO "%s: tuner: %d\n", __func__, state->tuner);
 
 	stv6120_set_bandwidth(fe, c->bandwidth_hz);
 	stv6120_set_frequency(fe, c->frequency);
@@ -520,26 +482,26 @@ struct stv6120_devctl *stv6120_attach(struct dvb_frontend *fe,
 					const struct stv6120_config *config,
 					struct i2c_adapter *i2c)
 {
-	struct stv6120_state *stv6120;
+	struct stv6120_state *state;
 
-	stv6120 = kzalloc(sizeof (struct stv6120_state), GFP_KERNEL);
-	if (!stv6120)
+	state = kzalloc(sizeof (struct stv6120_state), GFP_KERNEL);
+	if (!state)
 		return NULL;
 
-	stv6120->i2c	= i2c;
-	stv6120->config	= config;
-	stv6120->devctl	= &stv6120_ctl;
-	stv6120->tuner  = config->tuner;
+	state->i2c	= i2c;
+	state->config	= config;
+	state->devctl	= &stv6120_ctl;
+	state->tuner  = config->tuner;
 
-	fe->tuner_priv		= stv6120;
+	fe->tuner_priv		= state;
 	fe->ops.tuner_ops	= stv6120_ops;
 
-	printk(KERN_INFO "%s: Attaching stv6120, tuner: %d\n", __func__, stv6120->tuner);
+	printk(KERN_INFO "%s: Attaching stv6120, tuner: %d\n", __func__, state->tuner);
 
 	stv6120_set_mode(fe, TUNER_WAKE);
 	stv6120_init(fe);
 
-	return stv6120->devctl;
+	return state->devctl;
 }
 
 EXPORT_SYMBOL(stv6120_attach);

@@ -3997,7 +3997,23 @@
 #define STV0910_NBREGS		735
 #define STV0910_NBFIELDS		1776
 
-#define STV0910_WRITE_REG(__state, __reg, __data) (((__state)->nr == 0) ? stv0910_write_reg(__state, RSTV0910_P1_##__reg, __data) : stv0910_write_reg(__state, RSTV0910_P2_##__reg, __data))
-#define STV0910_WRITE_REGS(__state, __reg, __data, __count) (((__state)->nr == 0) ? stv0910_write_regs(__state, RSTV0910_P1_##__reg, __data, __count) : stv0910_write_regs(__state, RSTV0910_P2_##__reg, __data, __count))
-#define STV0910_READ_REG(__state, __reg, __data) (((__state)->nr == 0) ? stv0910_read_reg(__state, RSTV0910_P1_##__reg, __data) : stv0910_read_reg(__state, RSTV0910_P2_##__reg, __data))
-#define STV0910_READ_REGS(__state, __reg, __data, __count) (((__state)->nr == 0) ? stv0910_read_regs(__state, RSTV0910_P1_##__reg, __data, __count) : stv0910_read_regs(__state, RSTV0910_P2_##__reg, __data, __count))
+#define STV0910_WRITE_REG(__state, __reg, __data)                         \
+	(((__state)->nr == 0) ?                                           \
+		stv0910_write_reg(__state, RSTV0910_P1_##__reg, __data) : \
+		stv0910_write_reg(__state, RSTV0910_P2_##__reg, __data))
+
+#define STV0910_WRITE_REGS(__state, __reg, __data, __count)                         \
+	(((__state)->nr == 0) ?                                                     \
+		stv0910_write_regs(__state, RSTV0910_P1_##__reg, __data, __count) : \
+		stv0910_write_regs(__state, RSTV0910_P2_##__reg, __data, __count))
+
+#define STV0910_READ_REG(__state, __reg)                         \
+	(((__state)->nr == 0) ?                                          \
+		stv0910_read_reg(__state, RSTV0910_P1_##__reg) : \
+		stv0910_read_reg(__state, RSTV0910_P2_##__reg))
+
+#define STV0910_READ_REGS(__state, __reg, __data, __count)                         \
+	(((__state)->nr == 0) ?                                                    \
+		stv0910_read_regs(__state, RSTV0910_P1_##__reg, __data, __count) : \
+		stv0910_read_regs(__state, RSTV0910_P2_##__reg, __data, __count))
+

@@ -35,7 +35,7 @@
 
 #include "dvb_frontend.h"
 #include "stv6110x.h"
-#include "stv6120.h"
+#include "stv0910.h"
 #include "stv0910.h"
 #include "stv0910_regs.h"
 
@@ -97,7 +97,7 @@ struct stv_base {
 	u32                  mclk;
 };
 
-struct stv {
+struct stv0910_state {
 	struct stv_base     *base;
 	struct dvb_frontend  fe;
 	const struct stv0910_cfg *config;
@@ -140,59 +140,100 @@ struct SLookupSNTable {
 	u16  RefValue;
 };
 
-static inline int i2c_write(struct i2c_adapter *adap, u8 adr,
-			    u8 *data, int len)
-{
-	struct i2c_msg msg = {.addr = adr, .flags = 0,
-			      .buf = data, .len = len};
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
 
-	return (i2c_transfer(adap, &msg, 1) == 1) ? 0 : -1;
+static void extract_mask_pos(u32 label, u8 *mask, u8 *pos)
+{
+	u8 position = 0, i = 0;
+
+	(*mask) = label & 0xff;
+
+	while ((position == 0) && (i < 8)) {
+		position = ((*mask) >> i) & 0x01;
+		i++;
+	}
+
+	(*pos) = (i - 1);
 }
 
-static int i2c_stv0910_write_reg16(struct i2c_adapter *adap, u8 adr, u16 reg, u8 val)
+static int stv0910_read_regs(struct stv0910_state *state, u16 reg, u8 *data, u8 len)
 {
-	u8 msg[3] = {reg >> 8, reg & 0xff, val};
+	int ret;
+	u8 b0[] = { reg >> 8, reg & 0xff };
+	struct i2c_msg msg[] = {
+		{ .addr = state->base->adr, .flags = 0,        .buf = b0,   .len = 2 },
+		{ .addr = state->base->adr, .flags = I2C_M_RD, .buf = data, .len = len }
+	};
 
-	return i2c_write(adap, adr, msg, 3);
+	ret = i2c_transfer(state->base->i2c, msg, 2);
+	if (ret != 2) {
+		printk("I2C Error\n");
+		return -EREMOTEIO;
+	}
+	return 0;
 }
 
-static int stv0910_write_reg(struct stv *state, u16 reg, u8 val)
+static u8 stv0910_read_reg(struct stv0910_state *state, u16 reg)
 {
-	return i2c_stv0910_write_reg16(state->base->i2c, state->base->adr, reg, val);
+	u8 data = 0x00;
+	stv0910_read_regs(state, reg, &data, 1);
+	return data;
 }
 
-static inline int i2c_read_reg16(struct i2c_adapter *adapter, u8 adr,
-				 u16 reg, u8 *val)
+static u8 stv0910_read_field(struct stv0910_state *state, u32 label)
 {
-	u8 msg[2] = {reg >> 8, reg & 0xff};
-	struct i2c_msg msgs[2] = {{.addr = adr, .flags = 0,
-				   .buf  = msg, .len   = 2},
-				  {.addr = adr, .flags = I2C_M_RD,
-				   .buf  = val, .len   = 1 } };
-	return (i2c_transfer(adapter, msgs, 2) == 2) ? 0 : -1;
+	u8 mask, pos, data;
+
+	extract_mask_pos(label, &mask, &pos);
+
+	data = stv0910_read_reg(state, label >> 16);
+	data = (data & mask) >> pos;
+
+	return data;
 }
 
-static int stv0910_read_reg(struct stv *state, u16 reg, u8 *val)
+static int stv0910_write_regs(struct stv0910_state *state, u16 reg, u8 *data, u8 len)
 {
-	return i2c_read_reg16(state->base->i2c, state->base->adr, reg, val);
+	int ret;
+	u8 buf[MAX_XFER_SIZE];
+
+	struct i2c_msg msg = {
+		.addr  = state->base->adr,
+		.flags = 0,
+		.buf   = buf,
+		.len   = len + 2
+	};
+
+	buf[0] = reg >> 8;
+	buf[1] = reg & 0xff;
+	memcpy(&buf[2], data, len);
+
+	ret = i2c_transfer(state->base->i2c, &msg, 1);
+	if (ret != 1) {
+		printk("I2C Error\n");
+		return -EREMOTEIO;
+	}
+
+	return 0;
 }
 
-
-static inline int i2c_read_regs16(struct i2c_adapter *adapter, u8 adr,
-				  u16 reg, u8 *val, int len)
+static int stv0910_write_reg(struct stv0910_state *state, u16 reg, u8 data)
 {
-	u8 msg[2] = {reg >> 8, reg & 0xff};
-	struct i2c_msg msgs[2] = {{.addr = adr, .flags = 0,
-				   .buf  = msg, .len   = 2},
-				  {.addr = adr, .flags = I2C_M_RD,
-				   .buf  = val, .len   = len } };
-	return (i2c_transfer(adapter, msgs, 2) == 2) ? 0 : -1;
+	return stv0910_write_regs(state, reg, &data, 1);
 }
 
-static int stv0910_read_regs(struct stv *state, u16 reg, u8 *val, int len)
+static int stv0910_write_field(struct stv0910_state *state, u32 label, u8 data)
 {
-	return i2c_read_regs16(state->base->i2c, state->base->adr,
-			       reg, val, len);
+	u8 reg, mask, pos;
+
+	reg = stv0910_read_reg(state, (label >> 16) & 0xffff);
+	extract_mask_pos(label, &mask, &pos);
+
+	data = mask & (data << pos);
+	reg = (reg & (~mask)) | data;
+
+	return stv0910_write_reg(state, (label >> 16) & 0xffff, reg);
 }
 
 struct SLookupSNTable S1_SN_Lookup[] = {
@@ -385,7 +426,7 @@ static u8 S2CarLoop[] =	{
 	0x09,  0x09,  0x09,  0x09,  0x09,  0x09,  0x09,  0x09,  0x09,  0x09,
 };
 
-static u8 stv0910_get_optim_cloop(struct stv *state,
+static u8 stv0910_get_optim_cloop(struct stv0910_state *state,
 			  enum FE_STV0910_ModCod ModCod, u32 Pilots)
 {
 	int i = 0;
@@ -413,7 +454,7 @@ static u8 stv0910_get_optim_cloop(struct stv *state,
 	return S2CarLoop[i];
 }
 
-static int stv0910_get_SR(struct stv *state, u32 *pSymbolRate)
+static int stv0910_get_SR(struct stv0910_state *state, u32 *pSymbolRate)
 {
 	int status = 0;
 	u8 SymbFreq0;
@@ -431,13 +472,13 @@ static int stv0910_get_SR(struct stv *state, u32 *pSymbolRate)
 	if (!state->Started)
 		return status;
 
-	STV0910_READ_REG(state, SFR3, &SymbFreq3);
-	STV0910_READ_REG(state, SFR2, &SymbFreq2);
-	STV0910_READ_REG(state, SFR1, &SymbFreq1);
-	STV0910_READ_REG(state, SFR0, &SymbFreq0);
-	STV0910_READ_REG(state, TMGREG2, &TimOffs2);
-	STV0910_READ_REG(state, TMGREG1, &TimOffs1);
-	STV0910_READ_REG(state, TMGREG0, &TimOffs0);
+	SymbFreq3 = STV0910_READ_REG(state, SFR3);
+	SymbFreq2 = STV0910_READ_REG(state, SFR2);
+	SymbFreq1 = STV0910_READ_REG(state, SFR1);
+	SymbFreq0 = STV0910_READ_REG(state, SFR0);
+	TimOffs2  = STV0910_READ_REG(state, TMGREG2);
+	TimOffs1  = STV0910_READ_REG(state, TMGREG1);
+	TimOffs0  = STV0910_READ_REG(state, TMGREG0);
 
 	SymbolRate = ((u32) SymbFreq3 << 24) | ((u32) SymbFreq2 << 16) |
 		((u32) SymbFreq1 << 8) | (u32) SymbFreq0;
@@ -455,25 +496,24 @@ static int stv0910_get_SR(struct stv *state, u32 *pSymbolRate)
 	return 0;
 }
 
-static int stv0910_get_signal_parameters(struct stv *state)
+static int stv0910_get_signal_parameters(struct stv0910_state *state)
 {
+	u8 tmp;
+
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	if (!state->Started)
 		return -1;
 
 	if (state->ReceiveMode == Mode_DVBS2) {
-		u8 tmp;
-		u8 rolloff;
-
-		STV0910_READ_REG(state, DMDMODCOD, &tmp);
+		tmp = STV0910_READ_REG(state, DMDMODCOD);
 		state->ModCod = (enum FE_STV0910_ModCod) ((tmp & 0x7c) >> 2);
 		state->Pilots = (tmp & 0x01) != 0;
 		state->FECType = (enum DVBS2_FECType) ((tmp & 0x02) >> 1);
 
-		STV0910_READ_REG(state, TMGOBS, &rolloff);
-		rolloff = rolloff >> 6;
-		state->FERollOff = (enum FE_STV0910_RollOff) rolloff;
+		tmp = STV0910_READ_REG(state, TMGOBS);
+		tmp = tmp >> 6;
+		state->FERollOff = (enum FE_STV0910_RollOff) tmp;
 
 	} else if (state->ReceiveMode == Mode_DVBS) {
 		/* todo */
@@ -481,14 +521,14 @@ static int stv0910_get_signal_parameters(struct stv *state)
 	return 0;
 }
 
-static int stv0910_tracking_optimization(struct stv *state)
+static int stv0910_tracking_optimization(struct stv0910_state *state)
 {
 	u32 SymbolRate = 0;
 	u8 tmp;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	stv0910_get_SR(state, &SymbolRate);
-	STV0910_READ_REG(state, DMDCFGMD, &tmp);
+	tmp = STV0910_READ_REG(state, DMDCFGMD);
 	tmp &= ~0xC0;
 
 	switch (state->ReceiveMode) {
@@ -526,7 +566,7 @@ static int stv0910_tracking_optimization(struct stv *state)
 	if (state->ReceiveMode == Mode_DVBS) {
 		u8 tmp;
 
-		STV0910_READ_REG(state, VITCURPUN, &tmp);
+		tmp = STV0910_READ_REG(state, VITCURPUN);
 		state->PunctureRate = FEC_NONE;
 		switch (tmp & 0x1F) {
 		case 0x0d:
@@ -549,7 +589,7 @@ static int stv0910_tracking_optimization(struct stv *state)
 	return 0;
 }
 
-static int stv0910_get_snr(struct stv *state, s32 *_snr)
+static int stv0910_get_snr(struct stv0910_state *state, s32 *_snr)
 {
 	int i;
 	u8 Data0;
@@ -565,13 +605,13 @@ static int stv0910_get_snr(struct stv *state, s32 *_snr)
 		return 0;
 
 	if (state->ReceiveMode == Mode_DVBS2) {
-		STV0910_READ_REG(state, NNOSPLHT1, &Data1);
-		STV0910_READ_REG(state, NNOSPLHT0, &Data0);
+		Data1 = STV0910_READ_REG(state, NNOSPLHT1);
+		Data0 = STV0910_READ_REG(state, NNOSPLHT0);
 		nLookup = ARRAY_SIZE(S2_SN_Lookup);
 		Lookup = S2_SN_Lookup;
 	} else {
-		STV0910_READ_REG(state, NNOSDATAT1, &Data1);
-		STV0910_READ_REG(state, NNOSDATAT0, &Data0);
+		Data1 = STV0910_READ_REG(state, NNOSDATAT1);
+		Data0 = STV0910_READ_REG(state, NNOSDATAT0);
 		nLookup = ARRAY_SIZE(S1_SN_Lookup);
 		Lookup = S1_SN_Lookup;
 	}
@@ -598,7 +638,7 @@ static int stv0910_get_snr(struct stv *state, s32 *_snr)
 	return 0;
 }
 
-static int stv0910_get_ber_S(struct stv *state, u32 *BERNumerator,
+static int stv0910_get_ber_S(struct stv0910_state *state, u32 *BERNumerator,
 			    u32 *BERDenominator)
 {
 	u8 Regs[3];
@@ -668,7 +708,7 @@ static u32 DVBS2_nBCH(enum DVBS2_ModCod ModCod, enum DVBS2_FECType FECType)
 	return 64800;
 }
 
-static int stv0910_get_ber_S2(struct stv *state, u32 *BERNumerator,
+static int stv0910_get_ber_S2(struct stv0910_state *state, u32 *BERNumerator,
 			     u32 *BERDenominator)
 {
 	u8 Regs[3];
@@ -701,7 +741,7 @@ static int stv0910_get_ber_S2(struct stv *state, u32 *BERNumerator,
 	return status;
 }
 
-static int GetBitErrorRate(struct stv *state, u32 *BERNumerator,
+static int GetBitErrorRate(struct stv0910_state *state, u32 *BERNumerator,
 			   u32 *BERDenominator)
 {
 	printk("%s: demod: %d \n", __func__, state->nr);
@@ -723,7 +763,7 @@ static int GetBitErrorRate(struct stv *state, u32 *BERNumerator,
 
 static int stv0910_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	u8 i2crpt = state->i2crpt & ~0x86;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
@@ -751,13 +791,13 @@ static int stv0910_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 
 static int stv0910_init(struct dvb_frontend *fe)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	return 0;
 }
 
-static int stv0910_set_mclock(struct stv *state, u32 MasterClock)
+static int stv0910_set_mclock(struct stv0910_state *state, u32 MasterClock)
 {
 	u32 idf = 1;
 	u32 odf = 4;
@@ -822,7 +862,7 @@ static int stv0910_set_mclock(struct stv *state, u32 MasterClock)
 	return 0;
 }
 
-static int stv0910_stop(struct stv *state)
+static int stv0910_stop(struct stv0910_state *state)
 {
 	printk("%s: demod: %d \n", __func__, state->nr);
 
@@ -830,7 +870,7 @@ static int stv0910_stop(struct stv *state)
 		u8 tmp;
 
 		STV0910_WRITE_REG(state, TSCFGH, state->tscfgh | 0x01);
-		STV0910_READ_REG(state, PDELCTRL1, &tmp);
+		tmp = STV0910_READ_REG(state, PDELCTRL1);
 		tmp &= ~0x01; /*release reset DVBS2 packet delin*/
 		STV0910_WRITE_REG(state, PDELCTRL1, tmp);
 		/* Blind optim*/
@@ -844,7 +884,7 @@ static int stv0910_stop(struct stv *state)
 }
 
 
-static int stv0910_start(struct stv *state, struct dtv_frontend_properties *p)
+static int stv0910_start(struct stv0910_state *state, struct dtv_frontend_properties *p)
 {
 	s32 Freq;
 	u8  regDMDCFGMD;
@@ -893,9 +933,8 @@ static int stv0910_start(struct stv *state, struct dtv_frontend_properties *p)
 	STV0910_WRITE_REG(state, DEMOD, state->DEMOD);
 
 	/* FE_STV0910_SetSearchStandard */
-	STV0910_READ_REG(state, DMDCFGMD, &regDMDCFGMD);
-	STV0910_WRITE_REG(state, DMDCFGMD,
-		  regDMDCFGMD |= 0xD9);
+	regDMDCFGMD = STV0910_READ_REG(state, DMDCFGMD);
+	STV0910_WRITE_REG(state, DMDCFGMD, regDMDCFGMD |= 0xD9);
 
 	/* Disable DSS */
 	STV0910_WRITE_REG(state, FECM, 0x00);
@@ -938,7 +977,7 @@ static int stv0910_start(struct stv *state, struct dtv_frontend_properties *p)
 	return 0;
 }
 
-static int stv0910_init_diseqc(struct stv *state)
+static int stv0910_init_diseqc(struct stv0910_state *state)
 {
 	u8 Freq = ((state->base->mclk + 11000 * 32) / (22000 * 32));
 	printk("%s: demod: %d \n", __func__, state->nr);
@@ -951,7 +990,7 @@ static int stv0910_init_diseqc(struct stv *state)
 	return 0;
 }
 
-static int stv0910_probe(struct stv *state)
+static int stv0910_probe(struct stv0910_state *state)
 {
 	u8 id;
 	printk("%s: demod: %d \n", __func__, state->nr);
@@ -959,9 +998,7 @@ static int stv0910_probe(struct stv *state)
 	state->ReceiveMode = Mode_None;
 	state->Started = 0;
 
-	if (stv0910_read_reg(state, RSTV0910_MID, &id) < 0)
-		return -1;
-
+	id = stv0910_read_reg(state, RSTV0910_MID);
 	if (id != 0x51)
 		return -EINVAL;
 	pr_info("stv0910: found STV0910 id=0x%02x\n", id);
@@ -1021,7 +1058,7 @@ static int stv0910_probe(struct stv *state)
 
 static void stv0910_release(struct dvb_frontend *fe)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	state->base->count--;
@@ -1034,7 +1071,7 @@ static void stv0910_release(struct dvb_frontend *fe)
 
 static int stv0910_set_parameters(struct dvb_frontend *fe)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	const struct stv0910_cfg *config = state->config;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	int stat = 0;
@@ -1056,17 +1093,17 @@ static int stv0910_set_parameters(struct dvb_frontend *fe)
 
 static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	u8 DmdState = 0;
 	u8 DStatus  = 0;
 	enum ReceiveMode CurReceiveMode = Mode_None;
 	u32 FECLock = 0;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
-	STV0910_READ_REG(state, DMDSTATE, &DmdState);
+	DmdState = STV0910_READ_REG(state, DMDSTATE);
 
 	if (DmdState & 0x40) {
-		STV0910_READ_REG(state, DSTATUS, &DStatus);
+		DStatus = STV0910_READ_REG(state, DSTATUS);
 		if (DStatus & 0x08)
 			CurReceiveMode = (DmdState & 0x20) ?
 				Mode_DVBS : Mode_DVBS2;
@@ -1090,14 +1127,16 @@ static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	if (DmdState & 0x40) {
 		if (state->ReceiveMode == Mode_DVBS2) {
 			u8 PDELStatus;
-			STV0910_READ_REG(state, PDELSTATUS1, &PDELStatus);
+			PDELStatus = STV0910_READ_REG(state, PDELSTATUS1);
 			FECLock = (PDELStatus & 0x02) != 0;
 		} else {
 			u8 VStatus;
-			STV0910_READ_REG(state, VSTATUSVIT, &VStatus);
+			VStatus = STV0910_READ_REG(state, VSTATUSVIT);
 			FECLock = (VStatus & 0x08) != 0;
 		}
 	}
+
+	stv0910_get_signal_parameters(state);
 
 	if (!FECLock)
 		return 0;
@@ -1108,14 +1147,13 @@ static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		u8 tmp;
 
 		state->FirstTimeLock = 0;
-		stv0910_get_signal_parameters(state);
 
 		if (state->ReceiveMode == Mode_DVBS2) {
 			/* FSTV0910_P2_MANUALSX_ROLLOFF,
 			   FSTV0910_P2_MANUALS2_ROLLOFF = 0 */
 			state->DEMOD &= ~0x84;
 			STV0910_WRITE_REG(state, DEMOD, state->DEMOD);
-			STV0910_READ_REG(state, PDELCTRL2, &tmp);
+			tmp = STV0910_READ_REG(state, PDELCTRL2);
 			/*reset DVBS2 packet delinator error counter */
 			tmp |= 0x40;
 			STV0910_WRITE_REG(state, PDELCTRL2, tmp);
@@ -1146,34 +1184,9 @@ static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	return 0;
 }
 
-static int stv0910_tune(struct dvb_frontend *fe, bool re_tune,
-		unsigned int mode_flags,
-		unsigned int *delay, enum fe_status *status)
-{
-	struct stv *state = fe->demodulator_priv;
-	int r;
-	printk("%s: demod: %d \n", __func__, state->nr);
-
-	if (re_tune) {
-		r = stv0910_set_parameters(fe);
-		if (r)
-			return r;
-		state->tune_time = jiffies;
-	}
-	if (*status & FE_HAS_LOCK)
-		return 0;
-	*delay = HZ;
-
-	r = stv0910_read_status(fe, status);
-	if (r)
-		return r;
-	return 0;
-}
-
-
 static int stv0910_get_frontend_algo(struct dvb_frontend *fe)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	if (state->algo == STV0910_NOTUNE) {
@@ -1185,7 +1198,7 @@ static int stv0910_get_frontend_algo(struct dvb_frontend *fe)
 
 static int stv0910_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	printk("%s: demod: %d tone:%s \n", __func__, state->nr, tone ? "ON" : "OFF");
 
 	switch (tone) {
@@ -1201,7 +1214,7 @@ static int stv0910_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 
 static enum dvbfe_search stv0910_search(struct dvb_frontend *fe)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	stv0910_set_parameters(fe);
@@ -1213,7 +1226,7 @@ static enum dvbfe_search stv0910_search(struct dvb_frontend *fe)
 static int stv0910_set_property(struct dvb_frontend *fe,
 				struct dtv_property *tvp)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	if (tvp->cmd == DTV_TUNE) {
@@ -1231,7 +1244,7 @@ static int stv0910_get_property(struct dvb_frontend *fe,
 
 static int stv0910_set_frontend(struct dvb_frontend *fe)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	state->algo = STV0910_BLIND_SEARCH;
@@ -1239,14 +1252,14 @@ static int stv0910_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int stv0910_wait_dis(struct stv *state, u8 flag, u8 val)
+static int stv0910_wait_dis(struct stv0910_state *state, u8 flag, u8 val)
 {
 	int i;
 	u8 stat;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	for (i = 0; i < 10; i++) {
-		STV0910_READ_REG(state, DISTXSTATUS, &stat);
+		stat = STV0910_READ_REG(state, DISTXSTATUS);
 		if ((stat & flag) == val)
 			return 0;
 		msleep(10);
@@ -1257,7 +1270,7 @@ static int stv0910_wait_dis(struct stv *state, u8 flag, u8 val)
 static int stv0910_send_master_cmd(struct dvb_frontend *fe,
 			   struct dvb_diseqc_master_cmd *cmd)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	int i;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
@@ -1276,14 +1289,14 @@ static int stv0910_send_master_cmd(struct dvb_frontend *fe,
 static int stv0910_recv_slave_reply(struct dvb_frontend *fe,
 			    struct dvb_diseqc_slave_reply *reply)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	printk("%s: demod: %d \n", __func__, state->nr);
 	return 0;
 }
 
 static int stv0910_send_burst(struct dvb_frontend *fe, enum fe_sec_mini_cmd burst)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	printk("%s: demod: %d \n", __func__, state->nr);
 #if 0
 	u8 value;
@@ -1305,7 +1318,7 @@ static int stv0910_send_burst(struct dvb_frontend *fe, enum fe_sec_mini_cmd burs
 
 static int stv0910_sleep(struct dvb_frontend *fe)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	stv0910_stop(state);
@@ -1316,7 +1329,7 @@ static int stv0910_sleep(struct dvb_frontend *fe)
 
 static int stv0910_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	s32 SNR;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
@@ -1329,7 +1342,7 @@ static int stv0910_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 static int stv0910_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	u32 n, d;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
@@ -1343,12 +1356,12 @@ static int stv0910_read_ber(struct dvb_frontend *fe, u32 *ber)
 
 static int stv0910_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	u8 Agc1, Agc0;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
-	STV0910_READ_REG(state, AGCIQIN1, &Agc1);
-	STV0910_READ_REG(state, AGCIQIN0, &Agc0);
+	Agc1 = STV0910_READ_REG(state, AGCIQIN1);
+	Agc0 = STV0910_READ_REG(state, AGCIQIN0);
 
 	*strength = ((255 - Agc1) * 3300) / 256;
 	return 0;
@@ -1356,13 +1369,13 @@ static int stv0910_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 
 static int stv0910_read_signal_strength2(struct dvb_frontend *fe, s16 *strength)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	u8 Agc1, Agc0;
 	s16 agc_gain;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
-	STV0910_READ_REG(state, AGCIQIN1, &Agc1);
-	STV0910_READ_REG(state, AGCIQIN0, &Agc0);
+	Agc1 = STV0910_READ_REG(state, AGCIQIN1);
+	Agc0 = STV0910_READ_REG(state, AGCIQIN0);
 
 	agc_gain = ((Agc1 << 8) | Agc0) >> 1;
 
@@ -1374,7 +1387,7 @@ static int stv0910_read_signal_strength2(struct dvb_frontend *fe, s16 *strength)
 
 static int stv0910_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	return 0;
@@ -1382,7 +1395,7 @@ static int stv0910_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 
 static int stv0910_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spectrum_scan *s)
 {
-	struct stv *state = fe->demodulator_priv;
+	struct stv0910_state *state = fe->demodulator_priv;
 	const struct stv0910_cfg *config = state->config;
 	u32 x;
 	u32 bw = 2000000;
@@ -1439,7 +1452,6 @@ static struct dvb_frontend_ops stv0910_ops = {
 	.release                        = stv0910_release,
 	.i2c_gate_ctrl                  = stv0910_i2c_gate_ctrl,
 	.get_frontend_algo              = stv0910_get_frontend_algo,
-	.tune                           = stv0910_tune,
 	.read_status			= stv0910_read_status,
 	.set_tone			= stv0910_set_tone,
 
@@ -1474,10 +1486,10 @@ struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
 				    struct stv0910_cfg *cfg,
 				    int nr)
 {
-	struct stv *state;
+	struct stv0910_state *state;
 	struct stv_base *base;
 
-	state = kzalloc(sizeof(struct stv), GFP_KERNEL);
+	state = kzalloc(sizeof(struct stv0910_state), GFP_KERNEL);
 	if (!state)
 		return NULL;
 
