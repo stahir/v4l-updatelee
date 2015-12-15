@@ -49,6 +49,13 @@ enum FE_STV0910_frame_len { FE_LONGFRAME, FE_SHORTFRAME };
 
 enum ReceiveMode { Mode_None, Mode_DVBS, Mode_DVBS2, Mode_Auto };
 
+enum FE_STV0910_dmdstate {
+	FE_SEARCHING,
+	FE_DVBS2_PLH,
+	FE_DVB_S2,
+	FE_DVB_S
+};
+
 enum DVBS2_modcod {
 	DVBS2_DUMMY_PLF, DVBS2_QPSK_1_4, DVBS2_QPSK_1_3, DVBS2_QPSK_2_5,
 	DVBS2_QPSK_1_2, DVBS2_QPSK_3_5, DVBS2_QPSK_2_3,	DVBS2_QPSK_3_4,
@@ -1014,12 +1021,8 @@ static int stv0910_stop(struct stv0910_state *state)
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	if (state->Started) {
-		u8 tmp;
-
-		STV0910_WRITE_REG(state, TSCFGH, state->tscfgh | 0x01);
-		tmp = STV0910_READ_REG(state, PDELCTRL1);
-		tmp &= ~0x01; /*release reset DVBS2 packet delin*/
-		STV0910_WRITE_REG(state, PDELCTRL1, tmp);
+		STV0910_WRITE_FIELD(state, RST_HWARE, 0x01);
+		STV0910_WRITE_FIELD(state, ALGOSWRST, 0x01);
 		/* Blind optim*/
 		STV0910_WRITE_REG(state, AGC2O, 0x5B);
 		/* Stop the demod */
@@ -1237,6 +1240,10 @@ static int stv0910_set_parameters(struct dvb_frontend *fe)
 	return stat;
 }
 
+static int stv0910_get_stats(struct dvb_frontend *fe, enum fe_status stat)
+{
+
+}
 
 static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
@@ -1247,87 +1254,49 @@ static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	u32 FECLock = 0;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
-	DmdState = STV0910_READ_REG(state, DMDSTATE);
-
-	if (DmdState & 0x40) {
-		DStatus = STV0910_READ_REG(state, DSTATUS);
-		if (DStatus & 0x08)
-			CurReceiveMode = (DmdState & 0x20) ?
-				Mode_DVBS : Mode_DVBS2;
-	}
-	if (CurReceiveMode == Mode_None) {
-		*status = 0;
+	if (state->algo == STV0910_NOTUNE) {
+		*status = FE_TIMEDOUT;
 		return 0;
 	}
 
-	*status |= 0x0f;
-	if (state->ReceiveMode == Mode_None) {
-		state->ReceiveMode = CurReceiveMode;
-		state->DemodLockTime = jiffies;
-		state->FirstTimeLock = 0;
+	*status = 0;
 
-		STV0910_WRITE_REG(state, TSCFGH, state->tscfgh);
-		usleep_range(3000, 4000);
-		STV0910_WRITE_REG(state, TSCFGH, state->tscfgh | 0x01);
-		STV0910_WRITE_REG(state, TSCFGH, state->tscfgh);
+	if (STV0910_READ_FIELD(state, CAR_LOCK)) {
+		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER;
 	}
-	if (DmdState & 0x40) {
-		if (state->ReceiveMode == Mode_DVBS2) {
-			u8 PDELStatus;
-			PDELStatus = STV0910_READ_REG(state, PDELSTATUS1);
-			FECLock = (PDELStatus & 0x02) != 0;
-		} else {
-			u8 VStatus;
-			VStatus = STV0910_READ_REG(state, VSTATUSVIT);
-			FECLock = (VStatus & 0x08) != 0;
+
+	switch (STV0910_READ_FIELD(state, HEADER_MODE)) {
+	case FE_DVB_S:
+		if (STV0910_READ_FIELD(state, LOCK_DEFINITIF)) {
+			CurReceiveMode = Mode_DVBS;
+			if (STV0910_READ_FIELD(state, LOCKEDVIT)) {
+				*status |= FE_HAS_VITERBI;
+				if (STV0910_READ_FIELD(state, TSFIFO_LINEOK)) {
+					*status |= FE_HAS_SYNC | FE_HAS_LOCK;
+				}
+
+			}
 		}
-	}
+		stv0910_get_signal_parameters(state);
+		break;
+	case FE_DVB_S2:
+		if (STV0910_READ_FIELD(state, LOCK_DEFINITIF)) {
+			CurReceiveMode = Mode_DVBS2;
+			if (STV0910_READ_FIELD(state, PKTDELIN_LOCK)) {
+				*status |= FE_HAS_VITERBI;
+				if (STV0910_READ_FIELD(state, TSFIFO_LINEOK)) {
+					*status |= FE_HAS_SYNC | FE_HAS_LOCK;
+				}
 
-	stv0910_get_signal_parameters(state);
+			}
 
-	if (!FECLock)
-		return 0;
-
-	*status |= 0x10;
-
-	if (state->FirstTimeLock) {
-		u8 tmp;
-
-		state->FirstTimeLock = 0;
-
-		if (state->ReceiveMode == Mode_DVBS2) {
-			/* FSTV0910_P2_MANUALSX_ROLLOFF,
-			   FSTV0910_P2_MANUALS2_ROLLOFF = 0 */
-			state->DEMOD &= ~0x84;
-			STV0910_WRITE_REG(state, DEMOD, state->DEMOD);
-			tmp = STV0910_READ_REG(state, PDELCTRL2);
-			/*reset DVBS2 packet delinator error counter */
-			tmp |= 0x40;
-			STV0910_WRITE_REG(state, PDELCTRL2, tmp);
-			/*reset DVBS2 packet delinator error counter */
-			tmp &= ~0x40;
-			STV0910_WRITE_REG(state, PDELCTRL2, tmp);
-
-			state->BERScale = 2;
-			state->LastBERNumerator = 0;
-			state->LastBERDenominator = 1;
-			/* force to PRE BCH Rate */
-			STV0910_WRITE_REG(state, ERRCTRL1, BER_SRC_S2 | state->BERScale);
-		} else {
-			state->BERScale = 2;
-			state->LastBERNumerator = 0;
-			state->LastBERDenominator = 1;
-			/* force to PRE RS Rate */
-			STV0910_WRITE_REG(state, ERRCTRL1, BER_SRC_S | state->BERScale);
 		}
-		/*Reset the Total packet counter */
-		STV0910_WRITE_REG(state, FBERCPT4, 0x00);
-		/*Reset the packet Error counter2 (and Set it to
-		  infinit error count mode )*/
-		STV0910_WRITE_REG(state, ERRCTRL2, 0xc1);
-
-		stv0910_tracking_optimization(state);
+		stv0910_get_signal_parameters(state);
+		break;
+	default:
+		break;
 	}
+
 	return 0;
 }
 
