@@ -967,15 +967,15 @@ static int stv0910_probe(struct stv *state)
 	pr_info("stv0910: found STV0910 id=0x%02x\n", id);
 
 	 /* Configure the I2C repeater to off */
-	STV0910_WRITE_REG(state, I2CRPT, 0x24);
+	stv0910_write_reg(state, RSTV0910_P1_I2CRPT, 0x24);
 	/* Configure the I2C repeater to off */
-	STV0910_WRITE_REG(state, I2CRPT, 0x24);
+	stv0910_write_reg(state, RSTV0910_P2_I2CRPT, 0x24);
 	/* Set the I2C to oversampling ratio */
 	stv0910_write_reg(state, RSTV0910_I2CCFG, 0x88);
 
 	stv0910_write_reg(state, RSTV0910_GPIO5CFG,  0x04);
 	stv0910_write_reg(state, RSTV0910_GPIO6CFG,  0x06);
-	STV0910_WRITE_REG(state, AGC1CN,  0x99);
+	stv0910_write_reg(state, RSTV0910_P2_AGC1CN,  0x99);
 
 	stv0910_write_reg(state, RSTV0910_OUTCFG,    0x00);  /* OUTCFG */
 	stv0910_write_reg(state, RSTV0910_PADCFG,    0x05);  /* RF AGC Pads Dev = 05 */
@@ -990,30 +990,30 @@ static int stv0910_probe(struct stv *state)
 	stv0910_set_mclock(state, 135000000);
 
 	/* TS output */
-	STV0910_WRITE_REG(state, TSCFGH, state->tscfgh | 0x01);
-	STV0910_WRITE_REG(state, TSCFGH, state->tscfgh);
-	STV0910_WRITE_REG(state, TSCFGM, 0xC0);  /* Manual speed */
-	STV0910_WRITE_REG(state, TSCFGL, 0x20);
+	stv0910_write_reg(state, RSTV0910_P1_TSCFGH, state->tscfgh | 0x01);
+	stv0910_write_reg(state, RSTV0910_P1_TSCFGH, state->tscfgh);
+	stv0910_write_reg(state, RSTV0910_P1_TSCFGM, 0xC0);  /* Manual speed */
+	stv0910_write_reg(state, RSTV0910_P1_TSCFGL, 0x20);
 
 	/* Speed = 67.5 MHz */
-	STV0910_WRITE_REG(state, TSSPEED, state->tsspeed);
+	stv0910_write_reg(state, RSTV0910_P1_TSSPEED, state->tsspeed);
 
-	STV0910_WRITE_REG(state, TSCFGH, state->tscfgh | 0x01);
-	STV0910_WRITE_REG(state, TSCFGH, state->tscfgh);
-	STV0910_WRITE_REG(state, TSCFGM, 0xC0);  /* Manual speed */
-	STV0910_WRITE_REG(state, TSCFGL, 0x20);
+	stv0910_write_reg(state, RSTV0910_P2_TSCFGH, state->tscfgh | 0x01);
+	stv0910_write_reg(state, RSTV0910_P2_TSCFGH, state->tscfgh);
+	stv0910_write_reg(state, RSTV0910_P2_TSCFGM, 0xC0);  /* Manual speed */
+	stv0910_write_reg(state, RSTV0910_P2_TSCFGL, 0x20);
 
 	/* Speed = 67.5 MHz */
-	STV0910_WRITE_REG(state, TSSPEED, state->tsspeed);
+	stv0910_write_reg(state, RSTV0910_P2_TSSPEED, state->tsspeed);
 
 	/* Reset stream merger */
-	STV0910_WRITE_REG(state, TSCFGH, state->tscfgh | 0x01);
-	STV0910_WRITE_REG(state, TSCFGH, state->tscfgh | 0x01);
-	STV0910_WRITE_REG(state, TSCFGH, state->tscfgh);
-	STV0910_WRITE_REG(state, TSCFGH, state->tscfgh);
+	stv0910_write_reg(state, RSTV0910_P1_TSCFGH, state->tscfgh | 0x01);
+	stv0910_write_reg(state, RSTV0910_P2_TSCFGH, state->tscfgh | 0x01);
+	stv0910_write_reg(state, RSTV0910_P1_TSCFGH, state->tscfgh);
+	stv0910_write_reg(state, RSTV0910_P2_TSCFGH, state->tscfgh);
 
-	STV0910_WRITE_REG(state, I2CRPT, state->i2crpt);
-	STV0910_WRITE_REG(state, I2CRPT, state->i2crpt);
+	stv0910_write_reg(state, RSTV0910_P1_I2CRPT, state->i2crpt);
+	stv0910_write_reg(state, RSTV0910_P2_I2CRPT, state->i2crpt);
 
 	stv0910_init_diseqc(state);
 	return 0;
