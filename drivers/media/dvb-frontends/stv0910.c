@@ -888,7 +888,7 @@ static int stv0910_get_ber_S2(struct stv0910_state *state, u32 *BERNumerator,
 	return status;
 }
 
-static int GetBitErrorRate(struct stv0910_state *state, u32 *BERNumerator,
+static int stv0910_get_ber(struct stv0910_state *state, u32 *BERNumerator,
 			   u32 *BERDenominator)
 {
 	printk("%s: demod: %d \n", __func__, state->nr);
@@ -1493,7 +1493,7 @@ static int stv0910_read_ber(struct dvb_frontend *fe, u32 *ber)
 	u32 n, d;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
-	GetBitErrorRate(state, &n, &d);
+	stv0910_get_ber(state, &n, &d);
 	if (d) 
 		*ber = n / d;
 	else
