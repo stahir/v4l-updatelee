@@ -1248,10 +1248,6 @@ static int stv0910_get_stats(struct dvb_frontend *fe, enum fe_status stat)
 static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
-	u8 DmdState = 0;
-	u8 DStatus  = 0;
-	enum ReceiveMode CurReceiveMode = Mode_None;
-	u32 FECLock = 0;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	if (state->algo == STV0910_NOTUNE) {
@@ -1268,7 +1264,6 @@ static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	switch (STV0910_READ_FIELD(state, HEADER_MODE)) {
 	case FE_DVB_S:
 		if (STV0910_READ_FIELD(state, LOCK_DEFINITIF)) {
-			CurReceiveMode = Mode_DVBS;
 			if (STV0910_READ_FIELD(state, LOCKEDVIT)) {
 				*status |= FE_HAS_VITERBI;
 				if (STV0910_READ_FIELD(state, TSFIFO_LINEOK)) {
@@ -1281,7 +1276,6 @@ static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		break;
 	case FE_DVB_S2:
 		if (STV0910_READ_FIELD(state, LOCK_DEFINITIF)) {
-			CurReceiveMode = Mode_DVBS2;
 			if (STV0910_READ_FIELD(state, PKTDELIN_LOCK)) {
 				*status |= FE_HAS_VITERBI;
 				if (STV0910_READ_FIELD(state, TSFIFO_LINEOK)) {
