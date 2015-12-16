@@ -780,25 +780,15 @@ static int stv0910_tracking_optimization(struct stv0910_state *state)
 static int stv0910_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
-	u8 i2crpt = state->i2crpt & ~0x86;
-	printk("%s: demod: %d \n", __func__, state->nr);
+	printk("%s: demod: %d %s \n", __func__, state->nr, enable ? "ENABLE" : "DISABLE");
 
 	if (enable)
 		mutex_lock(&state->base->i2c_lock);
 
 	if (enable)
-		i2crpt |= 0x80;
+		stv0910_write_reg(state, RSTV0910_P1_I2CRPT, 0xc8);
 	else
-		i2crpt |= 0x02;
-
-// UDL
-//	if (stv0910_write_reg(state, state->nr ? RSTV0910_P2_I2CRPT :
-//		      RSTV0910_P1_I2CRPT, i2crpt) < 0)
-//		return -EIO;
-	if (stv0910_write_reg(state, RSTV0910_P1_I2CRPT, i2crpt) < 0)
-		return -EIO;
-
-	state->i2crpt = i2crpt;
+		stv0910_write_reg(state, RSTV0910_P1_I2CRPT, 0x4a);
 
 	if (!enable)
 		mutex_unlock(&state->base->i2c_lock);
@@ -1061,8 +1051,8 @@ static int stv0910_probe(struct stv0910_state *state)
 	stv0910_write_reg(state, RSTV0910_P1_TSCFGH, state->tscfgh);
 	stv0910_write_reg(state, RSTV0910_P2_TSCFGH, state->tscfgh);
 
-	stv0910_write_reg(state, RSTV0910_P1_I2CRPT, state->i2crpt);
-	stv0910_write_reg(state, RSTV0910_P2_I2CRPT, state->i2crpt);
+	stv0910_write_reg(state, RSTV0910_P1_I2CRPT, 0x4a);
+	stv0910_write_reg(state, RSTV0910_P2_I2CRPT, 0x4a);
 
 	stv0910_init_diseqc(state);
 	return 0;
