@@ -141,6 +141,7 @@ struct stv0910_state {
 	u32                  FirstTimeLock;
 	u8                   DEMOD;
 	u32                  symbol_rate;
+	u16		     matype;
 
 	u8                      LastViterbiRate;
 	enum fe_code_rate       PunctureRate;
@@ -161,11 +162,6 @@ struct stv0910_state {
 struct SInitTable {
 	u16  Address;
 	u8   Data;
-};
-
-struct SLookupSNTable {
-	s16  _snr;
-	u16  RefValue;
 };
 
 /* Max transfer size done by I2C transfer functions */
@@ -264,126 +260,6 @@ static int stv0910_write_field(struct stv0910_state *state, u32 label, u8 data)
 	return stv0910_write_reg(state, (label >> 16) & 0xffff, reg);
 }
 
-struct SLookupSNTable S1_SN_Lookup[] = {
-	{   0,    9242  },  /*C/N=  0dB*/
-	{  05,    9105  },  /*C/N=0.5dB*/
-	{  10,    8950  },  /*C/N=1.0dB*/
-	{  15,    8780  },  /*C/N=1.5dB*/
-	{  20,    8566  },  /*C/N=2.0dB*/
-	{  25,    8366  },  /*C/N=2.5dB*/
-	{  30,    8146  },  /*C/N=3.0dB*/
-	{  35,    7908  },  /*C/N=3.5dB*/
-	{  40,    7666  },  /*C/N=4.0dB*/
-	{  45,    7405  },  /*C/N=4.5dB*/
-	{  50,    7136  },  /*C/N=5.0dB*/
-	{  55,    6861  },  /*C/N=5.5dB*/
-	{  60,    6576  },  /*C/N=6.0dB*/
-	{  65,    6330  },  /*C/N=6.5dB*/
-	{  70,    6048  },  /*C/N=7.0dB*/
-	{  75,    5768  },  /*C/N=7.5dB*/
-	{  80,    5492  },  /*C/N=8.0dB*/
-	{  85,    5224  },  /*C/N=8.5dB*/
-	{  90,    4959  },  /*C/N=9.0dB*/
-	{  95,    4709  },  /*C/N=9.5dB*/
-	{  100,   4467  },  /*C/N=10.0dB*/
-	{  105,   4236  },  /*C/N=10.5dB*/
-	{  110,   4013  },  /*C/N=11.0dB*/
-	{  115,   3800  },  /*C/N=11.5dB*/
-	{  120,   3598  },  /*C/N=12.0dB*/
-	{  125,   3406  },  /*C/N=12.5dB*/
-	{  130,   3225  },  /*C/N=13.0dB*/
-	{  135,   3052  },  /*C/N=13.5dB*/
-	{  140,   2889  },  /*C/N=14.0dB*/
-	{  145,   2733  },  /*C/N=14.5dB*/
-	{  150,   2587  },  /*C/N=15.0dB*/
-	{  160,   2318  },  /*C/N=16.0dB*/
-	{  170,   2077  },  /*C/N=17.0dB*/
-	{  180,   1862  },  /*C/N=18.0dB*/
-	{  190,   1670  },  /*C/N=19.0dB*/
-	{  200,   1499  },  /*C/N=20.0dB*/
-	{  210,   1347  },  /*C/N=21.0dB*/
-	{  220,   1213  },  /*C/N=22.0dB*/
-	{  230,   1095  },  /*C/N=23.0dB*/
-	{  240,    992  },  /*C/N=24.0dB*/
-	{  250,    900  },  /*C/N=25.0dB*/
-	{  260,    826  },  /*C/N=26.0dB*/
-	{  270,    758  },  /*C/N=27.0dB*/
-	{  280,    702  },  /*C/N=28.0dB*/
-	{  290,    653  },  /*C/N=29.0dB*/
-	{  300,    613  },  /*C/N=30.0dB*/
-	{  310,    579  },  /*C/N=31.0dB*/
-	{  320,    550  },  /*C/N=32.0dB*/
-	{  330,    526  },  /*C/N=33.0dB*/
-	{  350,    490  },  /*C/N=33.0dB*/
-	{  400,    445  },  /*C/N=40.0dB*/
-	{  450,    430  },  /*C/N=45.0dB*/
-	{  500,    426  },  /*C/N=50.0dB*/
-	{  510,    425  }   /*C/N=51.0dB*/
-};
-
-struct SLookupSNTable S2_SN_Lookup[] = {
-	{  -30,  13950  },  /*C/N=-2.5dB*/
-	{  -25,  13580  },  /*C/N=-2.5dB*/
-	{  -20,  13150  },  /*C/N=-2.0dB*/
-	{  -15,  12760  },  /*C/N=-1.5dB*/
-	{  -10,  12345  },  /*C/N=-1.0dB*/
-	{  -05,  11900  },  /*C/N=-0.5dB*/
-	{    0,  11520  },  /*C/N=   0dB*/
-	{   05,  11080  },  /*C/N= 0.5dB*/
-	{   10,  10630  },  /*C/N= 1.0dB*/
-	{   15,  10210  },  /*C/N= 1.5dB*/
-	{   20,   9790  },  /*C/N= 2.0dB*/
-	{   25,   9390  },  /*C/N= 2.5dB*/
-	{   30,   8970  },  /*C/N= 3.0dB*/
-	{   35,   8575  },  /*C/N= 3.5dB*/
-	{   40,   8180  },  /*C/N= 4.0dB*/
-	{   45,   7800  },  /*C/N= 4.5dB*/
-	{   50,   7430  },  /*C/N= 5.0dB*/
-	{   55,   7080  },  /*C/N= 5.5dB*/
-	{   60,   6720  },  /*C/N= 6.0dB*/
-	{   65,   6320  },  /*C/N= 6.5dB*/
-	{   70,   6060  },  /*C/N= 7.0dB*/
-	{   75,   5760  },  /*C/N= 7.5dB*/
-	{   80,   5480  },  /*C/N= 8.0dB*/
-	{   85,   5200  },  /*C/N= 8.5dB*/
-	{   90,   4930  },  /*C/N= 9.0dB*/
-	{   95,   4680  },  /*C/N= 9.5dB*/
-	{  100,   4425  },  /*C/N=10.0dB*/
-	{  105,   4210  },  /*C/N=10.5dB*/
-	{  110,   3980  },  /*C/N=11.0dB*/
-	{  115,   3765  },  /*C/N=11.5dB*/
-	{  120,   3570  },  /*C/N=12.0dB*/
-	{  125,   3315  },  /*C/N=12.5dB*/
-	{  130,   3140  },  /*C/N=13.0dB*/
-	{  135,   2980  },  /*C/N=13.5dB*/
-	{  140,   2820  },  /*C/N=14.0dB*/
-	{  145,   2670  },  /*C/N=14.5dB*/
-	{  150,   2535  },  /*C/N=15.0dB*/
-	{  160,   2270  },  /*C/N=16.0dB*/
-	{  170,   2035  },  /*C/N=17.0dB*/
-	{  180,   1825  },  /*C/N=18.0dB*/
-	{  190,   1650  },  /*C/N=19.0dB*/
-	{  200,   1485  },  /*C/N=20.0dB*/
-	{  210,   1340  },  /*C/N=21.0dB*/
-	{  220,   1212  },  /*C/N=22.0dB*/
-	{  230,   1100  },  /*C/N=23.0dB*/
-	{  240,   1000  },  /*C/N=24.0dB*/
-	{  250,    910  },  /*C/N=25.0dB*/
-	{  260,    836  },  /*C/N=26.0dB*/
-	{  270,    772  },  /*C/N=27.0dB*/
-	{  280,    718  },  /*C/N=28.0dB*/
-	{  290,    671  },  /*C/N=29.0dB*/
-	{  300,    635  },  /*C/N=30.0dB*/
-	{  310,    602  },  /*C/N=31.0dB*/
-	{  320,    575  },  /*C/N=32.0dB*/
-	{  330,    550  },  /*C/N=33.0dB*/
-	{  350,    517  },  /*C/N=35.0dB*/
-	{  400,    480  },  /*C/N=40.0dB*/
-	{  450,    466  },  /*C/N=45.0dB*/
-	{  500,    464  },  /*C/N=50.0dB*/
-	{  510,    463  },  /*C/N=51.0dB*/
-};
-
 /*********************************************************************
 Tracking carrier loop carrier QPSK 1/4 to 8PSK 9/10 long Frame
 *********************************************************************/
@@ -453,6 +329,159 @@ static u8 S2CarLoop[] =	{
 	/* FE_32APSK_910 */
 	0x09,  0x09,  0x09,  0x09,  0x09,  0x09,  0x09,  0x09,  0x09,  0x09,
 };
+
+struct stv0910_table {
+	s16  ret;
+	u16  val;
+};
+
+struct stv0910_table stv0910_S1_SNR_lookup[] = {
+	{  510,    425  },   /*C/N=51.0dB*/
+	{  500,    426  },  /*C/N=50.0dB*/
+	{  450,    430  },  /*C/N=45.0dB*/
+	{  400,    445  },  /*C/N=40.0dB*/
+	{  350,    490  },  /*C/N=33.0dB*/
+	{  330,    526  },  /*C/N=33.0dB*/
+	{  320,    550  },  /*C/N=32.0dB*/
+	{  310,    579  },  /*C/N=31.0dB*/
+	{  300,    613  },  /*C/N=30.0dB*/
+	{  290,    653  },  /*C/N=29.0dB*/
+	{  280,    702  },  /*C/N=28.0dB*/
+	{  270,    758  },  /*C/N=27.0dB*/
+	{  260,    826  },  /*C/N=26.0dB*/
+	{  250,    900  },  /*C/N=25.0dB*/
+	{  240,    992  },  /*C/N=24.0dB*/
+	{  230,   1095  },  /*C/N=23.0dB*/
+	{  220,   1213  },  /*C/N=22.0dB*/
+	{  210,   1347  },  /*C/N=21.0dB*/
+	{  200,   1499  },  /*C/N=20.0dB*/
+	{  190,   1670  },  /*C/N=19.0dB*/
+	{  180,   1862  },  /*C/N=18.0dB*/
+	{  170,   2077  },  /*C/N=17.0dB*/
+	{  160,   2318  },  /*C/N=16.0dB*/
+	{  150,   2587  },  /*C/N=15.0dB*/
+	{  145,   2733  },  /*C/N=14.5dB*/
+	{  140,   2889  },  /*C/N=14.0dB*/
+	{  135,   3052  },  /*C/N=13.5dB*/
+	{  130,   3225  },  /*C/N=13.0dB*/
+	{  125,   3406  },  /*C/N=12.5dB*/
+	{  120,   3598  },  /*C/N=12.0dB*/
+	{  115,   3800  },  /*C/N=11.5dB*/
+	{  110,   4013  },  /*C/N=11.0dB*/
+	{  105,   4236  },  /*C/N=10.5dB*/
+	{  100,   4467  },  /*C/N=10.0dB*/
+	{  95,    4709  },  /*C/N=9.5dB*/
+	{  90,    4959  },  /*C/N=9.0dB*/
+	{  85,    5224  },  /*C/N=8.5dB*/
+	{  80,    5492  },  /*C/N=8.0dB*/
+	{  75,    5768  },  /*C/N=7.5dB*/
+	{  70,    6048  },  /*C/N=7.0dB*/
+	{  65,    6330  },  /*C/N=6.5dB*/
+	{  60,    6576  },  /*C/N=6.0dB*/
+	{  55,    6861  },  /*C/N=5.5dB*/
+	{  50,    7136  },  /*C/N=5.0dB*/
+	{  45,    7405  },  /*C/N=4.5dB*/
+	{  40,    7666  },  /*C/N=4.0dB*/
+	{  35,    7908  },  /*C/N=3.5dB*/
+	{  30,    8146  },  /*C/N=3.0dB*/
+	{  25,    8366  },  /*C/N=2.5dB*/
+	{  20,    8566  },  /*C/N=2.0dB*/
+	{  15,    8780  },  /*C/N=1.5dB*/
+	{  10,    8950  },  /*C/N=1.0dB*/
+	{  05,    9105  },  /*C/N=0.5dB*/
+	{   0,    9242  },  /*C/N=  0dB*/
+};
+
+struct stv0910_table stv0910_S2_SNR_lookup[] = {
+	{  510,    463  },  /*C/N=51.0dB*/
+	{  500,    464  },  /*C/N=50.0dB*/
+	{  450,    466  },  /*C/N=45.0dB*/
+	{  400,    480  },  /*C/N=40.0dB*/
+	{  350,    517  },  /*C/N=35.0dB*/
+	{  330,    550  },  /*C/N=33.0dB*/
+	{  320,    575  },  /*C/N=32.0dB*/
+	{  310,    602  },  /*C/N=31.0dB*/
+	{  300,    635  },  /*C/N=30.0dB*/
+	{  290,    671  },  /*C/N=29.0dB*/
+	{  280,    718  },  /*C/N=28.0dB*/
+	{  270,    772  },  /*C/N=27.0dB*/
+	{  260,    836  },  /*C/N=26.0dB*/
+	{  250,    910  },  /*C/N=25.0dB*/
+	{  240,   1000  },  /*C/N=24.0dB*/
+	{  230,   1100  },  /*C/N=23.0dB*/
+	{  220,   1212  },  /*C/N=22.0dB*/
+	{  210,   1340  },  /*C/N=21.0dB*/
+	{  200,   1485  },  /*C/N=20.0dB*/
+	{  190,   1650  },  /*C/N=19.0dB*/
+	{  180,   1825  },  /*C/N=18.0dB*/
+	{  170,   2035  },  /*C/N=17.0dB*/
+	{  160,   2270  },  /*C/N=16.0dB*/
+	{  150,   2535  },  /*C/N=15.0dB*/
+	{  145,   2670  },  /*C/N=14.5dB*/
+	{  140,   2820  },  /*C/N=14.0dB*/
+	{  135,   2980  },  /*C/N=13.5dB*/
+	{  130,   3140  },  /*C/N=13.0dB*/
+	{  125,   3315  },  /*C/N=12.5dB*/
+	{  120,   3570  },  /*C/N=12.0dB*/
+	{  115,   3765  },  /*C/N=11.5dB*/
+	{  110,   3980  },  /*C/N=11.0dB*/
+	{  105,   4210  },  /*C/N=10.5dB*/
+	{  100,   4425  },  /*C/N=10.0dB*/
+	{   95,   4680  },  /*C/N= 9.5dB*/
+	{   90,   4930  },  /*C/N= 9.0dB*/
+	{   85,   5200  },  /*C/N= 8.5dB*/
+	{   80,   5480  },  /*C/N= 8.0dB*/
+	{   75,   5760  },  /*C/N= 7.5dB*/
+	{   70,   6060  },  /*C/N= 7.0dB*/
+	{   65,   6320  },  /*C/N= 6.5dB*/
+	{   60,   6720  },  /*C/N= 6.0dB*/
+	{   55,   7080  },  /*C/N= 5.5dB*/
+	{   50,   7430  },  /*C/N= 5.0dB*/
+	{   45,   7800  },  /*C/N= 4.5dB*/
+	{   40,   8180  },  /*C/N= 4.0dB*/
+	{   35,   8575  },  /*C/N= 3.5dB*/
+	{   30,   8970  },  /*C/N= 3.0dB*/
+	{   25,   9390  },  /*C/N= 2.5dB*/
+	{   20,   9790  },  /*C/N= 2.0dB*/
+	{   15,  10210  },  /*C/N= 1.5dB*/
+	{   10,  10630  },  /*C/N= 1.0dB*/
+	{   05,  11080  },  /*C/N= 0.5dB*/
+	{    0,  11520  },  /*C/N=   0dB*/
+	{  -05,  11900  },  /*C/N=-0.5dB*/
+	{  -10,  12345  },  /*C/N=-1.0dB*/
+	{  -15,  12760  },  /*C/N=-1.5dB*/
+	{  -20,  13150  },  /*C/N=-2.0dB*/
+	{  -25,  13580  },  /*C/N=-2.5dB*/
+	{  -30,  13950  },  /*C/N=-3.0dB*/
+};
+
+static s16 stv0910_lookup(const struct stv0910_table *table, u8 max, u32 value)
+{
+	u8 min = 0;
+	u8 i   = 0;
+	u16 diff_val;
+	s16 diff_ret;
+	u16 correction;
+
+	if (value <= table[min].val) {
+		return table[min].ret;
+	}
+	if (value >= table[max].val) {
+		return table[max].ret;
+	}
+
+	while (value >= table[i].val) {
+		i++;
+	}
+	min = i - 1;
+	max = i;
+
+	diff_val = table[max].val - table[min].val;
+	correction = ((value - table[min].val)* 100) / diff_val;
+	diff_ret = table[max].ret - table[min].ret;
+
+	return ((diff_ret * correction) / 100) + table[min].ret;
+}
 
 static u8 stv0910_get_optim_cloop(struct stv0910_state *state,
 			  enum FE_STV0910_modcod modcod, u32 pilot)
@@ -649,14 +678,15 @@ static int stv0910_get_signal_parameters(struct stv0910_state *state)
 	state->pilot       = STV0910_READ_FIELD(state, DEMOD_TYPE) & 0x01;
 	state->frame_len   = (STV0910_READ_FIELD(state, DEMOD_TYPE) & 0x02) >> 1;
 	state->rolloff     = STV0910_READ_FIELD(state, ROLLOFF_STATUS);
+	state->matype      = (STV0910_READ_FIELD(state, MATYPE_CURRENT1) << 8) | STV0910_READ_FIELD(state, MATYPE_CURRENT0);
 
 	switch (STV0910_READ_FIELD(state, HEADER_MODE)) {
-	case 2:
+	case FE_DVB_S2:
 		state->ReceiveMode = Mode_DVBS2;
 		p->delivery_system = SYS_DVBS2;
 		p->fec_inner       = FE_STV0910_fec_dvbs2[state->modcod];
 		break;
-	case 3:
+	case FE_DVB_S:
 		state->ReceiveMode = Mode_DVBS;
 		if (STV0910_READ_FIELD(state, DSS_DVB)) {
 			p->delivery_system = SYS_DSS;
@@ -675,6 +705,7 @@ static int stv0910_get_signal_parameters(struct stv0910_state *state)
 	p->pilot       = state->pilot;
 	p->inversion   = STV0910_READ_FIELD(state, IQINV);
 	p->symbol_rate = state->symbol_rate;
+	p->matype      = state->matype;
 
 	return 0;
 }
@@ -753,7 +784,7 @@ static int stv0910_get_snr(struct stv0910_state *state, s32 *_snr)
 	u8 Data1;
 	u16 Data;
 	int nLookup;
-	struct SLookupSNTable *Lookup;
+	struct stv0910_table *Lookup;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	*_snr = 0;
@@ -764,30 +795,30 @@ static int stv0910_get_snr(struct stv0910_state *state, s32 *_snr)
 	if (state->ReceiveMode == Mode_DVBS2) {
 		Data1 = STV0910_READ_REG(state, NNOSPLHT1);
 		Data0 = STV0910_READ_REG(state, NNOSPLHT0);
-		nLookup = ARRAY_SIZE(S2_SN_Lookup);
-		Lookup = S2_SN_Lookup;
+		nLookup = ARRAY_SIZE(stv0910_S2_SNR_lookup);
+		Lookup = stv0910_S2_SNR_lookup;
 	} else {
 		Data1 = STV0910_READ_REG(state, NNOSDATAT1);
 		Data0 = STV0910_READ_REG(state, NNOSDATAT0);
-		nLookup = ARRAY_SIZE(S1_SN_Lookup);
-		Lookup = S1_SN_Lookup;
+		nLookup = ARRAY_SIZE(stv0910_S1_SNR_lookup);
+		Lookup = stv0910_S1_SNR_lookup;
 	}
 	Data = (((u16)Data1) << 8) | (u16) Data0;
-	if (Data > Lookup[0].RefValue) {
-		*_snr = Lookup[0]._snr;
-	} else if (Data <= Lookup[nLookup-1].RefValue) {
-		*_snr = Lookup[nLookup-1]._snr;
+	if (Data > Lookup[0].val) {
+		*_snr = Lookup[0].ret;
+	} else if (Data <= Lookup[nLookup-1].val) {
+		*_snr = Lookup[nLookup-1].ret;
 	} else {
 		for (i = 0; i < nLookup - 1; i += 1) {
-			if (Data <= Lookup[i].RefValue &&
-			    Data > Lookup[i+1].RefValue) {
+			if (Data <= Lookup[i].val &&
+			    Data > Lookup[i+1].val) {
 				*_snr =
-					(s32)(Lookup[i]._snr) +
-					((s32)(Data - Lookup[i].RefValue) *
-					 (s32)(Lookup[i+1]._snr -
-					       Lookup[i]._snr)) /
-					((s32)(Lookup[i+1].RefValue) -
-					  (s32)(Lookup[i].RefValue));
+					(s32)(Lookup[i].ret) +
+					((s32)(Data - Lookup[i].val) *
+					 (s32)(Lookup[i+1].ret -
+					       Lookup[i].ret)) /
+					((s32)(Lookup[i+1].val) -
+					  (s32)(Lookup[i].val));
 				break;
 			}
 		}
@@ -1240,9 +1271,36 @@ static int stv0910_set_parameters(struct dvb_frontend *fe)
 	return stat;
 }
 
-static int stv0910_get_stats(struct dvb_frontend *fe, enum fe_status stat)
+static int stv0910_get_stats(struct dvb_frontend *fe)
 {
+	struct stv0910_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	u8 i;
+	u32 value = 0;
+	printk("%s: demod: %d \n", __func__, state->nr);
 
+	switch (STV0910_READ_FIELD(state, HEADER_MODE)) {
+	case FE_DVB_S2:
+		for (i = 0; i < 10; i++) {
+			value += MAKEWORD16(STV0910_READ_FIELD(state, NOSPLHT_NORMED1), STV0910_READ_FIELD(state, NOSPLHT_NORMED0));
+		}
+		value /= 10;
+		p->cnr.stat[0].svalue = stv0910_lookup(stv0910_S2_SNR_lookup, ARRAY_SIZE(stv0910_S2_SNR_lookup) - 1, value) * 1000;
+		p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+		break;
+	case FE_DVB_S:
+		for (i = 0; i < 10; i++) {
+			value += MAKEWORD16(STV0910_READ_FIELD(state, NOSDATAT_NORMED1), STV0910_READ_FIELD(state, NOSDATAT_NORMED0));
+		}
+		value /= 10;
+		p->cnr.stat[0].svalue = stv0910_lookup(stv0910_S1_SNR_lookup, ARRAY_SIZE(stv0910_S1_SNR_lookup) - 1, value) * 1000;
+		p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
 }
 
 static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
@@ -1290,6 +1348,8 @@ static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	default:
 		break;
 	}
+
+	stv0910_get_stats(fe);
 
 	return 0;
 }

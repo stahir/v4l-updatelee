@@ -24,6 +24,8 @@ enum stv0910_algo {
 	STV0910_NOTUNE
 };
 
+#define MAKEWORD16(__a, __b)			(((__a) << 8) | (__b))
+
 #if defined(CONFIG_DVB_STV0910) || \
 	(defined(CONFIG_DVB_STV0910_MODULE) && defined(MODULE))
 
