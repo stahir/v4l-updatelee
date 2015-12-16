@@ -777,175 +777,6 @@ static int stv0910_tracking_optimization(struct stv0910_state *state)
 	return 0;
 }
 
-static int stv0910_get_snr(struct stv0910_state *state, s32 *_snr)
-{
-	int i;
-	u8 Data0;
-	u8 Data1;
-	u16 Data;
-	int nLookup;
-	struct stv0910_table *Lookup;
-	printk("%s: demod: %d \n", __func__, state->nr);
-
-	*_snr = 0;
-
-	if (!state->Started)
-		return 0;
-
-	if (state->ReceiveMode == Mode_DVBS2) {
-		Data1 = STV0910_READ_REG(state, NNOSPLHT1);
-		Data0 = STV0910_READ_REG(state, NNOSPLHT0);
-		nLookup = ARRAY_SIZE(stv0910_S2_SNR_lookup);
-		Lookup = stv0910_S2_SNR_lookup;
-	} else {
-		Data1 = STV0910_READ_REG(state, NNOSDATAT1);
-		Data0 = STV0910_READ_REG(state, NNOSDATAT0);
-		nLookup = ARRAY_SIZE(stv0910_S1_SNR_lookup);
-		Lookup = stv0910_S1_SNR_lookup;
-	}
-	Data = (((u16)Data1) << 8) | (u16) Data0;
-	if (Data > Lookup[0].val) {
-		*_snr = Lookup[0].ret;
-	} else if (Data <= Lookup[nLookup-1].val) {
-		*_snr = Lookup[nLookup-1].ret;
-	} else {
-		for (i = 0; i < nLookup - 1; i += 1) {
-			if (Data <= Lookup[i].val &&
-			    Data > Lookup[i+1].val) {
-				*_snr =
-					(s32)(Lookup[i].ret) +
-					((s32)(Data - Lookup[i].val) *
-					 (s32)(Lookup[i+1].ret -
-					       Lookup[i].ret)) /
-					((s32)(Lookup[i+1].val) -
-					  (s32)(Lookup[i].val));
-				break;
-			}
-		}
-	}
-	return 0;
-}
-
-static int stv0910_get_ber_S(struct stv0910_state *state, u32 *BERNumerator,
-			    u32 *BERDenominator)
-{
-	u8 Regs[3];
-	int status;
-	printk("%s: demod: %d \n", __func__, state->nr);
-
-	status = STV0910_READ_REGS(state, ERRCNT12, Regs, 3);
-
-	if (status)
-		return -1;
-
-	if ((Regs[0] & 0x80) == 0) {
-		state->LastBERDenominator = 1 << ((state->BERScale * 2) +
-						  10 + 3);
-		state->LastBERNumerator = ((u32) (Regs[0] & 0x7F) << 16) |
-			((u32) Regs[1] << 8) | Regs[2];
-		if (state->LastBERNumerator < 256 && state->BERScale < 6) {
-			state->BERScale += 1;
-			status = STV0910_WRITE_REG(state, ERRCTRL1, 0x20 | state->BERScale);
-		} else if (state->LastBERNumerator > 1024 &&
-			   state->BERScale > 2) {
-			state->BERScale -= 1;
-			status = STV0910_WRITE_REG(state, ERRCTRL1, 0x20 | state->BERScale);
-		}
-	}
-	*BERNumerator = state->LastBERNumerator;
-	*BERDenominator = state->LastBERDenominator;
-	return 0;
-}
-
-static u32 DVBS2_nBCH(enum DVBS2_modcod modcod, u8 frame_len)
-{
-	static u32 nBCH[][2] = {
-		{16200,  3240}, /* QPSK_1_4, */
-		{21600,  5400}, /* QPSK_1_3, */
-		{25920,  6480}, /* QPSK_2_5, */
-		{32400,  7200}, /* QPSK_1_2, */
-		{38880,  9720}, /* QPSK_3_5, */
-		{43200, 10800}, /* QPSK_2_3, */
-		{48600, 11880}, /* QPSK_3_4, */
-		{51840, 12600}, /* QPSK_4_5, */
-		{54000, 13320}, /* QPSK_5_6, */
-		{57600, 14400}, /* QPSK_8_9, */
-		{58320, 16000}, /* QPSK_9_10, */
-		{43200,  9720}, /* 8PSK_3_5, */
-		{48600, 10800}, /* 8PSK_2_3, */
-		{51840, 11880}, /* 8PSK_3_4, */
-		{54000, 13320}, /* 8PSK_5_6, */
-		{57600, 14400}, /* 8PSK_8_9, */
-		{58320, 16000}, /* 8PSK_9_10, */
-		{43200, 10800}, /* 16APSK_2_3, */
-		{48600, 11880}, /* 16APSK_3_4, */
-		{51840, 12600}, /* 16APSK_4_5, */
-		{54000, 13320}, /* 16APSK_5_6, */
-		{57600, 14400}, /* 16APSK_8_9, */
-		{58320, 16000}, /* 16APSK_9_10 */
-		{48600, 11880}, /* 32APSK_3_4, */
-		{51840, 12600}, /* 32APSK_4_5, */
-		{54000, 13320}, /* 32APSK_5_6, */
-		{57600, 14400}, /* 32APSK_8_9, */
-		{58320, 16000}, /* 32APSK_9_10 */
-	};
-
-	if (modcod >= DVBS2_QPSK_1_4 && modcod <= DVBS2_32APSK_9_10 && frame_len == FE_SHORTFRAME )
-		return nBCH[frame_len][modcod];
-	return 64800;
-}
-
-static int stv0910_get_ber_S2(struct stv0910_state *state, u32 *BERNumerator,
-			     u32 *BERDenominator)
-{
-	u8 Regs[3];
-	int status;
-	printk("%s: demod: %d \n", __func__, state->nr);
-
-	status = STV0910_READ_REGS(state, ERRCNT12, Regs, 3);
-
-	if (status)
-		return -1;
-
-	if ((Regs[0] & 0x80) == 0) {
-		state->LastBERDenominator =
-			DVBS2_nBCH((enum DVBS2_modcod) state->modcod, state->frame_len) << (state->BERScale * 2);
-		state->LastBERNumerator = (((u32) Regs[0] & 0x7F) << 16) |
-			((u32) Regs[1] << 8) | Regs[2];
-		if (state->LastBERNumerator < 256 && state->BERScale < 6) {
-			state->BERScale += 1;
-			STV0910_WRITE_REG(state, ERRCTRL1, 0x20 | state->BERScale);
-		} else if (state->LastBERNumerator > 1024 &&
-			   state->BERScale > 2) {
-			state->BERScale -= 1;
-			STV0910_WRITE_REG(state, ERRCTRL1, 0x20 | state->BERScale);
-		}
-	}
-	*BERNumerator = state->LastBERNumerator;
-	*BERDenominator = state->LastBERDenominator;
-	return status;
-}
-
-static int stv0910_get_ber(struct stv0910_state *state, u32 *BERNumerator,
-			   u32 *BERDenominator)
-{
-	printk("%s: demod: %d \n", __func__, state->nr);
-
-	*BERNumerator = 0;
-	*BERDenominator = 1;
-
-	switch (state->ReceiveMode) {
-	case Mode_DVBS:
-		return stv0910_get_ber_S(state, BERNumerator, BERDenominator);
-		break;
-	case Mode_DVBS2:
-		return stv0910_get_ber_S2(state, BERNumerator, BERDenominator);
-	default:
-		break;
-	}
-	return 0;
-}
-
 static int stv0910_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
@@ -1500,27 +1331,16 @@ static int stv0910_sleep(struct dvb_frontend *fe)
 static int stv0910_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
-	s32 SNR;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
-	*snr = 0;
-	if (stv0910_get_snr(state, &SNR))
-		return -EIO;
-	*snr = SNR;
 	return 0;
 }
 
 static int stv0910_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
-	u32 n, d;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
-	stv0910_get_ber(state, &n, &d);
-	if (d) 
-		*ber = n / d;
-	else
-		*ber = 0;
 	return 0;
 }
 
