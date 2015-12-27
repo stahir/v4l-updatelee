@@ -1903,7 +1903,7 @@ static u32 stv090x_srate_srch_fine(struct stv090x_state *state)
 				goto err;
 			if (STV090x_WRITE_DEMOD(state, SFRUP0, sym & 0xff) < 0)
 				goto err;
-			sym  = 10 * (srate_coarse / 14); /* SFRLOW = SFR - 30% */
+			sym  = 10 * (srate_coarse / 13); /* SFRLOW = SFR - 30% */
 			sym  = (sym / 100) * 65536;
 			sym /= (state->internal->mclk / 100);
 			if (STV090x_WRITE_DEMOD(state, SFRLOW1, (sym >> 8) & 0x7f) < 0)
