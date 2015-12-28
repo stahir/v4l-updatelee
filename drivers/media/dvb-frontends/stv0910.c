@@ -1126,10 +1126,43 @@ static int stv0910_read_snr(struct dvb_frontend *fe, u16 *snr)
 	return 0;
 }
 
+static u32 stv0910_read_tbe(struct dvb_frontend *fe)
+{
+	struct stv0910_state *state = fe->demodulator_priv;
+	u32 ber;
+
+	ber  = (STV0910_READ_REG(state, ERRCNT12) & 0x7f) << 16;
+	ber |= (STV0910_READ_REG(state, ERRCNT11) & 0xff) << 8;
+	ber |= (STV0910_READ_REG(state, ERRCNT10) & 0xff);
+
+	return ber;
+}
+
 static int stv0910_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
 	printk("%s: demod: %d \n", __func__, state->nr);
+
+	*ber = stv0910_read_tbe(fe);
+	return 0;
+}
+
+static int stv0910_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
+{
+	struct stv0910_state *state = fe->demodulator_priv;
+	printk("%s: demod: %d \n", __func__, state->nr);
+
+	*ucblocks = 0;
+	switch (STV0910_READ_FIELD(state, HEADER_MODE)) {
+	case FE_DVB_S2:
+		*ucblocks += MAKEWORD16(STV0910_READ_REG(state, BBFCRCKO1), STV0910_READ_REG(state, BBFCRCKO0));
+		*ucblocks += MAKEWORD16(STV0910_READ_REG(state, UPCRCKO1), STV0910_READ_REG(state, UPCRCKO0));
+		STV0910_WRITE_FIELD(state, RESET_UPKO_COUNT, 1);
+		STV0910_WRITE_FIELD(state, RESET_UPKO_COUNT, 0);
+		break;
+	case FE_DVB_S:
+		break;
+	}
 
 	return 0;
 }
@@ -1157,14 +1190,6 @@ static int stv0910_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 	return 0;
 }
 
-static int stv0910_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
-{
-	struct stv0910_state *state = fe->demodulator_priv;
-	printk("%s: demod: %d \n", __func__, state->nr);
-
-	return 0;
-}
-
 static int stv0910_get_stats(struct dvb_frontend *fe)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
@@ -1172,6 +1197,7 @@ static int stv0910_get_stats(struct dvb_frontend *fe)
 	u8 i;
 	u32 value = 0;
 	s16 dbm = 0;
+	u32 ber = 0;
 
 	printk("%s: demod: %d \n", __func__, state->nr);
 
@@ -1198,6 +1224,11 @@ static int stv0910_get_stats(struct dvb_frontend *fe)
 	p->strength.stat[0].scale  = FE_SCALE_DECIBEL;
 	stv0910_read_dbm(fe, &dbm);
 	p->strength.stat[0].svalue = dbm * 100;
+	p->block_error.stat[0].scale = FE_SCALE_COUNTER;
+	stv0910_read_ucblocks(fe, &ber);
+	p->block_error.stat[0].uvalue = ber;
+	p->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+	p->post_bit_error.stat[0].uvalue = stv0910_read_tbe(fe);
 
 	return 0;
 }
