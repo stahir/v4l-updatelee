@@ -313,7 +313,7 @@ struct stv0910_table {
 };
 
 struct stv0910_table stv0910_S1_SNR_lookup[] = {
-	{  510,    425  },   /*C/N=51.0dB*/
+	{  510,    425  },  /*C/N=51.0dB*/
 	{  500,    426  },  /*C/N=50.0dB*/
 	{  450,    430  },  /*C/N=45.0dB*/
 	{  400,    445  },  /*C/N=40.0dB*/
@@ -430,6 +430,41 @@ struct stv0910_table stv0910_S2_SNR_lookup[] = {
 	{  -20,  13150  },  /*C/N=-2.0dB*/
 	{  -25,  13580  },  /*C/N=-2.5dB*/
 	{  -30,  13950  },  /*C/N=-3.0dB*/
+};
+
+/* RF level C/N lookup table */
+struct stv0910_table stv0910_dbm_lookup[] = {
+	{ -70, 0x07aa }, /* -70dBm */
+	{ -65, 0x114f }, /* -65dBm */
+	{ -60, 0x210d }, /* -60dBm */
+	{ -55, 0x2d11 }, /* -55dBm */
+	{ -50, 0x3a14 }, /* -50dBm */
+	{ -45, 0x59be }, /* -45dBm */
+	{ -40, 0x8389 }, /* -40dBm */
+	{ -35, 0x98a8 }, /* -35dBm */
+	{ -30, 0xa298 }, /* -30dBm */
+	{ -25, 0xad5a }, /* -25dBm */
+	{ -20, 0xb4bc }, /* -20dBm */
+	{ -15, 0xbb08 }, /* -15dBm */
+	{ -10, 0xc229 }, /* -10dBm */
+	{  -5, 0xcaa1 }, /*  -5dBm */
+};
+
+struct stv0910_table stv0910_dbm_lookup_x100[] = {
+	{ -7000, 0x07aa }, /* -70dBm */
+	{ -6500, 0x114f }, /* -65dBm */
+	{ -6000, 0x210d }, /* -60dBm */
+	{ -5500, 0x2d11 }, /* -55dBm */
+	{ -5000, 0x3a14 }, /* -50dBm */
+	{ -4500, 0x59be }, /* -45dBm */
+	{ -4000, 0x8389 }, /* -40dBm */
+	{ -3500, 0x98a8 }, /* -35dBm */
+	{ -3000, 0xa298 }, /* -30dBm */
+	{ -2500, 0xad5a }, /* -25dBm */
+	{ -2000, 0xb4bc }, /* -20dBm */
+	{ -1500, 0xbb08 }, /* -15dBm */
+	{ -1000, 0xc229 }, /* -10dBm */
+	{  -500, 0xcaa1 }, /*  -5dBm */
 };
 
 static s16 stv0910_lookup(const struct stv0910_table *table, u8 max, u32 value)
@@ -952,89 +987,6 @@ static int stv0910_set_parameters(struct dvb_frontend *fe)
 	return stv0910_start(state, p);
 }
 
-static int stv0910_get_stats(struct dvb_frontend *fe)
-{
-	struct stv0910_state *state = fe->demodulator_priv;
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
-	u8 i;
-	u32 value = 0;
-	printk("%s: demod: %d \n", __func__, state->nr);
-
-	switch (STV0910_READ_FIELD(state, HEADER_MODE)) {
-	case FE_DVB_S2:
-		for (i = 0; i < 10; i++) {
-			value += MAKEWORD16(STV0910_READ_FIELD(state, NOSPLHT_NORMED1), STV0910_READ_FIELD(state, NOSPLHT_NORMED0));
-		}
-		value /= 10;
-		p->cnr.stat[0].svalue = stv0910_lookup(stv0910_S2_SNR_lookup, ARRAY_SIZE(stv0910_S2_SNR_lookup) - 1, value) * 1000;
-		p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
-		break;
-	case FE_DVB_S:
-		for (i = 0; i < 10; i++) {
-			value += MAKEWORD16(STV0910_READ_FIELD(state, NOSDATAT_NORMED1), STV0910_READ_FIELD(state, NOSDATAT_NORMED0));
-		}
-		value /= 10;
-		p->cnr.stat[0].svalue = stv0910_lookup(stv0910_S1_SNR_lookup, ARRAY_SIZE(stv0910_S1_SNR_lookup) - 1, value) * 1000;
-		p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
-static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
-{
-	struct stv0910_state *state = fe->demodulator_priv;
-	printk("%s: demod: %d \n", __func__, state->nr);
-
-	if (state->algo == STV0910_NOTUNE) {
-		*status = FE_TIMEDOUT;
-		return 0;
-	}
-
-	*status = 0;
-
-	if (STV0910_READ_FIELD(state, CAR_LOCK)) {
-		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER;
-	}
-
-	switch (STV0910_READ_FIELD(state, HEADER_MODE)) {
-	case FE_DVB_S:
-		if (STV0910_READ_FIELD(state, LOCK_DEFINITIF)) {
-			if (STV0910_READ_FIELD(state, LOCKEDVIT)) {
-				*status |= FE_HAS_VITERBI;
-				if (STV0910_READ_FIELD(state, TSFIFO_LINEOK)) {
-					*status |= FE_HAS_SYNC | FE_HAS_LOCK;
-				}
-
-			}
-		}
-		stv0910_get_signal_parameters(state);
-		break;
-	case FE_DVB_S2:
-		if (STV0910_READ_FIELD(state, LOCK_DEFINITIF)) {
-			if (STV0910_READ_FIELD(state, PKTDELIN_LOCK)) {
-				*status |= FE_HAS_VITERBI;
-				if (STV0910_READ_FIELD(state, TSFIFO_LINEOK)) {
-					*status |= FE_HAS_SYNC | FE_HAS_LOCK;
-				}
-
-			}
-
-		}
-		stv0910_get_signal_parameters(state);
-		break;
-	default:
-		break;
-	}
-
-	stv0910_get_stats(fe);
-
-	return 0;
-}
-
 static int stv0910_get_frontend_algo(struct dvb_frontend *fe)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
@@ -1199,34 +1151,29 @@ static int stv0910_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
-static int stv0910_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
+static s32 stv0910_read_dbm(struct dvb_frontend *fe)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
-	u8 Agc1, Agc0;
-	printk("%s: demod: %d \n", __func__, state->nr);
+	u16 agc;
 
-	Agc1 = STV0910_READ_REG(state, AGCIQIN1);
-	Agc0 = STV0910_READ_REG(state, AGCIQIN0);
+	agc = MAKEWORD16(STV0910_READ_REG(state, AGCIQIN1), STV0910_READ_REG(state, AGCIQIN0));
+	return stv0910_lookup(stv0910_dbm_lookup, ARRAY_SIZE(stv0910_dbm_lookup) - 1, agc);
+}
 
-	*strength = ((255 - Agc1) * 3300) / 256;
+static int stv0910_read_dbm_spectrumscan(struct dvb_frontend *fe, s16 *strength)
+{
+	struct stv0910_state *state = fe->demodulator_priv;
+	u16 agc;
+
+	agc = MAKEWORD16(STV0910_READ_REG(state, AGCIQIN1), STV0910_READ_REG(state, AGCIQIN0));
+	*strength = stv0910_lookup(stv0910_dbm_lookup_x100, ARRAY_SIZE(stv0910_dbm_lookup_x100) - 1, agc);
+
 	return 0;
 }
 
-static int stv0910_read_signal_strength2(struct dvb_frontend *fe, s16 *strength)
+static int stv0910_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
-	struct stv0910_state *state = fe->demodulator_priv;
-	u8 Agc1, Agc0;
-	s16 agc_gain;
-	printk("%s: demod: %d \n", __func__, state->nr);
-
-	Agc1 = STV0910_READ_REG(state, AGCIQIN1);
-	Agc0 = STV0910_READ_REG(state, AGCIQIN0);
-
-	agc_gain = ((Agc1 << 8) | Agc0) >> 1;
-
-	printk("%s: agc: %02x %02x %04x %d\n", __func__, Agc1, Agc0, agc_gain, agc_gain);
-
-	*strength = agc_gain;
+	*strength = (stv0910_read_dbm(fe) + 100) * 0xFFFF / 100;
 	return 0;
 }
 
@@ -1238,26 +1185,111 @@ static int stv0910_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
+static int stv0910_get_stats(struct dvb_frontend *fe)
+{
+	struct stv0910_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	u8 i;
+	u32 value = 0;
+	printk("%s: demod: %d \n", __func__, state->nr);
+
+	switch (STV0910_READ_FIELD(state, HEADER_MODE)) {
+	case FE_DVB_S2:
+		for (i = 0; i < 10; i++) {
+			value += MAKEWORD16(STV0910_READ_FIELD(state, NOSPLHT_NORMED1), STV0910_READ_FIELD(state, NOSPLHT_NORMED0));
+		}
+		value /= 10;
+		p->cnr.stat[0].svalue = stv0910_lookup(stv0910_S2_SNR_lookup, ARRAY_SIZE(stv0910_S2_SNR_lookup) - 1, value) * 1000;
+		p->cnr.stat[0].scale  = FE_SCALE_DECIBEL;
+		break;
+	case FE_DVB_S:
+		for (i = 0; i < 10; i++) {
+			value += MAKEWORD16(STV0910_READ_FIELD(state, NOSDATAT_NORMED1), STV0910_READ_FIELD(state, NOSDATAT_NORMED0));
+		}
+		value /= 10;
+		p->cnr.stat[0].svalue = stv0910_lookup(stv0910_S1_SNR_lookup, ARRAY_SIZE(stv0910_S1_SNR_lookup) - 1, value) * 1000;
+		p->cnr.stat[0].scale  = FE_SCALE_DECIBEL;
+		break;
+	default:
+		break;
+	}
+	p->strength.stat[0].scale  = FE_SCALE_DECIBEL;
+	p->strength.stat[0].svalue = stv0910_read_dbm(fe) * 10000;
+
+	return 0;
+}
+
+static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
+{
+	struct stv0910_state *state = fe->demodulator_priv;
+	printk("%s: demod: %d \n", __func__, state->nr);
+
+	if (state->algo == STV0910_NOTUNE) {
+		*status = FE_TIMEDOUT;
+		return 0;
+	}
+
+	*status = 0;
+
+	if (STV0910_READ_FIELD(state, CAR_LOCK)) {
+		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER;
+	}
+
+	switch (STV0910_READ_FIELD(state, HEADER_MODE)) {
+	case FE_DVB_S:
+		if (STV0910_READ_FIELD(state, LOCK_DEFINITIF)) {
+			if (STV0910_READ_FIELD(state, LOCKEDVIT)) {
+				*status |= FE_HAS_VITERBI;
+				if (STV0910_READ_FIELD(state, TSFIFO_LINEOK)) {
+					*status |= FE_HAS_SYNC | FE_HAS_LOCK;
+				}
+
+			}
+		}
+		stv0910_get_signal_parameters(state);
+		break;
+	case FE_DVB_S2:
+		if (STV0910_READ_FIELD(state, LOCK_DEFINITIF)) {
+			if (STV0910_READ_FIELD(state, PKTDELIN_LOCK)) {
+				*status |= FE_HAS_VITERBI;
+				if (STV0910_READ_FIELD(state, TSFIFO_LINEOK)) {
+					*status |= FE_HAS_SYNC | FE_HAS_LOCK;
+				}
+
+			}
+
+		}
+		stv0910_get_signal_parameters(state);
+		break;
+	default:
+		break;
+	}
+
+	stv0910_get_stats(fe);
+
+	return 0;
+}
+
 static int stv0910_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spectrum_scan *s)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
 	const struct stv0910_cfg *config = state->config;
 	u32 x;
-	u32 bw = 2000000;
 
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	state->algo = STV0910_NOTUNE;
 
-	STV0910_WRITE_REG(state, DMDISTATE, 0x1C); // Demod Stop
+	STV0910_WRITE_REG(state, AGC2O, 0x5B);
 	STV0910_WRITE_REG(state, AGC2REF, 0x38);
+	STV0910_WRITE_REG(state, DMDISTATE, 0x5C); // Demod Stop
 
 	stv0910_i2c_gate_ctrl(fe, 1);
-	config->tuner_set_bandwidth(fe, bw);
+	config->tuner_set_bandwidth(fe, 1000000);
 
 	*s->type = SC_DBM;
 
-	STV0910_WRITE_REG(state, DMDISTATE, 0x1C);
+	STV0910_WRITE_REG(state, DMDISTATE, 0x5C);
 	for (x = 0 ; x < s->num_freq ; x++)
 	{
 		STV0910_WRITE_REG(state, DMDISTATE, 0x1C);
@@ -1266,7 +1298,7 @@ static int stv0910_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 
 		msleep(10);
 
-		stv0910_read_signal_strength2(fe, (s->rf_level + x));
+		stv0910_read_dbm_spectrumscan(fe, (s->rf_level + x));
 	}
 
 	stv0910_i2c_gate_ctrl(fe, 0);
