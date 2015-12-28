@@ -1275,7 +1275,7 @@ static int stv0910_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 
 		config->tuner_set_frequency(fe, *(s->freq + x));
 
-		msleep(20);
+		msleep(10);
 
 		stv0910_read_dbm(fe, (s->rf_level + x));
 	}

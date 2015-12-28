@@ -236,7 +236,7 @@ static int stv6120_set_cutoff(struct dvb_frontend *fe, u32 frequency)
 
 	STV6120_WRITE_FIELD(state, CFHF, cfhf);
 
-	printk(KERN_INFO "%s: tuner: %d, freq: %d CFHF: %d \n", __func__, state->tuner, frequency, cfhf);
+//	printk(KERN_INFO "%s: tuner: %d, freq: %d CFHF: %d \n", __func__, state->tuner, frequency, cfhf);
 
 	return 0;
 }
@@ -247,7 +247,7 @@ static int stv6120_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	const struct stv6120_config *config = state->config;
 
 	u32 Fxtl, Fvco, FRdiv, N, F;
-	u8  P, PDiv, R, ICP;
+	u8  P, PDiv, R, ICP, i;
 
 	frequency /= 1000;
 
@@ -303,8 +303,8 @@ static int stv6120_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	N     = Fvco / FRdiv;
 	F     = ((Fvco % FRdiv) * 0x40000) / FRdiv;
 
-	printk(KERN_INFO "%s: Fvco:%02x Fxtl:%02x R:%02x FRdiv:%02x ICP:%02x PDiv:%02x \n", __func__, Fvco, Fxtl, R, FRdiv, ICP, PDiv);
-	printk(KERN_INFO "%s: N:%08x F:%08x \n", __func__, N, F);
+//	printk(KERN_INFO "%s: Fvco:%02x Fxtl:%02x R:%02x FRdiv:%02x ICP:%02x PDiv:%02x \n", __func__, Fvco, Fxtl, R, FRdiv, ICP, PDiv);
+//	printk(KERN_INFO "%s: N:%08x F:%08x \n", __func__, N, F);
 
 	STV6120_WRITE_FIELD(state, ICP, ICP);
 	STV6120_WRITE_FIELD(state, PDIV, PDiv);
@@ -315,7 +315,11 @@ static int stv6120_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	STV6120_WRITE_FIELD(state, F_L, (F & 0x7F));
 	STV6120_WRITE_FIELD(state, CALVCOSTRT, 1); // VCO Auto Calibration
 
-	while (!STV6120_READ_FIELD(state, LOCK)) {
+	for (i = 0; !STV6120_READ_FIELD(state, LOCK); i++) {
+		if (i > 10) {
+			printk(KERN_INFO "%s: VCO Lock Failed... \n", __func__);
+			return 1;
+		}
 		msleep(10);
 	}
 
