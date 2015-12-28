@@ -733,24 +733,6 @@ static int stv0910_set_mclock(struct stv0910_state *state, u32 MasterClock)
 	fvco = (quartz * 2 * ndiv) / idf;
 	state->base->mclk = fvco / (2 * odf) * 1000000;
 
-	/*pr_info("ndiv = %d, MasterClock = %d\n", ndiv, state->base->mclk);*/
-	return 0;
-}
-
-static int stv0910_stop(struct stv0910_state *state)
-{
-	printk("%s: demod: %d \n", __func__, state->nr);
-
-	if (state->Started) {
-		STV0910_WRITE_FIELD(state, RST_HWARE, 0x01);
-		STV0910_WRITE_FIELD(state, ALGOSWRST, 0x01);
-		/* Blind optim*/
-		STV0910_WRITE_REG(state, AGC2O, 0x5B);
-		/* Stop the demod */
-		STV0910_WRITE_REG(state, DMDISTATE, 0x5c);
-		state->Started = 0;
-	}
-	state->ReceiveMode = Mode_None;
 	return 0;
 }
 
@@ -810,6 +792,11 @@ static int stv0910_start(struct stv0910_state *state, struct dtv_frontend_proper
 	p->bandwidth_hz = 36000000 * 2;
 
 start:
+//	STV0910_WRITE_FIELD(state, RST_HWARE, 0x01);
+//	STV0910_WRITE_FIELD(state, ALGOSWRST, 0x01);
+	STV0910_WRITE_REG(state, AGC2O, 0x5B);
+	STV0910_WRITE_REG(state, DMDISTATE, 0x5C); // Demod Stop
+
 	stv0910_i2c_gate_ctrl(fe, 1);
 	config->tuner_set_bandwidth(fe, p->bandwidth_hz);
 	config->tuner_set_frequency(fe, p->frequency);
@@ -840,7 +827,7 @@ start:
 	STV0910_WRITE_REG(state, BCLC2S28, 0x84);
 	STV0910_WRITE_REG(state, CARHDR, 0x1C);
 	/* Reset demod */
-	STV0910_WRITE_REG(state, DMDISTATE, 0x1F);
+	STV0910_WRITE_REG(state, DMDISTATE, 0x1F); // Reset demod state machine
 
 	STV0910_WRITE_REG(state, CARCFG, 0x46);
 
@@ -854,7 +841,7 @@ start:
 	STV0910_WRITE_REG(state, CFRINIT1, 0);
 	STV0910_WRITE_REG(state, CFRINIT0, 0);
 
-	STV0910_WRITE_REG(state, DMDISTATE, 0x1F); // Reset demod state machine
+	STV0910_WRITE_REG(state, DMDISTATE, 0x1F);
 	STV0910_WRITE_REG(state, DMDISTATE, 0x01); // Blindsearch - best guess
 
 	msleep(50);
@@ -988,8 +975,6 @@ static int stv0910_set_parameters(struct dvb_frontend *fe)
 
 	printk("%s: demod: %d \n", __func__, state->nr);
 	printk("%s: freq: %d, bw: %d \n", __func__, p->frequency, p->bandwidth_hz);
-
-	stv0910_stop(state);
 
 	return stv0910_start(state, p);
 }
@@ -1219,8 +1204,8 @@ static int stv0910_sleep(struct dvb_frontend *fe)
 	struct stv0910_state *state = fe->demodulator_priv;
 	printk("%s: demod: %d \n", __func__, state->nr);
 
-	stv0910_stop(state);
 	state->algo = STV0910_NOTUNE;
+	STV0910_WRITE_REG(state, DMDISTATE, 0x5C); // Demod Stop
 
 	return 0;
 }
@@ -1291,8 +1276,7 @@ static int stv0910_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 
 	state->algo = STV0910_NOTUNE;
 
-	// Reset demod
-	STV0910_WRITE_REG(state, DMDISTATE, 0x1C);
+	STV0910_WRITE_REG(state, DMDISTATE, 0x1C); // Demod Stop
 	STV0910_WRITE_REG(state, AGC2REF, 0x38);
 
 	stv0910_i2c_gate_ctrl(fe, 1);
@@ -1300,7 +1284,6 @@ static int stv0910_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 
 	*s->type = SC_DBM;
 
-	// Stop demod
 	STV0910_WRITE_REG(state, DMDISTATE, 0x1C);
 	for (x = 0 ; x < s->num_freq ; x++)
 	{
