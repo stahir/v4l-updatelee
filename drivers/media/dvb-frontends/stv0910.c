@@ -434,23 +434,6 @@ struct stv0910_table stv0910_S2_SNR_lookup[] = {
 
 /* RF level C/N lookup table */
 struct stv0910_table stv0910_dbm_lookup[] = {
-	{ -70, 0x07aa }, /* -70dBm */
-	{ -65, 0x114f }, /* -65dBm */
-	{ -60, 0x210d }, /* -60dBm */
-	{ -55, 0x2d11 }, /* -55dBm */
-	{ -50, 0x3a14 }, /* -50dBm */
-	{ -45, 0x59be }, /* -45dBm */
-	{ -40, 0x8389 }, /* -40dBm */
-	{ -35, 0x98a8 }, /* -35dBm */
-	{ -30, 0xa298 }, /* -30dBm */
-	{ -25, 0xad5a }, /* -25dBm */
-	{ -20, 0xb4bc }, /* -20dBm */
-	{ -15, 0xbb08 }, /* -15dBm */
-	{ -10, 0xc229 }, /* -10dBm */
-	{  -5, 0xcaa1 }, /*  -5dBm */
-};
-
-struct stv0910_table stv0910_dbm_lookup_x100[] = {
 	{ -7000, 0x07aa }, /* -70dBm */
 	{ -6500, 0x114f }, /* -65dBm */
 	{ -6000, 0x210d }, /* -60dBm */
@@ -1157,7 +1140,7 @@ static int stv0910_read_dbm(struct dvb_frontend *fe, s16 *strength)
 	u16 agc;
 
 	agc = MAKEWORD16(STV0910_READ_REG(state, AGCIQIN1), STV0910_READ_REG(state, AGCIQIN0));
-	*strength = stv0910_lookup(stv0910_dbm_lookup_x100, ARRAY_SIZE(stv0910_dbm_lookup_x100) - 1, agc);
+	*strength = stv0910_lookup(stv0910_dbm_lookup, ARRAY_SIZE(stv0910_dbm_lookup) - 1, agc);
 
 	return 0;
 }
