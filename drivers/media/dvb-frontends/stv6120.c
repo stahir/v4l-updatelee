@@ -163,6 +163,84 @@ static int stv6120_init(struct dvb_frontend *fe)
 	return 0;
 }
 
+static int stv6120_set_cutoff(struct dvb_frontend *fe, u32 frequency)
+{
+	struct stv6120_state *state = fe->tuner_priv;
+
+	u8 cfhf;
+
+	if (frequency < 6796)
+		cfhf = 0;
+	if (frequency < 5828)
+		cfhf = 1;
+	if (frequency < 4778)
+		cfhf = 2;
+	if (frequency < 4118)
+		cfhf = 3;
+	if (frequency < 3513)
+		cfhf = 4;
+	if (frequency < 3136)
+		cfhf = 5;
+	if (frequency < 2794)
+		cfhf = 6;
+	if (frequency < 2562)
+		cfhf = 7;
+	if (frequency < 2331)
+		cfhf = 8;
+	if (frequency < 2169)
+		cfhf = 9;
+	if (frequency < 2006)
+		cfhf = 10;
+	if (frequency < 1890)
+		cfhf = 11;
+	if (frequency < 1771)
+		cfhf = 12;
+	if (frequency < 1680)
+		cfhf = 13;
+	if (frequency < 1586)
+		cfhf = 14;
+	if (frequency < 1514)
+		cfhf = 15;
+	if (frequency < 1433)
+		cfhf = 16;
+	if (frequency < 1374)
+		cfhf = 17;
+	if (frequency < 1310)
+		cfhf = 18;
+	if (frequency < 1262)
+		cfhf = 19;
+	if (frequency < 1208)
+		cfhf = 20;
+	if (frequency < 1167)
+		cfhf = 21;
+	if (frequency < 1122)
+		cfhf = 22;
+	if (frequency < 1087)
+		cfhf = 23;
+	if (frequency < 1049)
+		cfhf = 24;
+	if (frequency < 1018)
+		cfhf = 25;
+	if (frequency < 983)
+		cfhf = 26;
+	if (frequency < 956)
+		cfhf = 27;
+	if (frequency < 926)
+		cfhf = 28;
+	if (frequency < 902)
+		cfhf = 29;
+	if (frequency < 875)
+		cfhf = 30;
+	if (frequency < 854)
+		cfhf = 31;
+
+	STV6120_WRITE_FIELD(state, CFHF, cfhf);
+
+	printk(KERN_INFO "%s: tuner: %d, freq: %d CFHF: %d \n", __func__, state->tuner, frequency, cfhf);
+
+	return 0;
+}
+
 static int stv6120_set_frequency(struct dvb_frontend *fe, u32 frequency)
 {
 	struct stv6120_state *state = fe->tuner_priv;
@@ -174,6 +252,8 @@ static int stv6120_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	frequency /= 1000;
 
 	printk(KERN_INFO "%s: tuner: %d, freq: %d \n", __func__, state->tuner, frequency);
+
+	stv6120_set_cutoff(fe, frequency);
 
 	if (frequency >= 250) {
 		P = 16;
