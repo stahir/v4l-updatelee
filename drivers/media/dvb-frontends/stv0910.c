@@ -1137,9 +1137,13 @@ static int stv0910_read_ber(struct dvb_frontend *fe, u32 *ber)
 static int stv0910_read_dbm(struct dvb_frontend *fe, s16 *strength)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
-	u16 agc;
+	u32 agc = 0;
+	u8  i;
 
-	agc = MAKEWORD16(STV0910_READ_REG(state, AGCIQIN1), STV0910_READ_REG(state, AGCIQIN0));
+	for (i = 0; i < 5; i++) {
+		agc += MAKEWORD16(STV0910_READ_REG(state, AGCIQIN1), STV0910_READ_REG(state, AGCIQIN0));
+	}
+	agc /= 5;
 	*strength = stv0910_lookup(stv0910_dbm_lookup, ARRAY_SIZE(stv0910_dbm_lookup) - 1, agc);
 
 	return 0;
