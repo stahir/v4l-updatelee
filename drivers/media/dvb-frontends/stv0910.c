@@ -47,8 +47,6 @@ LIST_HEAD(stvlist);
 
 enum FE_STV0910_frame_len { FE_LONGFRAME, FE_SHORTFRAME };
 
-enum ReceiveMode { Mode_None, Mode_DVBS, Mode_DVBS2, Mode_Auto };
-
 enum FE_STV0910_dmdstate {
 	FE_SEARCHING,
 	FE_DVBS2_PLH,
@@ -130,27 +128,6 @@ struct stv0910_state {
 	u8                   i2crpt;
 	u8                   tscfgh;
 	u8                   tsspeed;
-	unsigned long        tune_time;
-
-	s32                  SearchRange;
-	u32                  Started;
-	u32                  DemodLockTime;
-	enum ReceiveMode     ReceiveMode;
-	u32                  DemodTimeout;
-	u32                  FecTimeout;
-	u32                  FirstTimeLock;
-	u8                   DEMOD;
-	u32                  symbol_rate;
-	u16		     matype;
-
-	u8                      LastViterbiRate;
-	enum fe_code_rate       PunctureRate;
-
-	u8 fec;
-	u8 modcod;
-	u8 frame_len;
-	u8 pilot;
-	u8 rolloff;
 
 	enum stv0910_algo	algo;
 
@@ -801,7 +778,6 @@ start:
 	config->tuner_set_bandwidth(fe, p->bandwidth_hz);
 	config->tuner_set_frequency(fe, p->frequency);
 	stv0910_i2c_gate_ctrl(fe, 0);
-	state->symbol_rate = p->symbol_rate;
 
 	STV0910_WRITE_REG(state, SFRUP1, 0x83);  // SR = 65,000 Ksps
 	STV0910_WRITE_REG(state, SFRUP0, 0xC0);
@@ -893,9 +869,6 @@ static int stv0910_probe(struct stv0910_state *state)
 {
 	u8 id;
 	printk("%s: demod: %d \n", __func__, state->nr);
-
-	state->ReceiveMode = Mode_None;
-	state->Started = 0;
 
 	id = stv0910_read_reg(state, RSTV0910_MID);
 	if (id != 0x51)
