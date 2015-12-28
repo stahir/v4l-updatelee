@@ -1151,16 +1151,7 @@ static int stv0910_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
-static s32 stv0910_read_dbm(struct dvb_frontend *fe)
-{
-	struct stv0910_state *state = fe->demodulator_priv;
-	u16 agc;
-
-	agc = MAKEWORD16(STV0910_READ_REG(state, AGCIQIN1), STV0910_READ_REG(state, AGCIQIN0));
-	return stv0910_lookup(stv0910_dbm_lookup, ARRAY_SIZE(stv0910_dbm_lookup) - 1, agc);
-}
-
-static int stv0910_read_dbm_spectrumscan(struct dvb_frontend *fe, s16 *strength)
+static int stv0910_read_dbm(struct dvb_frontend *fe, s16 *strength)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
 	u16 agc;
@@ -1173,7 +1164,9 @@ static int stv0910_read_dbm_spectrumscan(struct dvb_frontend *fe, s16 *strength)
 
 static int stv0910_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
-	*strength = (stv0910_read_dbm(fe) + 100) * 0xFFFF / 100;
+	s16 dbm;
+	stv0910_read_dbm(fe, &dbm);
+	*strength = ((dbm * 100) + 100) * 0xFFFF / 100;
 	return 0;
 }
 
@@ -1191,6 +1184,8 @@ static int stv0910_get_stats(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	u8 i;
 	u32 value = 0;
+	s16 dbm = 0;
+
 	printk("%s: demod: %d \n", __func__, state->nr);
 
 	switch (STV0910_READ_FIELD(state, HEADER_MODE)) {
@@ -1214,7 +1209,8 @@ static int stv0910_get_stats(struct dvb_frontend *fe)
 		break;
 	}
 	p->strength.stat[0].scale  = FE_SCALE_DECIBEL;
-	p->strength.stat[0].svalue = stv0910_read_dbm(fe) * 10000;
+	stv0910_read_dbm(fe, &dbm);
+	p->strength.stat[0].svalue = dbm * 100;
 
 	return 0;
 }
@@ -1298,7 +1294,7 @@ static int stv0910_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 
 		msleep(10);
 
-		stv0910_read_dbm_spectrumscan(fe, (s->rf_level + x));
+		stv0910_read_dbm(fe, (s->rf_level + x));
 	}
 
 	stv0910_i2c_gate_ctrl(fe, 0);
