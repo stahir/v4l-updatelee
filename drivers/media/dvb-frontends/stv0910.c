@@ -741,17 +741,17 @@ static int stv0910_get_dmdlock(struct stv0910_state *state)
 
 	printk("%s: demod: %d \n", __func__, state->nr);
 
-	if (p->symbol_rate <= 1000000) {  /*SR <=1Msps*/
+	if (p->symbol_rate <= 1000000) {         /*          SR <=  1Msps */
 		timeout = 3000;
-	} else if (p->symbol_rate <= 2000000) {  /*1Msps < SR <=2Msps*/
+	} else if (p->symbol_rate <= 2000000) {  /*  1Msps < SR <=  2Msps */
 		timeout = 2500;
-	} else if (p->symbol_rate <= 5000000) {  /*2Msps< SR <=5Msps*/
+	} else if (p->symbol_rate <= 5000000) {  /*  2Msps < SR <=  5Msps */
 		timeout = 1000;
-	} else if (p->symbol_rate <= 10000000) {  /*5Msps< SR <=10Msps*/
+	} else if (p->symbol_rate <= 10000000) { /*  5Msps < SR <= 10Msps */
 		timeout = 700;
-	} else if (p->symbol_rate < 20000000) {  /*10Msps< SR <=20Msps*/
+	} else if (p->symbol_rate < 20000000) {  /* 10Msps < SR <= 20Msps */
 		timeout = 700;
-	} else {  /*SR >=20Msps*/
+	} else {                                 /*          SR >= 20Msps */
 		timeout = 700;
 	}
 
