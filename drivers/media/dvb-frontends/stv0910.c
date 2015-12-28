@@ -1274,6 +1274,23 @@ static int stv0910_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 	return 0;
 }
 
+static int stv0910_get_consellation_samples(struct dvb_frontend *fe, struct dvb_fe_constellation_samples *s)
+{
+	struct stv0910_state *state = fe->demodulator_priv;
+	u32 x;
+	u8 buf[2];
+
+	STV0910_WRITE_REG(state, IQCONST, s->options);
+
+	for (x = 0 ; x < s->num ; x++)
+	{
+		STV0910_READ_REGS(state, ISYMB, buf, 2);
+		s->samples[x].imaginary = buf[0];
+		s->samples[x].real = buf[1];
+	}
+	return 0;
+}
+
 static struct dvb_frontend_ops stv0910_ops = {
 	.delsys = { SYS_DSS, SYS_DVBS, SYS_DVBS2 },
 	.info = {
@@ -1288,7 +1305,9 @@ static struct dvb_frontend_ops stv0910_ops = {
 					  FE_CAN_FEC_AUTO       |
 					  FE_CAN_QPSK           |
 					  FE_CAN_2G_MODULATION  |
-					  FE_CAN_SPECTRUMSCAN
+					  FE_CAN_SPECTRUMSCAN   |
+					  FE_CAN_IQ             |
+					  FE_CAN_BLINDSEARCH
 	},
 	.init				= stv0910_init,
 	.sleep				= stv0910_sleep,
@@ -1313,6 +1332,7 @@ static struct dvb_frontend_ops stv0910_ops = {
 	.read_ucblocks			= stv0910_read_ucblocks,
 
 	.get_spectrum_scan		= stv0910_get_spectrum_scan,
+	.get_constellation_samples	= stv0910_get_consellation_samples,
 };
 
 static struct stv_base *match_base(struct i2c_adapter  *i2c, u8 adr)
