@@ -36,7 +36,7 @@
 #include <linux/platform_data/s3c-hsotg.h>
 #include <linux/platform_data/dma-s3c24xx.h>
 
-#include <media/s5p_hdmi.h>
+#include <linux/platform_data/media/s5p_hdmi.h>
 
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -1042,11 +1042,11 @@ struct platform_device s3c_device_usb_hsotg = {
 	},
 };
 
-void __init s3c_hsotg_set_platdata(struct s3c_hsotg_plat *pd)
+void __init dwc2_hsotg_set_platdata(struct dwc2_hsotg_plat *pd)
 {
-	struct s3c_hsotg_plat *npd;
+	struct dwc2_hsotg_plat *npd;
 
-	npd = s3c_set_platdata(pd, sizeof(struct s3c_hsotg_plat),
+	npd = s3c_set_platdata(pd, sizeof(struct dwc2_hsotg_plat),
 			&s3c_device_usb_hsotg);
 
 	if (!npd->phy_init)

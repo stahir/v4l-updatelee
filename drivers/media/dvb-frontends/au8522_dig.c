@@ -592,7 +592,7 @@ static int au8522_enable_modulation(struct dvb_frontend *fe,
 			au8522_writereg(state,
 				VSB_mod_tab[i].reg,
 				VSB_mod_tab[i].data);
-		au8522_set_if(fe, state->config->vsb_if);
+		au8522_set_if(fe, state->config.vsb_if);
 		break;
 	case QAM_64:
 		dprintk("%s() QAM 64\n", __func__);
@@ -600,7 +600,7 @@ static int au8522_enable_modulation(struct dvb_frontend *fe,
 			au8522_writereg(state,
 				QAM64_mod_tab[i].reg,
 				QAM64_mod_tab[i].data);
-		au8522_set_if(fe, state->config->qam_if);
+		au8522_set_if(fe, state->config.qam_if);
 		break;
 	case QAM_256:
 		if (zv_mode) {
@@ -609,7 +609,7 @@ static int au8522_enable_modulation(struct dvb_frontend *fe,
 				au8522_writereg(state,
 					QAM256_mod_tab_zv_mode[i].reg,
 					QAM256_mod_tab_zv_mode[i].data);
-			au8522_set_if(fe, state->config->qam_if);
+			au8522_set_if(fe, state->config.qam_if);
 			msleep(100);
 			au8522_writereg(state, 0x821a, 0x00);
 		} else {
@@ -618,7 +618,7 @@ static int au8522_enable_modulation(struct dvb_frontend *fe,
 				au8522_writereg(state,
 					QAM256_mod_tab[i].reg,
 					QAM256_mod_tab[i].data);
-			au8522_set_if(fe, state->config->qam_if);
+			au8522_set_if(fe, state->config.qam_if);
 		}
 		break;
 	default:
@@ -690,7 +690,7 @@ static int au8522_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			*status |= FE_HAS_LOCK | FE_HAS_SYNC;
 	}
 
-	switch (state->config->status_mode) {
+	switch (state->config.status_mode) {
 	case AU8522_DEMODLOCKING:
 		if (*status & FE_HAS_VITERBI)
 			*status |= FE_HAS_CARRIER | FE_HAS_SIGNAL;
@@ -724,7 +724,7 @@ static int au8522_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 static int au8522_led_status(struct au8522_state *state, const u16 *snr)
 {
-	struct au8522_led_config *led_config = state->config->led_cfg;
+	struct au8522_led_config *led_config = state->config.led_cfg;
 	int led;
 	u16 strong;
 
@@ -776,7 +776,7 @@ static int au8522_read_snr(struct dvb_frontend *fe, u16 *snr)
 					    au8522_readreg(state, 0x4311),
 					    snr);
 
-	if (state->config->led_cfg)
+	if (state->config.led_cfg)
 		au8522_led_status(state, snr);
 
 	return ret;
@@ -926,7 +926,7 @@ struct dvb_frontend *au8522_attach(const struct au8522_config *config,
 	}
 
 	/* setup the state */
-	state->config = config;
+	state->config = *config;
 	state->i2c = i2c;
 	state->operational_mode = AU8522_DIGITAL_MODE;
 

@@ -25,7 +25,6 @@
 #include "iss_video.h"
 #include "iss.h"
 
-
 /* -----------------------------------------------------------------------------
  * Helper functions
  */
@@ -191,7 +190,7 @@ iss_video_remote_subdev(struct iss_video *video, u32 *pad)
 
 	remote = media_entity_remote_pad(&video->pad);
 
-	if (remote == NULL ||
+	if (!remote ||
 	    media_entity_type(remote->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
 		return NULL;
 
@@ -241,7 +240,7 @@ __iss_video_get_format(struct iss_video *video,
 	int ret;
 
 	subdev = iss_video_remote_subdev(video, &pad);
-	if (subdev == NULL)
+	if (!subdev)
 		return -EINVAL;
 
 	memset(&fmt, 0, sizeof(fmt));
@@ -288,7 +287,6 @@ iss_video_check_format(struct iss_video *video, struct iss_video_fh *vfh)
  */
 
 static int iss_video_queue_setup(struct vb2_queue *vq,
-				 const struct v4l2_format *fmt,
 				 unsigned int *count, unsigned int *num_planes,
 				 unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -435,7 +433,7 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 	list_del(&buf->list);
 	spin_unlock_irqrestore(&video->qlock, flags);
 
-	v4l2_get_timestamp(&buf->vb.timestamp);
+	buf->vb.vb2_buf.timestamp = ktime_get_ns();
 
 	/* Do frame number propagation only if this is the output video node.
 	 * Frame number either comes from the CSI receivers or it gets
@@ -471,7 +469,7 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 		return NULL;
 	}
 
-	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && pipe->input != NULL) {
+	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && pipe->input) {
 		spin_lock(&pipe->lock);
 		pipe->state &= ~ISS_PIPELINE_STREAM;
 		spin_unlock(&pipe->lock);
@@ -624,7 +622,7 @@ iss_video_try_format(struct file *file, void *fh, struct v4l2_format *format)
 		return -EINVAL;
 
 	subdev = iss_video_remote_subdev(video, &pad);
-	if (subdev == NULL)
+	if (!subdev)
 		return -EINVAL;
 
 	iss_video_pix_to_mbus(&format->fmt.pix, &fmt.format);
@@ -806,7 +804,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		pipe->input = far_end;
 		pipe->output = video;
 	} else {
-		if (far_end == NULL) {
+		if (!far_end) {
 			ret = -EPIPE;
 			goto err_iss_video_check_format;
 		}
@@ -841,7 +839,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	 * to the stream on command. In memory-to-memory mode, it will be
 	 * started when buffers are queued on both the input and output.
 	 */
-	if (pipe->input == NULL) {
+	if (!pipe->input) {
 		unsigned long flags;
 
 		ret = omap4iss_pipeline_set_stream(pipe,
@@ -974,14 +972,14 @@ static int iss_video_open(struct file *file)
 	int ret = 0;
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
-	if (handle == NULL)
+	if (!handle)
 		return -ENOMEM;
 
 	v4l2_fh_init(&handle->vfh, &video->video);
 	v4l2_fh_add(&handle->vfh);
 
 	/* If this is the first user, initialise the pipeline. */
-	if (omap4iss_get(video->iss) == NULL) {
+	if (!omap4iss_get(video->iss)) {
 		ret = -EBUSY;
 		goto done;
 	}
@@ -1116,7 +1114,7 @@ int omap4iss_video_init(struct iss_video *video, const char *name)
 	mutex_init(&video->stream_lock);
 
 	/* Initialize the video device. */
-	if (video->ops == NULL)
+	if (!video->ops)
 		video->ops = &iss_video_dummy_ops;
 
 	video->video.fops = &iss_video_fops;

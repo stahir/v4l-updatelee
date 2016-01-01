@@ -458,50 +458,6 @@ static int stv6120_get_status(struct dvb_frontend *fe, u32 *status)
 	return 0;
 }
 
-static int stv6120_get_state(struct dvb_frontend *fe, enum tuner_param param, struct tuner_state *state)
-{
-	switch (param) {
-	case DVBFE_TUNER_FREQUENCY:
-		stv6120_get_frequency(fe, &state->frequency);
-		break;
-	case DVBFE_TUNER_TUNERSTEP:
-		break;
-	case DVBFE_TUNER_IFFREQ:
-		break;
-	case DVBFE_TUNER_BANDWIDTH:
-		stv6120_get_bandwidth(fe, &state->bandwidth);
-		break;
-	case DVBFE_TUNER_REFCLOCK:
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
-static int stv6120_set_state(struct dvb_frontend *fe, enum tuner_param param, struct tuner_state *state)
-{
-	switch (param) {
-	case DVBFE_TUNER_FREQUENCY:
-		stv6120_set_frequency(fe, state->frequency);
-		break;
-	case DVBFE_TUNER_TUNERSTEP:
-		break;
-	case DVBFE_TUNER_IFFREQ:
-		break;
-	case DVBFE_TUNER_BANDWIDTH:
-		stv6120_set_bandwidth(fe, state->bandwidth);
-		break;
-	case DVBFE_TUNER_REFCLOCK:
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
 static int stv6120_release(struct dvb_frontend *fe)
 {
 	struct stv6120_state *state = fe->tuner_priv;
@@ -534,8 +490,6 @@ static struct dvb_tuner_ops stv6120_ops = {
 	},
 	.sleep          = stv6120_sleep,
 	.get_status	= stv6120_get_status,
-	.get_state	= stv6120_get_state,
-	.set_state	= stv6120_set_state,
 	.release	= stv6120_release
 };
 

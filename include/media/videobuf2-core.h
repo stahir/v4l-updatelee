@@ -15,8 +15,17 @@
 #include <linux/mm_types.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>
-#include <linux/videodev2.h>
 #include <linux/dma-buf.h>
+
+#define VB2_MAX_FRAME	(32)
+#define VB2_MAX_PLANES	(8)
+
+enum vb2_memory {
+	VB2_MEMORY_UNKNOWN	= 0,
+	VB2_MEMORY_MMAP		= 1,
+	VB2_MEMORY_USERPTR	= 2,
+	VB2_MEMORY_DMABUF	= 4,
+};
 
 struct vb2_alloc_ctx;
 struct vb2_fileio_data;
@@ -120,6 +129,8 @@ struct vb2_mem_ops {
  * @dbuf_mapped:	flag to show whether dbuf is mapped or not
  * @bytesused:	number of bytes occupied by data in the plane (payload)
  * @length:	size of this plane (NOT the payload) in bytes
+ * @min_length:	minimum required size of this plane (NOT the payload) in bytes.
+ *		@length is always greater or equal to @min_length.
  * @offset:	when memory in the associated struct vb2_buffer is
  *		VB2_MEMORY_MMAP, equals the offset from the start of
  *		the device memory for this plane (or is a "cookie" that
@@ -141,6 +152,7 @@ struct vb2_plane {
 	unsigned int		dbuf_mapped;
 	unsigned int		bytesused;
 	unsigned int		length;
+	unsigned int		min_length;
 	union {
 		unsigned int	offset;
 		unsigned long	userptr;
@@ -202,6 +214,7 @@ struct vb2_queue;
  * @num_planes:		number of planes in the buffer
  *			on an internal driver queue
  * @planes:		private per-plane information; do not change
+ * @timestamp:		frame timestamp in ns
  */
 struct vb2_buffer {
 	struct vb2_queue	*vb2_queue;
@@ -209,7 +222,8 @@ struct vb2_buffer {
 	unsigned int		type;
 	unsigned int		memory;
 	unsigned int		num_planes;
-	struct vb2_plane	planes[VIDEO_MAX_PLANES];
+	struct vb2_plane	planes[VB2_MAX_PLANES];
+	u64			timestamp;
 
 	/* private: internal use only
 	 *
@@ -259,21 +273,26 @@ struct vb2_buffer {
  * struct vb2_ops - driver-specific callbacks
  *
  * @queue_setup:	called from VIDIOC_REQBUFS and VIDIOC_CREATE_BUFS
- *			handlers before memory allocation, or, if
- *			*num_planes != 0, after the allocation to verify a
- *			smaller number of buffers. Driver should return
- *			the required number of buffers in *num_buffers, the
- *			required number of planes per buffer in *num_planes; the
- *			size of each plane should be set in the sizes[] array
- *			and optional per-plane allocator specific context in the
- *			alloc_ctxs[] array. When called from VIDIOC_REQBUFS,
- *			fmt == NULL, the driver has to use the currently
- *			configured format and *num_buffers is the total number
- *			of buffers, that are being allocated. When called from
- *			VIDIOC_CREATE_BUFS, fmt != NULL and it describes the
- *			target frame format (if the format isn't valid the
- *			callback must return -EINVAL). In this case *num_buffers
- *			are being allocated additionally to q->num_buffers.
+ *			handlers before memory allocation. It can be called
+ *			twice: if the original number of requested buffers
+ *			could not be allocated, then it will be called a
+ *			second time with the actually allocated number of
+ *			buffers to verify if that is OK.
+ *			The driver should return the required number of buffers
+ *			in *num_buffers, the required number of planes per
+ *			buffer in *num_planes, the size of each plane should be
+ *			set in the sizes[] array and optional per-plane
+ *			allocator specific context in the alloc_ctxs[] array.
+ *			When called from VIDIOC_REQBUFS, *num_planes == 0, the
+ *			driver has to use the currently configured format to
+ *			determine the plane sizes and *num_buffers is the total
+ *			number of buffers that are being allocated. When called
+ *			from VIDIOC_CREATE_BUFS, *num_planes != 0 and it
+ *			describes the requested number of planes and sizes[]
+ *			contains the requested plane sizes. If either
+ *			*num_planes or the requested sizes are invalid callback
+ *			must return -EINVAL. In this case *num_buffers are
+ *			being allocated additionally to q->num_buffers.
  * @wait_prepare:	release any locks taken while calling vb2 functions;
  *			it is called before an ioctl needs to wait for a new
  *			buffer to arrive; required to avoid a deadlock in
@@ -335,7 +354,7 @@ struct vb2_buffer {
  *			pre-queued buffers before calling STREAMON.
  */
 struct vb2_ops {
-	int (*queue_setup)(struct vb2_queue *q, const struct v4l2_format *fmt,
+	int (*queue_setup)(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
 			   unsigned int sizes[], void *alloc_ctxs[]);
 
@@ -353,12 +372,30 @@ struct vb2_ops {
 	void (*buf_queue)(struct vb2_buffer *vb);
 };
 
-struct v4l2_fh;
+/**
+ * struct vb2_ops - driver-specific callbacks
+ *
+ * @fill_user_buffer:	given a vb2_buffer fill in the userspace structure.
+ *			For V4L2 this is a struct v4l2_buffer.
+ * @fill_vb2_buffer:	given a userspace structure, fill in the vb2_buffer.
+ *			If the userspace structure is invalid, then this op
+ *			will return an error.
+ * @copy_timestamp:	copy the timestamp from a userspace structure to
+ *			the vb2_buffer struct.
+ */
+struct vb2_buf_ops {
+	void (*fill_user_buffer)(struct vb2_buffer *vb, void *pb);
+	int (*fill_vb2_buffer)(struct vb2_buffer *vb, const void *pb,
+				struct vb2_plane *planes);
+	void (*copy_timestamp)(struct vb2_buffer *vb, const void *pb);
+};
 
 /**
  * struct vb2_queue - a videobuf queue
  *
- * @type:	queue type (see V4L2_BUF_TYPE_* in linux/videodev2.h
+ * @type:	private buffer type whose content is defined by the vb2-core
+ *		caller. For example, for V4L2, it should match
+ *		the V4L2_BUF_TYPE_* in include/uapi/linux/videodev2.h
  * @io_modes:	supported io methods (see vb2_io_modes enum)
  * @fileio_read_once:		report EOF after reading the first buffer
  * @fileio_write_immediately:	queue buffer after each write() call
@@ -374,6 +411,8 @@ struct v4l2_fh;
  *		drivers to easily associate an owner filehandle with the queue.
  * @ops:	driver-specific callbacks
  * @mem_ops:	memory allocator specific callbacks
+ * @buf_ops:	callbacks to deliver buffer information
+ *		between user-space and kernel-space
  * @drv_priv:	driver private data
  * @buf_struct_size: size of the driver-specific buffer structure;
  *		"0" indicates the driver doesn't want to use a custom buffer
@@ -409,6 +448,9 @@ struct v4l2_fh;
  * @waiting_for_buffers: used in poll() to check if vb2 is still waiting for
  *		buffers. Only set for capture queues if qbuf has not yet been
  *		called since poll() needs to return POLLERR in that situation.
+ * @is_multiplanar: set if buffer type is multiplanar
+ * @is_output:	set if buffer type is output
+ * @copy_timestamp: set if vb2-core should set timestamps
  * @last_buffer_dequeued: used in poll() and DQBUF to immediately return if the
  *		last decoded buffer was already dequeued. Set for capture queues
  *		when a buffer with the V4L2_BUF_FLAG_LAST is dequeued.
@@ -416,17 +458,19 @@ struct v4l2_fh;
  * @threadio:	thread io internal data, used only if thread is active
  */
 struct vb2_queue {
-	enum v4l2_buf_type		type;
+	unsigned int			type;
 	unsigned int			io_modes;
 	unsigned			fileio_read_once:1;
 	unsigned			fileio_write_immediately:1;
 	unsigned			allow_zero_bytesused:1;
 
 	struct mutex			*lock;
-	struct v4l2_fh			*owner;
+	void				*owner;
 
 	const struct vb2_ops		*ops;
 	const struct vb2_mem_ops	*mem_ops;
+	const struct vb2_buf_ops	*buf_ops;
+
 	void				*drv_priv;
 	unsigned int			buf_struct_size;
 	u32				timestamp_flags;
@@ -435,8 +479,8 @@ struct vb2_queue {
 
 	/* private: internal use only */
 	struct mutex			mmap_lock;
-	enum v4l2_memory		memory;
-	struct vb2_buffer		*bufs[VIDEO_MAX_FRAME];
+	unsigned int			memory;
+	struct vb2_buffer		*bufs[VB2_MAX_FRAME];
 	unsigned int			num_buffers;
 
 	struct list_head		queued_list;
@@ -447,13 +491,15 @@ struct vb2_queue {
 	spinlock_t			done_lock;
 	wait_queue_head_t		done_wq;
 
-	void				*alloc_ctx[VIDEO_MAX_PLANES];
-	unsigned int			plane_sizes[VIDEO_MAX_PLANES];
+	void				*alloc_ctx[VB2_MAX_PLANES];
 
 	unsigned int			streaming:1;
 	unsigned int			start_streaming_called:1;
 	unsigned int			error:1;
 	unsigned int			waiting_for_buffers:1;
+	unsigned int			is_multiplanar:1;
+	unsigned int			is_output:1;
+	unsigned int			copy_timestamp:1;
 	unsigned int			last_buffer_dequeued:1;
 
 	struct vb2_fileio_data		*fileio;
@@ -479,23 +525,26 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state);
 void vb2_discard_done(struct vb2_queue *q);
 int vb2_wait_for_all_buffers(struct vb2_queue *q);
 
-int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b);
-int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req);
+void vb2_core_querybuf(struct vb2_queue *q, unsigned int index, void *pb);
+int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
+		unsigned int *count);
+int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
+		unsigned int *count, unsigned requested_planes,
+		const unsigned int requested_sizes[]);
+int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb);
+int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb);
+int vb2_core_dqbuf(struct vb2_queue *q, void *pb, bool nonblocking);
 
-int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create);
-int vb2_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b);
+int vb2_core_streamon(struct vb2_queue *q, unsigned int type);
+int vb2_core_streamoff(struct vb2_queue *q, unsigned int type);
 
-int __must_check vb2_queue_init(struct vb2_queue *q);
+int vb2_core_expbuf(struct vb2_queue *q, int *fd, unsigned int type,
+		unsigned int index, unsigned int plane, unsigned int flags);
 
-void vb2_queue_release(struct vb2_queue *q);
+int vb2_core_queue_init(struct vb2_queue *q);
+void vb2_core_queue_release(struct vb2_queue *q);
+
 void vb2_queue_error(struct vb2_queue *q);
-
-int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b);
-int vb2_expbuf(struct vb2_queue *q, struct v4l2_exportbuffer *eb);
-int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking);
-
-int vb2_streamon(struct vb2_queue *q, enum v4l2_buf_type type);
-int vb2_streamoff(struct vb2_queue *q, enum v4l2_buf_type type);
 
 int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma);
 #ifndef CONFIG_MMU
@@ -505,7 +554,8 @@ unsigned long vb2_get_unmapped_area(struct vb2_queue *q,
 				    unsigned long pgoff,
 				    unsigned long flags);
 #endif
-unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait);
+unsigned int vb2_core_poll(struct vb2_queue *q, struct file *file,
+		poll_table *wait);
 size_t vb2_read(struct vb2_queue *q, char __user *data, size_t count,
 		loff_t *ppos, int nonblock);
 size_t vb2_write(struct vb2_queue *q, const char __user *data, size_t count,
@@ -645,47 +695,10 @@ static inline void vb2_clear_last_buffer_dequeued(struct vb2_queue *q)
 }
 
 /*
- * The following functions are not part of the vb2 core API, but are simple
- * helper functions that you can use in your struct v4l2_file_operations,
- * struct v4l2_ioctl_ops and struct vb2_ops. They will serialize if vb2_queue->lock
- * or video_device->lock is set, and they will set and test vb2_queue->owner
- * to check if the calling filehandle is permitted to do the queuing operation.
+ * The following functions are not part of the vb2 core API, but are useful
+ * functions for videobuf2-*.
  */
-
-/* struct v4l2_ioctl_ops helpers */
-
-int vb2_ioctl_reqbufs(struct file *file, void *priv,
-			  struct v4l2_requestbuffers *p);
-int vb2_ioctl_create_bufs(struct file *file, void *priv,
-			  struct v4l2_create_buffers *p);
-int vb2_ioctl_prepare_buf(struct file *file, void *priv,
-			  struct v4l2_buffer *p);
-int vb2_ioctl_querybuf(struct file *file, void *priv, struct v4l2_buffer *p);
-int vb2_ioctl_qbuf(struct file *file, void *priv, struct v4l2_buffer *p);
-int vb2_ioctl_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p);
-int vb2_ioctl_streamon(struct file *file, void *priv, enum v4l2_buf_type i);
-int vb2_ioctl_streamoff(struct file *file, void *priv, enum v4l2_buf_type i);
-int vb2_ioctl_expbuf(struct file *file, void *priv,
-	struct v4l2_exportbuffer *p);
-
-/* struct v4l2_file_operations helpers */
-
-int vb2_fop_mmap(struct file *file, struct vm_area_struct *vma);
-int vb2_fop_release(struct file *file);
-int _vb2_fop_release(struct file *file, struct mutex *lock);
-ssize_t vb2_fop_write(struct file *file, const char __user *buf,
-		size_t count, loff_t *ppos);
-ssize_t vb2_fop_read(struct file *file, char __user *buf,
-		size_t count, loff_t *ppos);
-unsigned int vb2_fop_poll(struct file *file, poll_table *wait);
-#ifndef CONFIG_MMU
-unsigned long vb2_fop_get_unmapped_area(struct file *file, unsigned long addr,
-		unsigned long len, unsigned long pgoff, unsigned long flags);
-#endif
-
-/* struct vb2_ops helpers, only use if vq->lock is non-NULL. */
-
-void vb2_ops_wait_prepare(struct vb2_queue *vq);
-void vb2_ops_wait_finish(struct vb2_queue *vq);
-
+bool vb2_buffer_in_use(struct vb2_queue *q, struct vb2_buffer *vb);
+int vb2_verify_memory_type(struct vb2_queue *q,
+		enum vb2_memory memory, unsigned int type);
 #endif /* _MEDIA_VIDEOBUF2_CORE_H */

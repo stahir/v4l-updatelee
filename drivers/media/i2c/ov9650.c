@@ -29,7 +29,7 @@
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
-#include <media/ov9650.h>
+#include <media/i2c/ov9650.h>
 
 static int debug;
 module_param(debug, int, 0644);
@@ -1133,7 +1133,7 @@ static int __ov965x_set_frame_interval(struct ov965x *ov965x,
 		if (mbus_fmt->width != iv->size.width ||
 		    mbus_fmt->height != iv->size.height)
 			continue;
-		err = abs64((u64)(iv->interval.numerator * 10000) /
+		err = abs((u64)(iv->interval.numerator * 10000) /
 			    iv->interval.denominator - req_int);
 		if (err < min_err) {
 			fiv = iv;

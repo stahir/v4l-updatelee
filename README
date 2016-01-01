@@ -18,8 +18,6 @@
 
 # To compile and install first select any additional media drivers you want compiled.
 
-	sudo make menuconfig
-
 # Then compile, -j[number of cores in your processor], this will take around 20min on my 
 # computer, so depending on your system it may take even longer.
 

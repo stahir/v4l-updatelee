@@ -227,7 +227,7 @@ static int vpfe_enable_clock(struct vpfe_device *vpfe_dev)
 		return 0;
 
 	vpfe_dev->clks = kcalloc(vpfe_cfg->num_clocks,
-				 sizeof(struct clock *), GFP_KERNEL);
+				 sizeof(*vpfe_dev->clks), GFP_KERNEL);
 	if (vpfe_dev->clks == NULL)
 		return -ENOMEM;
 
@@ -294,7 +294,7 @@ static void vpfe_detach_irq(struct vpfe_device *vpfe_dev)
  */
 static int vpfe_attach_irq(struct vpfe_device *vpfe_dev)
 {
-	int ret = 0;
+	int ret;
 
 	ret = request_irq(vpfe_dev->ccdc_irq0, vpfe_isr, 0,
 			  "vpfe_capture0", vpfe_dev);

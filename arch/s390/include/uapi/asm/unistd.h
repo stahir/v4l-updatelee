@@ -192,14 +192,14 @@
 #define __NR_set_tid_address	252
 #define __NR_fadvise64		253
 #define __NR_timer_create	254
-#define __NR_timer_settime	(__NR_timer_create+1)
-#define __NR_timer_gettime	(__NR_timer_create+2)
-#define __NR_timer_getoverrun	(__NR_timer_create+3)
-#define __NR_timer_delete	(__NR_timer_create+4)
-#define __NR_clock_settime	(__NR_timer_create+5)
-#define __NR_clock_gettime	(__NR_timer_create+6)
-#define __NR_clock_getres	(__NR_timer_create+7)
-#define __NR_clock_nanosleep	(__NR_timer_create+8)
+#define __NR_timer_settime	255
+#define __NR_timer_gettime	256
+#define __NR_timer_getoverrun	257
+#define __NR_timer_delete	258
+#define __NR_clock_settime	259
+#define __NR_clock_gettime	260
+#define __NR_clock_getres	261
+#define __NR_clock_nanosleep	262
 /* Number 263 is reserved for vserver */
 #define __NR_statfs64		265
 #define __NR_fstatfs64		266
@@ -290,7 +290,27 @@
 #define __NR_s390_pci_mmio_write	352
 #define __NR_s390_pci_mmio_read		353
 #define __NR_execveat		354
-#define NR_syscalls 355
+#define __NR_userfaultfd	355
+#define __NR_membarrier		356
+#define __NR_recvmmsg		357
+#define __NR_sendmmsg		358
+#define __NR_socket		359
+#define __NR_socketpair		360
+#define __NR_bind		361
+#define __NR_connect		362
+#define __NR_listen		363
+#define __NR_accept4		364
+#define __NR_getsockopt		365
+#define __NR_setsockopt		366
+#define __NR_getsockname	367
+#define __NR_getpeername	368
+#define __NR_sendto		369
+#define __NR_sendmsg		370
+#define __NR_recvfrom		371
+#define __NR_recvmsg		372
+#define __NR_shutdown		373
+#define __NR_mlock2		374
+#define NR_syscalls 375
 
 /* 
  * There are some system calls that are not present on 64 bit, some

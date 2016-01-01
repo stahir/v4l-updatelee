@@ -22,7 +22,7 @@
 #include <linux/videodev2.h>
 #include <linux/module.h>
 
-#include <media/sh_vou.h>
+#include <media/drv-intf/sh_vou.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -243,7 +243,7 @@ static void sh_vou_stream_config(struct sh_vou_device *vou_dev)
 }
 
 /* Locking: caller holds fop_lock mutex */
-static int sh_vou_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int sh_vou_queue_setup(struct vb2_queue *vq,
 		       unsigned int *nbuffers, unsigned int *nplanes,
 		       unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -253,11 +253,11 @@ static int sh_vou_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fm
 
 	dev_dbg(vou_dev->v4l2_dev.dev, "%s()\n", __func__);
 
-	if (fmt && fmt->fmt.pix.sizeimage < pix->height * bytes_per_line)
-		return -EINVAL;
-	*nplanes = 1;
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : pix->height * bytes_per_line;
 	alloc_ctxs[0] = vou_dev->alloc_ctx;
+	if (*nplanes)
+		return sizes[0] < pix->height * bytes_per_line ? -EINVAL : 0;
+	*nplanes = 1;
+	sizes[0] = pix->height * bytes_per_line;
 	return 0;
 }
 
@@ -1070,7 +1070,7 @@ static irqreturn_t sh_vou_isr(int irq, void *dev_id)
 
 	list_del(&vb->list);
 
-	v4l2_get_timestamp(&vb->vb.timestamp);
+	vb->vb.vb2_buf.timestamp = ktime_get_ns();
 	vb->vb.sequence = vou_dev->sequence++;
 	vb->vb.field = V4L2_FIELD_INTERLACED;
 	vb2_buffer_done(&vb->vb.vb2_buf, VB2_BUF_STATE_DONE);

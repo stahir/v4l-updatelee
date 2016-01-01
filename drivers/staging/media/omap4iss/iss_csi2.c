@@ -658,7 +658,7 @@ static void csi2_isr_buffer(struct iss_csi2_device *csi2)
 	 * Let video queue operation restart engine if there is an underrun
 	 * condition.
 	 */
-	if (buffer == NULL)
+	if (!buffer)
 		return;
 
 	csi2_set_outaddr(csi2, buffer->iss_addr);
@@ -673,6 +673,9 @@ static void csi2_isr_ctx(struct iss_csi2_device *csi2,
 
 	status = iss_reg_read(csi2->iss, csi2->regs1, CSI2_CTX_IRQSTATUS(n));
 	iss_reg_write(csi2->iss, csi2->regs1, CSI2_CTX_IRQSTATUS(n), status);
+
+	if (omap4iss_module_sync_is_stopping(&csi2->wait, &csi2->stopping))
+		return;
 
 	/* Propagate frame number */
 	if (status & CSI2_CTX_IRQ_FS) {
@@ -775,9 +778,6 @@ void omap4iss_csi2_isr(struct iss_csi2_device *csi2)
 			csi2_irqstatus & CSI2_IRQ_FIFO_OVF ? 1 : 0);
 		pipe->error = true;
 	}
-
-	if (omap4iss_module_sync_is_stopping(&csi2->wait, &csi2->stopping))
-		return;
 
 	/* Successful cases */
 	if (csi2_irqstatus & CSI2_IRQ_CONTEXT0)
@@ -979,7 +979,7 @@ static int csi2_get_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __csi2_get_format(csi2, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	fmt->format = *format;
@@ -1001,7 +1001,7 @@ static int csi2_set_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __csi2_get_format(csi2, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	csi2_try_format(csi2, cfg, fmt->pad, &fmt->format, fmt->which);

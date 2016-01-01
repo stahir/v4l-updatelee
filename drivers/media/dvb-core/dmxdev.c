@@ -352,8 +352,7 @@ static void dvb_dmxdev_filter_timer(struct dmxdev_filter *dmxdevfilter)
 
 static int dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 				       const u8 *buffer2, size_t buffer2_len,
-				       struct dmx_section_filter *filter,
-				       enum dmx_success success)
+				       struct dmx_section_filter *filter)
 {
 	struct dmxdev_filter *dmxdevfilter = filter->priv;
 	int ret;
@@ -386,8 +385,7 @@ static int dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 
 static int dvb_dmxdev_ts_callback(const u8 *buffer1, size_t buffer1_len,
 				  const u8 *buffer2, size_t buffer2_len,
-				  struct dmx_ts_feed *feed,
-				  enum dmx_success success)
+				  struct dmx_ts_feed *feed)
 {
 	struct dmxdev_filter *dmxdevfilter = feed->priv;
 	struct dvb_ringbuffer *buffer;
@@ -420,7 +418,7 @@ static int dvb_dmxdev_ts_callback(const u8 *buffer1, size_t buffer1_len,
 }
 
 static void dvb_dmxdev_bb_callback(const u8 *buf, size_t len, size_t upl, 
-	struct dmx_bb_feed *feed, enum dmx_success success)
+	struct dmx_bb_feed *feed)
 {
 	struct dmxdev_filter *dmxdevfilter = feed->priv;
 	struct dvb_ringbuffer *buffer;
@@ -1139,6 +1137,9 @@ static int dvb_demux_do_ioctl(struct file *file,
 		dmxdev->demux->get_pes_pids(dmxdev->demux, parg);
 		break;
 
+#if 0
+	/* Not used upstream and never documented */
+
 	case DMX_GET_CAPS:
 		if (!dmxdev->demux->get_caps) {
 			ret = -EINVAL;
@@ -1154,6 +1155,7 @@ static int dvb_demux_do_ioctl(struct file *file,
 		}
 		ret = dmxdev->demux->set_source(dmxdev->demux, parg);
 		break;
+#endif
 
 	case DMX_GET_STC:
 		if (!dmxdev->demux->get_stc) {

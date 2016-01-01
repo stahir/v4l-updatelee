@@ -322,7 +322,7 @@ static void usbtv_image_chunk(struct usbtv *usbtv, __be32 *chunk)
 
 		buf->vb.field = V4L2_FIELD_INTERLACED;
 		buf->vb.sequence = usbtv->sequence++;
-		v4l2_get_timestamp(&buf->vb.timestamp);
+		buf->vb.vb2_buf.timestamp = ktime_get_ns();
 		vb2_set_plane_payload(&buf->vb.vb2_buf, 0, size);
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
@@ -599,7 +599,7 @@ static struct v4l2_file_operations usbtv_fops = {
 };
 
 static int usbtv_queue_setup(struct vb2_queue *vq,
-	const struct v4l2_format *fmt, unsigned int *nbuffers,
+	unsigned int *nbuffers,
 	unsigned int *nplanes, unsigned int sizes[], void *alloc_ctxs[])
 {
 	struct usbtv *usbtv = vb2_get_drv_priv(vq);
@@ -607,10 +607,10 @@ static int usbtv_queue_setup(struct vb2_queue *vq,
 
 	if (vq->num_buffers + *nbuffers < 2)
 		*nbuffers = 2 - vq->num_buffers;
+	if (*nplanes)
+		return sizes[0] < size ? -EINVAL : 0;
 	*nplanes = 1;
-	if (fmt && fmt->fmt.pix.sizeimage < size)
-		return -EINVAL;
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : size;
+	sizes[0] = size;
 
 	return 0;
 }

@@ -212,7 +212,7 @@ static inline int dvb_dmx_swfilter_payload(struct dvb_demux_feed *feed,
 
 	feed->peslen += count;
 
-	return feed->cb.ts(&buf[p], count, NULL, 0, &feed->feed.ts, DMX_OK);
+	return feed->cb.ts(&buf[p], count, NULL, 0, &feed->feed.ts);
 }
 
 static int dvb_dmx_swfilter_sectionfilter(struct dvb_demux_feed *feed,
@@ -234,7 +234,7 @@ static int dvb_dmx_swfilter_sectionfilter(struct dvb_demux_feed *feed,
 		return 0;
 
 	return feed->cb.sec(feed->feed.sec.secbuf, feed->feed.sec.seclen,
-			    NULL, 0, &f->filter, DMX_OK);
+			    NULL, 0, &f->filter);
 }
 
 static inline int dvb_dmx_swfilter_section_feed(struct dvb_demux_feed *feed)
@@ -459,8 +459,7 @@ static inline void dvb_dmx_swfilter_packet_type(struct dvb_demux_feed *feed,
 			if (feed->ts_type & TS_PAYLOAD_ONLY)
 				dvb_dmx_swfilter_payload(feed, buf);
 			else
-				feed->cb.ts(buf, feed->demux->frame_ops.packet_size, NULL, 0, &feed->feed.ts,
-					    DMX_OK);
+				feed->cb.ts(buf, feed->demux->frame_ops.packet_size, NULL, 0, &feed->feed.ts);
 		}
 		if (feed->ts_type & TS_DECODER)
 			if (feed->demux->write_to_decoder)
@@ -566,7 +565,7 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 		if (feed->pid == pid)
 			dvb_dmx_swfilter_packet_type(feed, buf);
 		else if (feed->pid == 0x2000)
-			feed->cb.ts(buf, demux->frame_ops.packet_size, NULL, 0, &feed->feed.ts, DMX_OK);
+			feed->cb.ts(buf, feed->demux->frame_ops.packet_size, NULL, 0, &feed->feed.ts);
 	}
 }
 
@@ -701,7 +700,7 @@ void dvb_dmx_swfilter_raw(struct dvb_demux *demux, const u8 *buf, size_t count)
 
 	spin_lock_irqsave(&demux->lock, flags);
 
-	demux->feed->cb.ts(buf, count, NULL, 0, &demux->feed->feed.ts, DMX_OK);
+	demux->feed->cb.ts(buf, count, NULL, 0, &demux->feed->feed.ts);
 
 	spin_unlock_irqrestore(&demux->lock, flags);
 }
@@ -815,7 +814,7 @@ int dvb_dmx_swfilter_bbups(struct dvb_demux_feed *feed, const u8 *df, u16 dfl,
 				
 					// Invoke feed callback
 					feed->cb.bb(feed->buffer, feed->bb.bufpos, 
-						rupl, &feed->feed.bb, DMX_OK);
+						rupl, &feed->feed.bb);
 					
 					feed->bb.crcpos = feed->bb.bufpos = 0;
 				}
@@ -915,7 +914,7 @@ ssize_t _dvb_dmx_swfilter_bbframe(struct dvb_demux *demux, const u8 *frame, size
 		else if (feed->bb.isi != isi && feed->bb.isi != BB_ISI_ALL)
 			continue;
 		else 
-			feed->cb.bb(frame, framelen+10, 0, &feed->feed.bb, DMX_OK);
+			feed->cb.bb(frame, framelen+10, 0, &feed->feed.bb);
 	}
 
 	if (mode == BB_TS || mode == BB_PACK_GS) {
@@ -949,7 +948,7 @@ ssize_t _dvb_dmx_swfilter_bbframe(struct dvb_demux *demux, const u8 *frame, size
 			else if (feed->bb.isi != isi && feed->bb.isi != BB_ISI_ALL)
 				continue;
 			else
-				feed->cb.bb(frame+10, framelen, 0, &feed->feed.bb, DMX_OK);
+				feed->cb.bb(frame+10, framelen, 0, &feed->feed.bb);
 		}
 	} else {
 		printk(KERN_NOTICE "%s: invalid use of reserved TS/GS value 1\n",
@@ -1880,14 +1879,14 @@ static int dvbdmx_get_pes_pids(struct dmx_demux *demux, u16 * pids)
 }
 
 static void dvb_dmx_ts_compat_bb_callback(const u8 *buf, size_t len, size_t upl, 
-	struct dmx_bb_feed* source, enum dmx_success success)
+	struct dmx_bb_feed* source)
 {
 	unsigned int count;
 #ifdef DVB_DEMUX_DEBUG_BB
-	dprintk("%s: buf=%p, len=%u, upl=%u, source=%p, success=%d\n",
-		__FUNCTION__, buf, len, upl, source, success);
+	dprintk("%s: buf=%p, len=%u, upl=%u, source=%p\n",
+		__FUNCTION__, buf, len, upl, source);
 #endif
-	if (success != DMX_OK || upl != 188)
+	if (upl != 188)
 		return;
 	for(count=len/188; count > 0; count--, buf+=188)
 		dvb_dmx_swfilter_packet((struct dvb_demux*) source->parent, buf); 

@@ -1633,7 +1633,7 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 	spin_lock(&udc->lock);
 
 	int_enb = usba_int_enb_get(udc);
-	status = usba_readl(udc, INT_STA) & int_enb;
+	status = usba_readl(udc, INT_STA) & (int_enb | USBA_HIGH_SPEED);
 	DBG(DBG_INT, "irq, status=%#08x\n", status);
 
 	if (status & USBA_DET_SUSPEND) {
@@ -2001,6 +2001,17 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 		usb_ep_set_maxpacket_limit(&ep->ep, ep->fifo_size);
 		ep->udc = udc;
 		INIT_LIST_HEAD(&ep->queue);
+
+		if (ep->index == 0) {
+			ep->ep.caps.type_control = true;
+		} else {
+			ep->ep.caps.type_iso = ep->can_isoc;
+			ep->ep.caps.type_bulk = true;
+			ep->ep.caps.type_int = true;
+		}
+
+		ep->ep.caps.dir_in = true;
+		ep->ep.caps.dir_out = true;
 
 		if (i)
 			list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
