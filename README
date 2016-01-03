@@ -18,7 +18,7 @@
 
 # If you don't need the entire repo history, to conserve bandwidth downloading, please use
 
-	git clone --depth=1 https://bitbucket.org/updatelee/v4l-updatelee
+	git clone --depth 1 https://bitbucket.org/updatelee/v4l-updatelee
 	cd v4l-updatelee
 
 # To compile and install first select any additional media drivers you want compiled.
