@@ -1443,6 +1443,10 @@ struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
 	state->frontend.ops               = stv0910_ops;
 	state->frontend.demodulator_priv  = state;
 
+	if (strlen(cfg->name)) {
+		strcpy(state->frontend.ops.info.name, cfg->name);
+	}
+
 	return &state->frontend;
 
 fail:

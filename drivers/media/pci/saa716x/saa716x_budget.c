@@ -1239,6 +1239,7 @@ static struct saa716x_config saa716x_tbs6922_config = {
 #define SAA716x_DEV_TBS6983	"DVB-S/S2"
 
 static struct stv0910_cfg tbs6983_stv0910_config = {
+	.name     = "STV090x TBS 6983",
 	.adr      = 0x68,
 	.parallel = 1,
 	.rptlvl   = 4,
