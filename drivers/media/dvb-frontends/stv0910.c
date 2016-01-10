@@ -621,7 +621,7 @@ static int stv0910_get_signal_parameters(struct stv0910_state *state)
 	p->frame_len   = (STV0910_READ_FIELD(state, DEMOD_TYPE) & 0x02) >> 1;
 	p->rolloff     = FE_STV0910_rolloff[STV0910_READ_FIELD(state, ROLLOFF_STATUS)];
 	p->matype      = (STV0910_READ_FIELD(state, MATYPE_CURRENT1) << 8) | STV0910_READ_FIELD(state, MATYPE_CURRENT0);
-	p->inversion   = STV0910_READ_FIELD(state, IQINV);
+	p->inversion   = STV0910_READ_FIELD(state, SPECINV_DEMOD);
 
 	switch (STV0910_READ_FIELD(state, HEADER_MODE)) {
 	case 2:
