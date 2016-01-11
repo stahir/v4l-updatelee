@@ -241,7 +241,7 @@ static int stv6120_set_frequency(struct dvb_frontend *fe, u32 frequency)
 
 	frequency /= 1000;
 
-	pr_info("%s: tuner: %d, freq: %d\n", __func__, state->tuner, frequency);
+/*	pr_info("%s: tuner: %d, freq: %d\n", __func__, state->tuner, frequency); */
 
 	stv6120_set_cutoff(fe, frequency);
 

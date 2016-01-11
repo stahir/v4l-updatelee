@@ -1309,6 +1309,7 @@ static int stv0910_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 
 	STV0910_WRITE_REG(state, AGC2O, 0x5B);
 	STV0910_WRITE_REG(state, AGC2REF, 0x38);
+	STV0910_WRITE_FIELD(state, AGCIQ_BETA, 1);
 	STV0910_WRITE_REG(state, DMDISTATE, 0x5C); /* Demod Stop */
 
 	stv0910_i2c_gate_ctrl(fe, 1);
@@ -1322,7 +1323,7 @@ static int stv0910_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 
 		config->tuner_set_frequency(fe, *(s->freq + x));
 
-		msleep(10);
+		usleep_range(3000, 4000);
 
 		stv0910_read_dbm(fe, (s->rf_level + x));
 	}
