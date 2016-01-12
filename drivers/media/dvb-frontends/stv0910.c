@@ -727,9 +727,9 @@ static int stv0910_set_mclock(struct stv0910_state *state, u32 MasterClock)
 	else if (ndiv >= 224 && ndiv <= 225)
 		cp = 27;
 
-	stv0910_write_reg(state, RSTV0910_NCOARSE, (cp << 3) | idf);
-	stv0910_write_reg(state, RSTV0910_NCOARSE2, odf);
-	stv0910_write_reg(state, RSTV0910_NCOARSE1, ndiv);
+//	stv0910_write_reg(state, RSTV0910_NCOARSE, (cp << 3) | idf);
+//	stv0910_write_reg(state, RSTV0910_NCOARSE2, odf);
+//	stv0910_write_reg(state, RSTV0910_NCOARSE1, ndiv);
 
 	fvco = (quartz * 2 * ndiv) / idf;
 	state->base->mclk = fvco / (2 * odf) * 1000000;

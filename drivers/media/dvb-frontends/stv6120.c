@@ -241,7 +241,7 @@ static int stv6120_set_frequency(struct dvb_frontend *fe, u32 frequency)
 
 	frequency /= 1000;
 
-/*	pr_info("%s: tuner: %d, freq: %d\n", __func__, state->tuner, frequency); */
+//	pr_info("%s: tuner: %d, freq: %d\n", __func__, state->tuner, frequency);
 
 	stv6120_set_cutoff(fe, frequency);
 
@@ -293,8 +293,8 @@ static int stv6120_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	N     = Fvco / FRdiv;
 	F     = ((Fvco % FRdiv) * 0x40000) / FRdiv;
 
-/*	pr_info("%s: Fvco:%02x Fxtl:%02x R:%02x FRdiv:%02x ICP:%02x PDiv:%02x\n", __func__, Fvco, Fxtl, R, FRdiv, ICP, PDiv); */
-/*	pr_info("%s: N:%08x F:%08x\n", __func__, N, F); */
+//	pr_info("%s: Fvco:%02x Fxtl:%02x R:%02x FRdiv:%02x ICP:%02x PDiv:%02x\n", __func__, Fvco, Fxtl, R, FRdiv, ICP, PDiv);
+//	pr_info("%s: N:%08x F:%08x\n", __func__, N, F);
 
 	STV6120_WRITE_FIELD(state, ICP, ICP);
 	STV6120_WRITE_FIELD(state, PDIV, PDiv);
