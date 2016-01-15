@@ -917,24 +917,10 @@ static int stv0910_probe(struct stv0910_state *state)
 	stv0910_write_reg(state, RSTV0910_CFGEXT,    0x02);  /* CFGEXT */
 	stv0910_write_reg(state, RSTV0910_GENCFG,    0x15);  /* GENCFG */
 
-	stv0910_write_reg(state, RSTV0910_TSTRES0, 0x80); /* LDPC Reset */
-	stv0910_write_reg(state, RSTV0910_TSTRES0, 0x00);
-
 	stv0910_set_mclock(state, 135000000);
-
-	/* TS output */
-	stv0910_write_reg(state, RSTV0910_P1_TSCFGH, state->tscfgh | 0x01);
-	stv0910_write_reg(state, RSTV0910_P1_TSCFGH, state->tscfgh);
-	stv0910_write_reg(state, RSTV0910_P1_TSCFGM, 0xC0);  /* Manual speed */
-	stv0910_write_reg(state, RSTV0910_P1_TSCFGL, 0x20);
 
 	/* Speed = 67.5 MHz */
 	stv0910_write_reg(state, RSTV0910_P1_TSSPEED, state->tsspeed);
-
-	stv0910_write_reg(state, RSTV0910_P2_TSCFGH, state->tscfgh | 0x01);
-	stv0910_write_reg(state, RSTV0910_P2_TSCFGH, state->tscfgh);
-	stv0910_write_reg(state, RSTV0910_P2_TSCFGM, 0xC0);  /* Manual speed */
-	stv0910_write_reg(state, RSTV0910_P2_TSCFGL, 0x20);
 
 	/* Speed = 67.5 MHz */
 	stv0910_write_reg(state, RSTV0910_P2_TSSPEED, state->tsspeed);
