@@ -506,14 +506,14 @@ static int stv0910_get_signal_parameters(struct stv0910_state *state)
 
 	u8 FE_STV0910_fec_dvbs[] = {
 		FEC_NONE,
-		FEC_NONE,
-		FEC_NONE,
-		FEC_NONE,
+		FEC_1_4,
+		FEC_1_3,
+		FEC_2_5,
 		FEC_1_2,
 		FEC_3_5,
 		FEC_2_3,
 		FEC_3_4,
-		FEC_NONE,
+		FEC_4_5,
 		FEC_5_6,
 		FEC_6_7,
 		FEC_7_8,
