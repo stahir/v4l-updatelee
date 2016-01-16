@@ -1339,11 +1339,11 @@ static struct dvb_frontend_ops stv0910_ops = {
 	.delsys = { SYS_DSS, SYS_DVBS, SYS_DVBS2 },
 	.info = {
 		.name			= "STV0910",
-		.frequency_min		= 950000,
+		.frequency_min		= 250000,
 		.frequency_max		= 2150000,
 		.frequency_stepsize	= 0,
 		.frequency_tolerance	= 0,
-		.symbol_rate_min	= 1000000,
+		.symbol_rate_min	= 100000,
 		.symbol_rate_max	= 67500000,
 		.caps			= FE_CAN_INVERSION_AUTO |
 					  FE_CAN_FEC_AUTO       |
