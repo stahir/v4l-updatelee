@@ -1062,12 +1062,12 @@ static int stv0910_send_master_cmd(struct dvb_frontend *fe, struct dvb_diseqc_ma
 
 	pr_info("%s: demod: %d\n", __func__, state->nr);
 
-	STV0910_WRITE_REG(state, DISTXCFG, 0x3E);
+	STV0910_WRITE_REG(state, DISTXCFG, 0x06);
 	for (i = 0; i < cmd->msg_len; i++) {
 		stv0910_wait_dis(state, 0x40, 0x00);
 		STV0910_WRITE_REG(state, DISTXFIFO, cmd->msg[i]);
 	}
-	STV0910_WRITE_REG(state, DISTXCFG, 0x3A);
+	STV0910_WRITE_REG(state, DISTXCFG, 0x00);
 	stv0910_wait_dis(state, 0x20, 0x20);
 	return 0;
 }
