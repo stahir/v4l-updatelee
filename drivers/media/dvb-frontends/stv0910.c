@@ -787,7 +787,7 @@ static int stv0910_start(struct stv0910_state *state, struct dtv_frontend_proper
 
 	pr_info("%s: demod: %d\n", __func__, state->nr);
 
-	if (p->symbol_rate < 100000 || p->symbol_rate > 70000000)
+	if (p->symbol_rate < fe->ops.info.symbol_rate_min || p->symbol_rate > fe->ops.info.symbol_rate_max)
 		return -EINVAL;
 
 	p->bandwidth_hz = 36000000 * 2;
