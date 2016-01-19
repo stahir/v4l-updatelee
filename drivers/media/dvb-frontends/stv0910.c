@@ -981,7 +981,7 @@ static int stv0910_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
 
-	pr_info("%s: demod: %d tone:%s\n", __func__, state->nr, tone ? "ON" : "OFF");
+	pr_info("%s: demod: %d tone:%s\n", __func__, state->nr, tone ? "OFF" : "ON");
 
 	switch (tone) {
 	case SEC_TONE_ON:
