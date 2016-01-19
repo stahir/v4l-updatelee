@@ -1040,22 +1040,6 @@ static int stv0910_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int stv0910_wait_dis(struct stv0910_state *state, u8 flag, u8 val)
-{
-	int i;
-	u8 stat;
-
-	pr_info("%s: demod: %d\n", __func__, state->nr);
-
-	for (i = 0; i < 10; i++) {
-		stat = STV0910_READ_REG(state, DISTXSTATUS);
-		if ((stat & flag) == val)
-			return 0;
-		msleep(10);
-	}
-	return -1;
-}
-
 static int stv0910_send_master_cmd(struct dvb_frontend *fe, struct dvb_diseqc_master_cmd *cmd)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
@@ -1063,13 +1047,20 @@ static int stv0910_send_master_cmd(struct dvb_frontend *fe, struct dvb_diseqc_ma
 
 	pr_info("%s: demod: %d\n", __func__, state->nr);
 
+	STV0910_WRITE_FIELD(state, DISTX_RESET, 1);
+	STV0910_WRITE_FIELD(state, DISTX_RESET, 0);
+
 	STV0910_WRITE_FIELD(state, DIS_PRECHARGE, 1);
 	for (i = 0; i < cmd->msg_len; i++) {
-		stv0910_wait_dis(state, 0x40, 0x00);
+		while(STV0910_READ_FIELD(state, TX_FIFO_FULL)) {
+			msleep(10);
+		}
 		STV0910_WRITE_REG(state, DISTXFIFO, cmd->msg[i]);
 	}
 	STV0910_WRITE_FIELD(state, DIS_PRECHARGE, 0);
-	stv0910_wait_dis(state, 0x20, 0x20);
+	while(STV0910_READ_FIELD(state, TX_IDLE)) {
+		msleep(10);
+	}
 	return 0;
 }
 
