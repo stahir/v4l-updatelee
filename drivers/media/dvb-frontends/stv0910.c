@@ -882,8 +882,9 @@ static int stv0910_init_diseqc(struct stv0910_state *state)
 
 	/* Disable receiver */
 	STV0910_WRITE_REG(state, DISRXCFG, 0x00);
-	STV0910_WRITE_REG(state, DISTXCFG, 0xBA); /* Reset = 1 */
-	STV0910_WRITE_REG(state, DISTXCFG, 0x3A); /* Reset = 0 */
+	STV0910_WRITE_REG(state, DISTXCFG, 0x00);
+	STV0910_WRITE_FIELD(state, DISTX_RESET, 1);
+	STV0910_WRITE_FIELD(state, DISTX_RESET, 0);
 	STV0910_WRITE_REG(state, DISTXF22, Freq);
 	return 0;
 }
@@ -984,9 +985,9 @@ static int stv0910_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 
 	switch (tone) {
 	case SEC_TONE_ON:
-		return STV0910_WRITE_REG(state, DISTXCFG, 0x00);
+		return STV0910_WRITE_FIELD(state, DISEQC_MODE, 0);
 	case SEC_TONE_OFF:
-		return STV0910_WRITE_REG(state, DISTXCFG, 0x02);
+		return STV0910_WRITE_FIELD(state, DISEQC_MODE, 2);
 	default:
 		break;
 	}
@@ -1062,12 +1063,12 @@ static int stv0910_send_master_cmd(struct dvb_frontend *fe, struct dvb_diseqc_ma
 
 	pr_info("%s: demod: %d\n", __func__, state->nr);
 
-	STV0910_WRITE_REG(state, DISTXCFG, 0x06);
+	STV0910_WRITE_FIELD(state, DIS_PRECHARGE, 1);
 	for (i = 0; i < cmd->msg_len; i++) {
 		stv0910_wait_dis(state, 0x40, 0x00);
 		STV0910_WRITE_REG(state, DISTXFIFO, cmd->msg[i]);
 	}
-	STV0910_WRITE_REG(state, DISTXCFG, 0x00);
+	STV0910_WRITE_FIELD(state, DIS_PRECHARGE, 0);
 	stv0910_wait_dis(state, 0x20, 0x20);
 	return 0;
 }
