@@ -784,6 +784,7 @@ static int stv0910_start(struct stv0910_state *state, struct dtv_frontend_proper
 	u8  i;
 	s64 CFR;
 	s32 offset;
+	u8  rolloff;
 
 	pr_info("%s: demod: %d\n", __func__, state->nr);
 
@@ -859,7 +860,24 @@ start:
 	pr_info("%s: freq: %d offset %d\n", __func__, p->frequency, offset);
 	p->frequency   += offset;
 	p->symbol_rate  = stv0910_get_SR(state);
-	p->bandwidth_hz = (p->symbol_rate * 13) / 10;
+
+	switch(STV0910_READ_FIELD(state, ROLLOFF_STATUS)) {
+	case 0x03:
+		rolloff = 115;
+		break;
+	case 0x02:
+		rolloff = 120;
+		break;
+	case 0x01:
+		rolloff = 125;
+		break;
+	case 0x00:
+	default:
+		rolloff = 135;
+		break;
+	}
+
+	p->bandwidth_hz = (p->symbol_rate * rolloff) / 100;
 	if (offset > 1000 || offset < -1000) {
 		pr_info("%s: corrected frequency: %d RESTARTING\n", __func__, p->frequency);
 		goto start;
