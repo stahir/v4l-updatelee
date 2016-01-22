@@ -159,69 +159,69 @@ static int stv6120_set_cutoff(struct dvb_frontend *fe, u32 frequency)
 
 	u8 cfhf;
 
-	if (frequency < 6796)
+	if (frequency < 6796000)
 		cfhf = 0;
-	if (frequency < 5828)
+	if (frequency < 5828000)
 		cfhf = 1;
-	if (frequency < 4778)
+	if (frequency < 4778000)
 		cfhf = 2;
-	if (frequency < 4118)
+	if (frequency < 4118000)
 		cfhf = 3;
-	if (frequency < 3513)
+	if (frequency < 3513000)
 		cfhf = 4;
-	if (frequency < 3136)
+	if (frequency < 3136000)
 		cfhf = 5;
-	if (frequency < 2794)
+	if (frequency < 2794000)
 		cfhf = 6;
-	if (frequency < 2562)
+	if (frequency < 2562000)
 		cfhf = 7;
-	if (frequency < 2331)
+	if (frequency < 2331000)
 		cfhf = 8;
-	if (frequency < 2169)
+	if (frequency < 2169000)
 		cfhf = 9;
-	if (frequency < 2006)
+	if (frequency < 2006000)
 		cfhf = 10;
-	if (frequency < 1890)
+	if (frequency < 1890000)
 		cfhf = 11;
-	if (frequency < 1771)
+	if (frequency < 1771000)
 		cfhf = 12;
-	if (frequency < 1680)
+	if (frequency < 1680000)
 		cfhf = 13;
-	if (frequency < 1586)
+	if (frequency < 1586000)
 		cfhf = 14;
-	if (frequency < 1514)
+	if (frequency < 1514000)
 		cfhf = 15;
-	if (frequency < 1433)
+	if (frequency < 1433000)
 		cfhf = 16;
-	if (frequency < 1374)
+	if (frequency < 1374000)
 		cfhf = 17;
-	if (frequency < 1310)
+	if (frequency < 1310000)
 		cfhf = 18;
-	if (frequency < 1262)
+	if (frequency < 1262000)
 		cfhf = 19;
-	if (frequency < 1208)
+	if (frequency < 1208000)
 		cfhf = 20;
-	if (frequency < 1167)
+	if (frequency < 1167000)
 		cfhf = 21;
-	if (frequency < 1122)
+	if (frequency < 1122000)
 		cfhf = 22;
-	if (frequency < 1087)
+	if (frequency < 1087000)
 		cfhf = 23;
-	if (frequency < 1049)
+	if (frequency < 1049000)
 		cfhf = 24;
-	if (frequency < 1018)
+	if (frequency < 1018000)
 		cfhf = 25;
-	if (frequency < 983)
+	if (frequency < 983000)
 		cfhf = 26;
-	if (frequency < 956)
+	if (frequency < 956000)
 		cfhf = 27;
-	if (frequency < 926)
+	if (frequency < 926000)
 		cfhf = 28;
-	if (frequency < 902)
+	if (frequency < 902000)
 		cfhf = 29;
-	if (frequency < 875)
+	if (frequency < 875000)
 		cfhf = 30;
-	if (frequency < 854)
+	if (frequency < 854000)
 		cfhf = 31;
 
 	STV6120_WRITE_FIELD(state, CFHF, cfhf);
@@ -239,55 +239,53 @@ static int stv6120_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	u32 Fxtl, Fvco, FRdiv, N, F;
 	u8  P, PDiv, R, ICP, i;
 
-	frequency /= 1000;
-
 //	pr_info("%s: tuner: %d, freq: %d\n", __func__, state->tuner, frequency);
 
 	stv6120_set_cutoff(fe, frequency);
 
-	if (frequency >= 250) {
+	if (frequency >= 250000) {
 		P = 16;
 		PDiv = 3;
 	}
-	if (frequency >= 299) {
+	if (frequency >= 299000) {
 		P = 8;
 		PDiv = 2;
 	}
-	if (frequency >= 596) {
+	if (frequency >= 596000) {
 		P = 4;
 		PDiv = 1;
 	}
-	if (frequency >= 1191) {
+	if (frequency >= 1191000) {
 		P = 2;
 		PDiv = 0;
 	}
 
 	Fvco = frequency * P;
 
-	if (Fvco >= 2380) {
+	if (Fvco >= 2380000) {
 		ICP = 0;
 	}
-	if (Fvco >= 2473) {
+	if (Fvco >= 2473000) {
 		ICP = 1;
 	}
-	if (Fvco >= 2701) {
+	if (Fvco >= 2701000) {
 		ICP = 2;
 	}
-	if (Fvco >= 3022) {
+	if (Fvco >= 3022000) {
 		ICP = 3; /* 3 or 4 */
 	}
-	if (Fvco >= 3388) {
+	if (Fvco >= 3388000) {
 		ICP = 5;
 	}
-	if (Fvco >= 3846) {
+	if (Fvco >= 3846000) {
 		ICP = 6;
 	}
-	if (Fvco >= 4395) {
+	if (Fvco >= 4395000) {
 		ICP = 7;
 	}
 
 	/* fLO = fVCO / P = (fXTAL / R) * (N + F / 2^18) / P */
-	Fxtl  = config->refclk / 1000000; /* 30mhz */
+	Fxtl  = config->refclk / 1000; /* 30mhz */
 	R     = config->clk_div;          /* 2     */
 	FRdiv = Fxtl / R;
 	N     = Fvco / FRdiv;
