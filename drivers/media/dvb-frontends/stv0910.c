@@ -900,7 +900,7 @@ static int stv0910_init_diseqc(struct stv0910_state *state)
 
 	/* Disable receiver */
 	STV0910_WRITE_REG(state, DISRXCFG, 0x00);
-	STV0910_WRITE_REG(state, DISTXCFG, 0x00);
+	STV0910_WRITE_REG(state, DISTXCFG, 0x02);
 	STV0910_WRITE_FIELD(state, DISTX_RESET, 1);
 	STV0910_WRITE_FIELD(state, DISTX_RESET, 0);
 	STV0910_WRITE_REG(state, DISTXF22, Freq);
