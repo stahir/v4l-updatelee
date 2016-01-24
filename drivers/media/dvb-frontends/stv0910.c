@@ -1065,12 +1065,10 @@ static int stv0910_send_master_cmd(struct dvb_frontend *fe, struct dvb_diseqc_ma
 
 	pr_info("%s: demod: %d\n", __func__, state->nr);
 
-	STV0910_WRITE_FIELD(state, DISTX_RESET, 1);
-	STV0910_WRITE_FIELD(state, DISTX_RESET, 0);
-
+	STV0910_WRITE_REG(state, DISTXCFG, 0x02);
 	STV0910_WRITE_FIELD(state, DIS_PRECHARGE, 1);
 	for (i = 0; i < cmd->msg_len; i++) {
-		while(STV0910_READ_FIELD(state, TX_FIFO_FULL)) {
+		while(STV0910_READ_FIELD(state, GAP_BURST)) {
 			msleep(10);
 		}
 		STV0910_WRITE_REG(state, DISTXFIFO, cmd->msg[i]);
@@ -1079,6 +1077,9 @@ static int stv0910_send_master_cmd(struct dvb_frontend *fe, struct dvb_diseqc_ma
 	while(STV0910_READ_FIELD(state, TX_IDLE)) {
 		msleep(10);
 	}
+	msleep(200);
+	STV0910_WRITE_REG(state, DISTXCFG, 0x00);
+
 	return 0;
 }
 
