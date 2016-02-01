@@ -808,7 +808,7 @@ start:
 	STV0910_WRITE_REG(state, SFRLOW0, 0xA0);
 
 	/* Set the Init Symbol rate*/
-	SFR = (p->symbol_rate * 65536) / state->base->mclk;
+	SFR = (p->symbol_rate << 16) / state->base->mclk;
 	STV0910_WRITE_REG(state, SFRINIT1, (SFR >> 8) & 0x7F);
 	STV0910_WRITE_REG(state, SFRINIT0, SFR & 0xFF);
 
@@ -1023,10 +1023,12 @@ static enum dvbfe_search stv0910_search(struct dvb_frontend *fe)
 
 	pr_info("%s: demod: %d\n", __func__, state->nr);
 
-	if (stv0910_set_parameters(fe))
+	if (stv0910_set_parameters(fe)) {
 		return DVBFE_ALGO_SEARCH_SUCCESS;
-	else
+	} else {
+		state->algo = STV0910_NOTUNE;
 		return DVBFE_ALGO_SEARCH_FAILED;
+	}
 }
 
 static int stv0910_set_property(struct dvb_frontend *fe,
