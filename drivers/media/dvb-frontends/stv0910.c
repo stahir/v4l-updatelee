@@ -814,10 +814,11 @@ start:
 
 	/* FE_STV0910_SetSearchStandard */
 	STV0910_WRITE_REG(state, DMDCFGMD, 0xD9);
+	STV0910_WRITE_REG(state, DMDCFG2, 0x7B);
 
-	/* Disable DSS */
-	STV0910_WRITE_REG(state, FECM, 0x00);
-	STV0910_WRITE_REG(state, PRVIT, 0x2F);
+	/* Enable DSS search as well */
+	STV0910_WRITE_REG(state, FECM, 0x10);
+	STV0910_WRITE_REG(state, PRVIT, 0x7F);
 
 	/* 8PSK 3/5, 8PSK 2/3 Poff tracking optimization WA*/
 	STV0910_WRITE_REG(state, ACLC2S2Q, 0x0B);
