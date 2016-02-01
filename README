@@ -36,9 +36,11 @@
 
 	sudo reboot
 
-# Good to go, in the future if you need to just recompile the modules then
+# Good to go, in the future if you need to upgrade 
+# pull the latest changes and recompile the modules
 
 	cd v4l-updatelee
+	git pull
 	make modules
 	
 # and install modules
