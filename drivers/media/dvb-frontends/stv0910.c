@@ -669,6 +669,8 @@ static int stv0910_init(struct dvb_frontend *fe)
 
 	pr_info("%s: demod: %d\n", __func__, state->nr);
 
+	state->algo = STV0910_NOTUNE;
+
 	return 0;
 }
 
@@ -987,8 +989,6 @@ static int stv0910_get_frontend_algo(struct dvb_frontend *fe)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
 
-	pr_info("%s: demod: %d\n", __func__, state->nr);
-
 	if (state->algo == STV0910_NOTUNE) {
 		return DVBFE_ALGO_NOTUNE;
 	} else {
@@ -1254,11 +1254,6 @@ static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	pr_info("%s: demod: %d\n", __func__, state->nr);
 
-	if (state->algo == STV0910_NOTUNE) {
-		*status = FE_TIMEDOUT;
-		return 0;
-	}
-
 	*status = 0;
 
 	if (STV0910_READ_FIELD(state, CAR_LOCK)) {
@@ -1293,6 +1288,11 @@ static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	}
 
 	stv0910_get_stats(fe);
+
+	if (state->algo == STV0910_NOTUNE) {
+		*status |= FE_TIMEDOUT;
+		return 0;
+	}
 
 	return 0;
 }
