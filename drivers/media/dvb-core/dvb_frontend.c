@@ -622,7 +622,7 @@ static int dvb_enable_media_tuner(struct dvb_frontend *fe)
 	struct media_device *mdev = adapter->mdev;
 	struct media_entity  *entity, *source;
 	struct media_link *link, *found_link = NULL;
-	int i, ret, n_links = 0, active_links = 0;
+	int ret, n_links = 0, active_links = 0;
 
 	fepriv->pipe_start_entity = NULL;
 
@@ -632,8 +632,7 @@ static int dvb_enable_media_tuner(struct dvb_frontend *fe)
 	entity = fepriv->dvbdev->entity;
 	fepriv->pipe_start_entity = entity;
 
-	for (i = 0; i < entity->num_links; i++) {
-		link = &entity->links[i];
+	list_for_each_entry(link, &entity->links, list) {
 		if (link->sink->entity == entity) {
 			found_link = link;
 			n_links++;
@@ -659,13 +658,11 @@ static int dvb_enable_media_tuner(struct dvb_frontend *fe)
 
 	source = found_link->source->entity;
 	fepriv->pipe_start_entity = source;
-	for (i = 0; i < source->num_links; i++) {
+	list_for_each_entry(link, &source->links, list) {
 		struct media_entity *sink;
 		int flags = 0;
 
-		link = &source->links[i];
 		sink = link->sink->entity;
-
 		if (sink == entity)
 			flags = MEDIA_LNK_FL_ENABLED;
 
@@ -904,10 +901,10 @@ void dvb_frontend_sleep_until(ktime_t *waketime, u32 add_usec)
 	s32 delta;
 
 	*waketime = ktime_add_us(*waketime, add_usec);
-	delta = ktime_us_delta(ktime_get_real(), *waketime);
+	delta = ktime_us_delta(ktime_get_boottime(), *waketime);
 	if (delta > 2500) {
 		msleep((delta - 1500) / 1000);
-		delta = ktime_us_delta(ktime_get_real(), *waketime);
+		delta = ktime_us_delta(ktime_get_boottime(), *waketime);
 	}
 	if (delta > 0)
 		udelay(delta);
@@ -2564,7 +2561,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 			u8 last = 1;
 			if (dvb_frontend_debug)
 				printk("%s switch command: 0x%04lx\n", __func__, swcmd);
-			nexttime = ktime_get_real();
+			nexttime = ktime_get_boottime();
 			if (dvb_frontend_debug)
 				tv[0] = nexttime;
 			/* before sending a command, initialize by sending
@@ -2575,7 +2572,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 
 			for (i = 0; i < 9; i++) {
 				if (dvb_frontend_debug)
-					tv[i+1] = ktime_get_real();
+					tv[i+1] = ktime_get_boottime();
 				if ((swcmd & 0x01) != last) {
 					/* set voltage to (last ? 13V : 18V) */
 					fe->ops.set_voltage(fe, (last) ? SEC_VOLTAGE_13 : SEC_VOLTAGE_18);
@@ -2872,7 +2869,7 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 			fe->dvb->num, fe->id, fe->ops.info.name);
 
 	dvb_register_device (fe->dvb, &fepriv->dvbdev, &dvbdev_template,
-			     fe, DVB_DEVICE_FRONTEND);
+			     fe, DVB_DEVICE_FRONTEND, 0);
 
 	/*
 	 * Initialize the cache to the proper values according with the

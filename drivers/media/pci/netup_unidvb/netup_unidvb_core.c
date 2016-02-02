@@ -387,7 +387,7 @@ static int netup_unidvb_dvb_init(struct netup_unidvb_dev *ndev,
 		vb2_dvb_alloc_frontend(
 			&ndev->frontends[num], 3) == NULL) {
 		dev_dbg(&ndev->pci_dev->dev,
-			"%s(): unable to to alllocate vb2_dvb_frontend\n",
+			"%s(): unable to allocate vb2_dvb_frontend\n",
 			__func__);
 		return -ENOMEM;
 	}
@@ -771,10 +771,9 @@ static int netup_unidvb_initdev(struct pci_dev *pci_dev,
 
 	/* allocate device context */
 	ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
-
 	if (!ndev)
 		goto dev_alloc_err;
-	memset(ndev, 0, sizeof(*ndev));
+
 	ndev->old_fw = old_firmware;
 	ndev->wq = create_singlethread_workqueue(NETUP_UNIDVB_NAME);
 	if (!ndev->wq) {
