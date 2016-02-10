@@ -8,6 +8,7 @@
 #include "tbs_pcie.h"
 #include "tbs_pcie-reg.h"
 
+#include "stv6110x.h"
 #include "stv6120.h"
 #include "stv0910.h"
 
@@ -771,6 +772,7 @@ static int tbs_dvb_init(struct tbs_adapter *adapter)
 				printk("TBS PCIE register frontend failed\n");
 				goto err6;
 			}
+			adapter->fe->dvb->priv = adapter;
 		}
 	}
 
@@ -867,25 +869,66 @@ static void tbs_adapters_release(struct tbs_pcie_dev *dev)
 	}
 }
 
-static struct tbs6908fe_config tbs6908_fe_config = {
-	.tbs6908fe_address = 0x68,
+static struct stv0910_cfg tbs6908_stv0910_config = {
+	.name     = "STV0910 TBS 6908",
+	.adr      = 0x68,
+	.parallel = 1,
+	.rptlvl   = 4,
+	.clk      = 30000000,
 
-	.tbs6908_ctl1 = tbsdvbctl1,
-	.tbs6908_ctl2 = tbsdvbctl2,
+	.tuner_init		= NULL,
+	.tuner_set_mode		= NULL,
+	.tuner_set_frequency	= NULL,
+	.tuner_set_bandwidth	= NULL,
+	.tuner_set_params	= NULL,
 };
 
-static int tbs6908fe_frontend_attach(struct tbs_adapter *adapter, int type)
+static struct stv6120_config tbs6908_stv6120_0_config = {
+	.addr			= 0x60,
+	.refclk			= 30000000,
+	.clk_div		= 2,
+	.tuner			= 1,
+};
+
+static struct stv6120_config tbs6908_stv6120_1_config = {
+	.addr			= 0x60,
+	.refclk			= 30000000,
+	.clk_div		= 2,
+	.tuner			= 0,
+};
+
+static int tbs6908_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage voltage)
 {
-	//struct i2c_adapter *i2c = &adapter->i2c->i2c_adap;
+	struct tbs_adapter *adapter = fe->dvb->priv;
 	struct tbs_pcie_dev *dev = adapter->dev;
-	
-	struct tbs_adapter *adap0 = &dev->tbs_pcie_adap[0];
-	struct i2c_adapter *i2c0 = &adap0->i2c->i2c_adap;
 
-	struct tbs_adapter *adap2 = &dev->tbs_pcie_adap[2];
-	struct i2c_adapter *i2c2 = &adap2->i2c->i2c_adap;
+	switch (voltage) {
+	case SEC_VOLTAGE_13:
+		printk(KERN_INFO "Adapter: %d, Polarization=[13V]", adapter->count);
+		tbs_pcie_gpio_write(dev, 1, 0, 0);
+		tbs_pcie_gpio_write(dev, 2, 0, 1);
+		break;
+	case SEC_VOLTAGE_18:
+		printk(KERN_INFO "Adapter: %d, Polarization=[18V]", adapter->count);
+		tbs_pcie_gpio_write(dev, 1, 0, 1);
+		tbs_pcie_gpio_write(dev, 2, 0, 0);
+		break;
+	case SEC_VOLTAGE_OFF:
+		printk(KERN_INFO "Adapter: %d, Polarization=[OFF]", adapter->count);
+		break;
+	default:
+		return -EINVAL;
+	}
 
-	u8 mac[6];
+	return 0;
+}
+
+static int tbs6908_frontend_attach(struct tbs_adapter *adapter, int type)
+{
+	struct tbs_pcie_dev *dev = adapter->dev;
+	struct stv6120_devctl *ctl;
+	struct tbs_adapter *adap1 = &dev->tbs_pcie_adap[1];
+	struct i2c_adapter *i2c = &adap1->i2c->i2c_adap;
 
 	if (adapter->count == 0) {
 		tbs_pcie_gpio_write(dev, 1, 0, 0);
@@ -901,38 +944,51 @@ static int tbs6908fe_frontend_attach(struct tbs_adapter *adapter, int type)
 		msleep(100);
 	}
 
-	if (adapter->count == 0 || adapter->count == 1) {
-
-		adapter->fe = dvb_attach(tbs6908fe_attach, &tbs6908_fe_config,
-								i2c0, adapter->count, tbs_mode_single);
-
-		if (!adapter->fe)
-			goto exit;
-
-		dvb_attach(tbsfe_attach, adapter->fe);
-
-		tbs_pcie_mac(i2c0, adapter->count, mac);
-		memcpy(adapter->dvb_adapter.proposed_mac, mac, 6);
-		printk(KERN_INFO "TurboSight TBS6905/8 DVB-S2 card adapter%d MAC=%pM\n",
-			adapter->count, adapter->dvb_adapter.proposed_mac);
+	if (adapter->count == 0 || adapter->count == 2) {
+		adapter->fe = dvb_attach(stv0910_attach,
+					 i2c,
+					 &tbs6908_stv0910_config,
+					 0);
+	} else {
+		adapter->fe = dvb_attach(stv0910_attach,
+					 i2c,
+					 &tbs6908_stv0910_config,
+					 1);
 	}
 
-	if (adapter->count == 2 || adapter->count == 3) {
 
-
-		adapter->fe = dvb_attach(tbs6908fe_attach, &tbs6908_fe_config,
-								i2c2, adapter->count, tbs_mode_single);
-		if (!adapter->fe)
-			 goto exit;
-
-		dvb_attach(tbsfe_attach, adapter->fe);
-
-		tbs_pcie_mac(i2c0, adapter->count, mac);
-		memcpy(adapter->dvb_adapter.proposed_mac, mac, 6);
-		printk(KERN_INFO "TurboSight TBS6905/8 DVB-S2 card adapter%d MAC=%pM\n",
-			adapter->count, adapter->dvb_adapter.proposed_mac);
+	if (adapter->fe == NULL) {
+		goto exit;
 	}
+	printk(KERN_INFO "found STV0910\n");
 
+	adapter->fe->ops.i2c_gate_ctrl(adapter->fe, true);
+	if (adapter->count == 0 || adapter->count == 2) {
+		ctl = dvb_attach(stv6120_attach,
+				 adapter->fe,
+				 &tbs6908_stv6120_0_config,
+				 i2c);
+	} else {
+		ctl = dvb_attach(stv6120_attach,
+				 adapter->fe,
+				 &tbs6908_stv6120_1_config,
+				 i2c);
+	}
+	adapter->fe->ops.i2c_gate_ctrl(adapter->fe, false);
+
+	if (ctl == NULL) {
+		goto exit;
+	}
+	printk(KERN_INFO "found STV6120\n");
+
+	tbs6908_stv0910_config.tuner_set_mode      = ctl->tuner_set_mode;
+	tbs6908_stv0910_config.tuner_set_params    = ctl->tuner_set_params;
+	tbs6908_stv0910_config.tuner_set_frequency = ctl->tuner_set_frequency;
+	tbs6908_stv0910_config.tuner_set_bandwidth = ctl->tuner_set_bandwidth;
+
+	adapter->fe->ops.set_voltage = tbs6908_set_voltage;
+
+	printk(KERN_INFO "Done!\n");
 	return 0;
 exit:
 	return -ENODEV;
@@ -951,8 +1007,6 @@ static void tbs_remove(struct pci_dev *pdev)
 
 	for (i = 0; i < dev->card_config->adapters; i++) {
 		tbs_adap = &dev->tbs_pcie_adap[i];
-		if (tbs_adap->adap_priv)
-			tbs_ci_release(tbs_adap);
 	}
 
 	tbs_adapters_detach(dev);
@@ -1024,7 +1078,7 @@ static int tbs_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 
 	ret = request_irq(dev->pdev->irq,
 			dev->card_config->irq_handler,
-			dev->int_type ? IRQF_DISABLED : IRQF_SHARED,
+			0,
 			"TBS PCIE",
 			(void *) dev);
 
@@ -1091,7 +1145,7 @@ static struct tbs_card_config pcie_tbs6908_config = {
 	.model_name		= PCIE_MODEL_TURBOSIGHT_TBS6908,
 	.dev_type		= PCIE_DEV_TURBOSIGHT_TBS6908,
 	.adapters		= 4,
-	.frontend_attach	= tbs6908fe_frontend_attach,
+	.frontend_attach	= tbs6908_frontend_attach,
 	.irq_handler	= tbs6908_pcie_irq,
 	.adap_config	= {
 			{
