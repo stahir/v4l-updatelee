@@ -927,8 +927,19 @@ static int tbs6908_frontend_attach(struct tbs_adapter *adapter, int type)
 {
 	struct tbs_pcie_dev *dev = adapter->dev;
 	struct stv6120_devctl *ctl;
-	struct tbs_adapter *adap1 = &dev->tbs_pcie_adap[1];
-	struct i2c_adapter *i2c = &adap1->i2c->i2c_adap;
+
+	struct tbs_adapter *adap0 = &dev->tbs_pcie_adap[0];
+	struct i2c_adapter *i2c0 = &adap0->i2c->i2c_adap;
+	struct tbs_adapter *adap2 = &dev->tbs_pcie_adap[2];
+	struct i2c_adapter *i2c2 = &adap2->i2c->i2c_adap;
+
+	struct i2c_adapter *i2c;
+
+	if (adapter->count == 0 || adapter->count == 1) {
+		i2c = i2c0;
+	} else {
+		i2c = i2c2;
+	}
 
 	if (adapter->count == 0) {
 		tbs_pcie_gpio_write(dev, 1, 0, 0);
@@ -943,6 +954,8 @@ static int tbs6908_frontend_attach(struct tbs_adapter *adapter, int type)
 		tbs_pcie_gpio_write(dev, 3, 0, 1);
 		msleep(100);
 	}
+
+	printk(KERN_INFO "%s: Adapter:%d\n", __func__, adapter->count);
 
 	if (adapter->count == 0 || adapter->count == 2) {
 		adapter->fe = dvb_attach(stv0910_attach,
