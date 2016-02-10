@@ -343,7 +343,7 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	u8 g, psd2, odiv;
 
 	if (fe->ops.get_frontend) {
-		fe->ops.get_frontend(fe);
+		fe->ops.get_frontend(fe, p);
 	}
 	srate = p->symbol_rate;
 

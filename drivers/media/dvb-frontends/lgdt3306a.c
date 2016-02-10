@@ -1065,10 +1065,10 @@ static int lgdt3306a_get_property(struct dvb_frontend *fe,
 }
 
 
-static int lgdt3306a_get_frontend(struct dvb_frontend *fe)
+static int lgdt3306a_get_frontend(struct dvb_frontend *fe,
+				  struct dtv_frontend_properties *p)
 {
 	struct lgdt3306a_state *state = fe->demodulator_priv;
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
 	dbg_info("lgdt3306a_get_frontend: (%u, %d)\n",
 		 state->current_frequency, state->current_modulation);
