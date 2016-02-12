@@ -905,13 +905,13 @@ static int tbs6908_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage volt
 	switch (voltage) {
 	case SEC_VOLTAGE_13:
 		printk(KERN_INFO "Adapter: %d, Polarization=[13V]", adapter->count);
-		tbs_pcie_gpio_write(dev, 1, 0, 0);
-		tbs_pcie_gpio_write(dev, 2, 0, 1);
+		tbs_pcie_gpio_write(dev, adapter->count, 1, 0);
+		tbs_pcie_gpio_write(dev, adapter->count, 2, 1);
 		break;
 	case SEC_VOLTAGE_18:
 		printk(KERN_INFO "Adapter: %d, Polarization=[18V]", adapter->count);
-		tbs_pcie_gpio_write(dev, 1, 0, 1);
-		tbs_pcie_gpio_write(dev, 2, 0, 0);
+		tbs_pcie_gpio_write(dev, adapter->count, 1, 1);
+		tbs_pcie_gpio_write(dev, adapter->count, 2, 0);
 		break;
 	case SEC_VOLTAGE_OFF:
 		printk(KERN_INFO "Adapter: %d, Polarization=[OFF]", adapter->count);
