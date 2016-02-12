@@ -658,9 +658,9 @@ static int stv0910_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 		mutex_lock(&state->base->i2c_lock);
 
 	if (enable)
-		stv0910_write_reg(state, RSTV0910_P1_I2CRPT, 0xc8);
+		stv0910_write_reg(state, RSTV0910_P1_I2CRPT, 0xb0);
 	else
-		stv0910_write_reg(state, RSTV0910_P1_I2CRPT, 0x4a);
+		stv0910_write_reg(state, RSTV0910_P1_I2CRPT, 0x30);
 
 	if (!enable)
 		mutex_unlock(&state->base->i2c_lock);
