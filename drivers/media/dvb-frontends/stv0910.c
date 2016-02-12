@@ -230,15 +230,19 @@ static int stv0910_write_reg(struct stv0910_state *state, u16 reg, u8 data)
 
 static int stv0910_write_field(struct stv0910_state *state, u32 label, u8 data)
 {
-	u8 reg, mask, pos;
+	u8 oldreg, newreg, mask, pos;
 
-	reg = stv0910_read_reg(state, (label >> 16) & 0xffff);
+	oldreg = stv0910_read_reg(state, (label >> 16) & 0xffff);
 	extract_mask_pos(label, &mask, &pos);
 
 	data = mask & (data << pos);
-	reg = (reg & (~mask)) | data;
+	newreg = (oldreg & (~mask)) | data;
 
-	return stv0910_write_reg(state, (label >> 16) & 0xffff, reg);
+	if (newreg != oldreg) {
+		return stv0910_write_reg(state, (label >> 16) & 0xffff, newreg);
+	} else {
+		return 1;
+	}
 }
 
 /*********************************************************************
