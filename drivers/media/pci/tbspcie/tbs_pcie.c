@@ -902,6 +902,10 @@ static int tbs6908_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage volt
 	struct tbs_adapter *adapter = fe->dvb->priv;
 	struct tbs_pcie_dev *dev = adapter->dev;
 
+	// Not sure why but you have to set it to 18v, then change it later
+	tbs_pcie_gpio_write(dev, adapter->count, 1, 1);
+	tbs_pcie_gpio_write(dev, adapter->count, 2, 0);
+
 	switch (voltage) {
 	case SEC_VOLTAGE_13:
 		printk(KERN_INFO "Adapter: %d, Polarization=[13V]", adapter->count);
@@ -910,11 +914,13 @@ static int tbs6908_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage volt
 		break;
 	case SEC_VOLTAGE_18:
 		printk(KERN_INFO "Adapter: %d, Polarization=[18V]", adapter->count);
-		tbs_pcie_gpio_write(dev, adapter->count, 1, 1);
-		tbs_pcie_gpio_write(dev, adapter->count, 2, 0);
+		// Already at 18v
 		break;
 	case SEC_VOLTAGE_OFF:
 		printk(KERN_INFO "Adapter: %d, Polarization=[OFF]", adapter->count);
+// uncommented because its untested
+//		tbs_pcie_gpio_write(dev, adapter->count, 1, 1);
+//		tbs_pcie_gpio_write(dev, adapter->count, 2, 1);
 		break;
 	default:
 		return -EINVAL;
