@@ -768,8 +768,27 @@ static int stv0910_get_dmdlock(struct stv0910_state *state)
 	}
 
 	while (timer < timeout && !lock) {
-		if (STV0910_READ_FIELD(state, HEADER_MODE) >= 2) {
-			lock = STV0910_READ_FIELD(state, LOCK_DEFINITIF);
+		switch (STV0910_READ_FIELD(state, HEADER_MODE)) {
+		case FE_DVB_S:
+			if (STV0910_READ_FIELD(state, LOCK_DEFINITIF)) {
+				if (STV0910_READ_FIELD(state, LOCKEDVIT)) {
+					if (STV0910_READ_FIELD(state, TSFIFO_LINEOK)) {
+						lock = 1;
+					}
+				}
+			}
+			break;
+		case FE_DVB_S2:
+			if (STV0910_READ_FIELD(state, LOCK_DEFINITIF)) {
+				if (STV0910_READ_FIELD(state, PKTDELIN_LOCK)) {
+					if (STV0910_READ_FIELD(state, TSFIFO_LINEOK)) {
+						lock = 1;
+					}
+				}
+			}
+			break;
+		default:
+			break;
 		}
 		if (!lock)
 			msleep(10);
