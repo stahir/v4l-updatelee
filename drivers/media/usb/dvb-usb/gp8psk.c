@@ -314,10 +314,10 @@ static struct dvb_usb_device_properties gp8psk_properties = {
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver gp8psk_usb_driver = {
-	.name		= "dvb_usb_gp8psk",
-	.probe		= gp8psk_usb_probe,
+	.name       = "dvb_usb_gp8psk",
+	.probe      = gp8psk_usb_probe,
 	.disconnect = dvb_usb_device_exit,
-	.id_table	= gp8psk_usb_table,
+	.id_table   = gp8psk_usb_table,
 };
 
 module_usb_driver(gp8psk_usb_driver);

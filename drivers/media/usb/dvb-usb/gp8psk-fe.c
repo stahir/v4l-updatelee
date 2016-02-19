@@ -500,7 +500,7 @@ static int gp8psk_fe_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_sp
 
 	for (x = 0 ; x < s->num_freq ; x++)
 	{
-		freq = s->freq[x] * 1000;
+		freq = *(s->freq + x) * 1000;
 		cmd[0] = freq         & 0xff;
 		cmd[1] = (freq >> 8)  & 0xff;
 		cmd[2] = (freq >> 16) & 0xff;
