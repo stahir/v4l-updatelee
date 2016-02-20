@@ -1334,17 +1334,24 @@ static int stv0910_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 	STV0910_WRITE_REG(state, AGC2REF, 0x38);
 	STV0910_WRITE_FIELD(state, AGCIQ_BETA, 1);
 	STV0910_WRITE_REG(state, DMDISTATE, 0x5C); /* Demod Stop */
+	STV0910_WRITE_FIELD(state, SCAN_ENABLE, 0);
+	STV0910_WRITE_FIELD(state, CFR_AUTOSCAN, 0);
 
 	stv0910_i2c_gate_ctrl(fe, 1);
 	config->tuner_set_bandwidth(fe, 1000000);
 
 	*s->type = SC_DBM;
 
-	STV0910_WRITE_REG(state, DMDISTATE, 0x5C);
 	for (x = 0 ; x < s->num_freq ; x++) {
-		STV0910_WRITE_REG(state, DMDISTATE, 0x1C);
+		STV0910_WRITE_REG(state, DMDISTATE, 0x5C);
 
 		config->tuner_set_frequency(fe, *(s->freq + x));
+
+		STV0910_WRITE_REG(state, SFRINIT1, 0x00);
+		STV0910_WRITE_REG(state, SFRINIT0, 0x01);
+		STV0910_WRITE_REG(state, CFRINIT1, 0x00);
+		STV0910_WRITE_REG(state, CFRINIT0, 0x00);
+		STV0910_WRITE_REG(state, DMDISTATE, 0x58);
 
 		usleep_range(3000, 4000);
 
