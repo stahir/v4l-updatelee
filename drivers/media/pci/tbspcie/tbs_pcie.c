@@ -523,37 +523,44 @@ static void adapter_tasklet(unsigned long adap)
 	u32 active_buffer;
 	int i = 0;
 
-	if (adapter->tsin >= 4)
-	adapter->buffer = TBS_PCIE_READ(TBS_DMA2_BASE(adapter->tsin), TBS_DMA_STATUS);
-	else
-	adapter->buffer = TBS_PCIE_READ(TBS_DMA_BASE(adapter->tsin), TBS_DMA_STATUS);
+	if (adapter->tsin >= 4) {
+		adapter->buffer = TBS_PCIE_READ(TBS_DMA2_BASE(adapter->tsin), TBS_DMA_STATUS);
+	} else {
+		adapter->buffer = TBS_PCIE_READ(TBS_DMA_BASE(adapter->tsin), TBS_DMA_STATUS);
+	}
 	adapter->buffer += 6;
 
 	active_buffer = adapter->buffer;
 
 	spin_lock(&adapter->adap_lock);
 
-	data = (u8*)dev->mem_addr_virt + (adapter->tsin)*(TBS_PCIE_DMA_TOTAL + 256) +
-						TBS_PCIE_CELL_SIZE*(active_buffer & 0x07);
+	data = (u8*)dev->mem_addr_virt + (adapter->tsin)*(TBS_PCIE_DMA_TOTAL + 256) + TBS_PCIE_CELL_SIZE*(active_buffer & 0x07);
+
+//	printk(KERN_INFO "sync_offset: %d\n", adapter->sync_offset);
 
 	if ((adapter->sync_offset == 0) || (*(data+adapter->sync_offset) != 0x47)) {
-		for(i = 0; i < 256; i++)
-			if ((*(data + i) == 0x47) && (*(data + i + 188) == 0x47) &&
-		 					(*(data + i + 2*188) == 0x47)) {
+		for(i = 0; i < 256; i++) {
+			if ((*(data + i) == 0x47) && (*(data + i + 188) == 0x47) && (*(data + i + 2*188) == 0x47)) {
 				adapter->sync_offset = i;
 				break;
 			}
+		}
 	}
+
+//	printk(KERN_INFO "sync_offset: %d\n", adapter->sync_offset);
 
 	data += adapter->sync_offset;
 
 	/* copy from cell0 sync byte offset to cell7 */
-	if ((active_buffer & 0x07) == 0x07)
-	memcpy((u8*)dev->mem_addr_virt + (adapter->tsin)*(TBS_PCIE_DMA_TOTAL + 256) + TBS_PCIE_DMA_TOTAL,
-	(u8*)dev->mem_addr_virt + (adapter->tsin)*(TBS_PCIE_DMA_TOTAL + 256), adapter->sync_offset);
-		
-	if ((dev->mem_addr_virt) && (adapter->active))
-		dvb_dmx_swfilter_packets(&adapter->demux, data, adapter->buffer_size / 188); 
+	if ((active_buffer & 0x07) == 0x07) {
+		memcpy((u8*)dev->mem_addr_virt + (adapter->tsin)*(TBS_PCIE_DMA_TOTAL + 256) + TBS_PCIE_DMA_TOTAL, (u8*)dev->mem_addr_virt + (adapter->tsin)*(TBS_PCIE_DMA_TOTAL + 256), adapter->sync_offset);
+	}
+
+//	printk(KERN_INFO "buffer_size: %d\n", adapter->buffer_size);
+
+	if ((dev->mem_addr_virt) && (adapter->active)) {
+		dvb_dmx_swfilter_packets(&adapter->demux, data, adapter->buffer_size / 188);
+	}
 
 	spin_unlock(&adapter->adap_lock);
 

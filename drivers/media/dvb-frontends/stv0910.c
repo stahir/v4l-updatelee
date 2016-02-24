@@ -645,6 +645,12 @@ static int stv0910_get_signal_parameters(struct stv0910_state *state)
 		break;
 	}
 
+	pr_info("%s: MATYPE: %02x\n", __func__, MAKEWORD16(STV0910_READ_REG(state, MATSTR1), STV0910_READ_REG(state, MATSTR0)));
+	pr_info("%s: UPLSTR: %02x\n", __func__, MAKEWORD16(STV0910_READ_REG(state, UPLSTR1), STV0910_READ_REG(state, UPLSTR0)));
+	pr_info("%s: DFLSTR: %02x\n", __func__, MAKEWORD16(STV0910_READ_REG(state, DFLSTR1), STV0910_READ_REG(state, DFLSTR0)));
+	pr_info("%s: SYNCSTR: %02x\n", __func__, STV0910_READ_REG(state, SYNCSTR));
+	pr_info("%s: SYNCDSTR: %02x\n", __func__, MAKEWORD16(STV0910_READ_REG(state, SYNCDSTR1), STV0910_READ_REG(state, SYNCDSTR0)));
+
 	return 0;
 }
 

@@ -48,7 +48,7 @@
 /**
  * Define this to enable verbose debugging information from the Base-band demux
  */
-//#define DVB_DEMUX_DEBUG_BB
+// #define DVB_DEMUX_DEBUG_BB
 
 static int dvb_demux_tscheck;
 module_param(dvb_demux_tscheck, int, 0644);
