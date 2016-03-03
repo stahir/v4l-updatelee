@@ -598,9 +598,9 @@ static inline int find_next_packet(struct dvb_demux *demux, const u8 *buf, int p
 	int start = pos, lost;
 
 	if (demux->frame_ops.frame_size		== 0) {
-		demux->frame_ops.frame_size		= 188;
+		demux->frame_ops.frame_size	= 188;
 		demux->frame_ops.packet_size	= 188;
-		demux->frame_ops.sync_byte		= 0x47;
+		demux->frame_ops.sync_byte	= 0x47;
 	}
 	while (pos < count) {
 		if (buf[pos] == demux->frame_ops.sync_byte ||
