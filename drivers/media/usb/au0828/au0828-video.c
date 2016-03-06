@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-mc.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
 #include <media/tuner.h>
@@ -650,102 +651,6 @@ void au0828_usb_v4l2_media_release(struct au0828_dev *dev)
 		media_device_unregister_entity(&dev->input_ent[i]);
 	}
 #endif
-}
-
-static int au0828_create_media_graph(struct au0828_dev *dev)
-{
-#ifdef CONFIG_MEDIA_CONTROLLER
-	struct media_device *mdev = dev->media_dev;
-	struct media_entity *entity;
-	struct media_entity *tuner = NULL, *decoder = NULL, *demod = NULL;
-	int i, ret;
-
-	if (!mdev)
-		return 0;
-
-	media_device_for_each_entity(entity, mdev) {
-		switch (entity->function) {
-		case MEDIA_ENT_F_TUNER:
-			tuner = entity;
-			break;
-		case MEDIA_ENT_F_ATV_DECODER:
-			decoder = entity;
-			break;
-		case MEDIA_ENT_F_DTV_DEMOD:
-			demod = entity;
-			break;
-		}
-	}
-
-	/* Analog setup, using tuner as a link */
-
-	/* Something bad happened! */
-	if (!decoder)
-		return -EINVAL;
-
-	if (tuner) {
-		dev->tuner = tuner;
-		ret = media_create_pad_link(tuner, TUNER_PAD_OUTPUT,
-					    decoder, AU8522_PAD_INPUT, 0);
-		if (ret)
-			return ret;
-	}
-	ret = media_create_pad_link(decoder, AU8522_PAD_VID_OUT,
-				    &dev->vdev.entity, 0,
-				    MEDIA_LNK_FL_ENABLED);
-	if (ret)
-		return ret;
-	ret = media_create_pad_link(decoder, AU8522_PAD_VBI_OUT,
-				    &dev->vbi_dev.entity, 0,
-				    MEDIA_LNK_FL_ENABLED);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < AU0828_MAX_INPUT; i++) {
-		struct media_entity *ent = &dev->input_ent[i];
-
-		switch (AUVI_INPUT(i).type) {
-		case AU0828_VMUX_UNDEFINED:
-			break;
-		case AU0828_VMUX_CABLE:
-		case AU0828_VMUX_TELEVISION:
-		case AU0828_VMUX_DVB:
-			if (!tuner)
-				break;
-
-			ret = media_create_pad_link(ent, 0, tuner,
-						    TUNER_PAD_RF_INPUT,
-						    MEDIA_LNK_FL_ENABLED);
-			if (ret)
-				return ret;
-			break;
-		case AU0828_VMUX_COMPOSITE:
-		case AU0828_VMUX_SVIDEO:
-			/* FIXME: fix the decoder PAD */
-			ret = media_create_pad_link(ent, 0, decoder,
-						    AU8522_PAD_INPUT, 0);
-			if (ret)
-				return ret;
-			break;
-		}
-	}
-
-	/*
-	 * Disable tuner to demod link to avoid disable step
-	 * when tuner is requested by video or audio
-	*/
-	if (tuner && demod) {
-		struct media_link *link;
-
-		list_for_each_entry(link, &demod->links, list) {
-			if (link->sink->entity == demod &&
-			    link->source->entity == tuner) {
-				media_entity_setup_link(link, 0);
-			}
-		}
-	}
-#endif
-	return 0;
 }
 
 static void au0828_usb_v4l2_release(struct v4l2_device *v4l2_dev)
@@ -1512,8 +1417,10 @@ static void au0828_s_input(struct au0828_dev *dev, int index)
 	default:
 		dprintk(1, "unknown input type set [%d]\n",
 			AUVI_INPUT(index).type);
-		break;
+		return;
 	}
+
+	dev->ctrl_input = index;
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing,
 			AUVI_INPUT(index).vmux, 0, 0);
@@ -1546,6 +1453,7 @@ static void au0828_s_input(struct au0828_dev *dev, int index)
 static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 {
 	struct au0828_dev *dev = video_drvdata(file);
+	struct video_device *vfd = video_devdata(file);
 
 	dprintk(1, "VIDIOC_S_INPUT in function %s, input=%d\n", __func__,
 		index);
@@ -1553,9 +1461,19 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 		return -EINVAL;
 	if (AUVI_INPUT(index).type == 0)
 		return -EINVAL;
-	dev->ctrl_input = index;
+
+	if (dev->ctrl_input == index)
+		return 0;
+
 	au0828_s_input(dev, index);
-	return 0;
+
+	/*
+	 * Input has been changed. Disable the media source
+	 * associated with the old input and enable source
+	 * for the newly set input
+	 */
+	v4l_disable_media_source(vfd);
+	return v4l_enable_media_source(vfd);
 }
 
 static int vidioc_enumaudio(struct file *file, void *priv, struct v4l2_audio *a)
@@ -2069,6 +1987,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	dev->ctrl_ainput = 0;
 	dev->ctrl_freq = 960;
 	dev->std = V4L2_STD_NTSC_M;
+	/* Default input is TV Tuner */
 	au0828_s_input(dev, 0);
 
 	mutex_init(&dev->vb_queue_lock);
@@ -2120,14 +2039,16 @@ int au0828_analog_register(struct au0828_dev *dev,
 		ret = -ENODEV;
 		goto err_reg_vbi_dev;
 	}
-	retval = au0828_create_media_graph(dev);
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	retval = v4l2_mc_create_media_graph(dev->media_dev);
 	if (retval) {
 		pr_err("%s() au0282_dev_register failed to create graph\n",
 			__func__);
 		ret = -ENODEV;
 		goto err_reg_vbi_dev;
 	}
-
+#endif
 
 	dprintk(1, "%s completed!\n", __func__);
 
