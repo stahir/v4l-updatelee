@@ -1,9 +1,10 @@
 /* DVB USB framework compliant Linux driver for the
  *	DVBWorld DVB-S 2101, 2102, DVB-S2 2104, DVB-C 3101,
- *	TeVii S600, S630, S650, S660, S480, S421, S632
+ *	TeVii S421, S480, S482, S600, S630, S632, S650, S660, S662,
  *	Prof 1100, 7500,
  *	Geniatech SU3000, T220,
- *	TechnoTrend S2-4600 Cards
+ *	TechnoTrend S2-4600,
+ *	Terratec Cinergy S2 cards
  * Copyright (C) 2008-2012 Igor M. Liplianin (liplianin@me.by)
  *
  *	This program is free software; you can redistribute it and/or modify it
@@ -36,7 +37,6 @@
 #include "tda18271.h"
 #include "cxd2820r.h"
 #include "m88ds3103.h"
-#include "ts2020.h"
 
 /* Max transfer size done by I2C transfer functions */
 #define MAX_XFER_SIZE  64
@@ -67,6 +67,10 @@
 
 #ifndef USB_PID_TEVII_S660
 #define USB_PID_TEVII_S660 0xd660
+#endif
+
+#ifndef USB_PID_TEVII_S662
+#define USB_PID_TEVII_S662 0xd662
 #endif
 
 #ifndef USB_PID_TEVII_S480_1
@@ -1729,6 +1733,7 @@ enum dw2102_table_entry {
 	TEVII_S482_1,
 	TEVII_S482_2,
 	TERRATEC_CINERGY_S2_BOX,
+	TEVII_S662
 };
 
 static struct usb_device_id dw2102_table[] = {
@@ -1757,6 +1762,7 @@ static struct usb_device_id dw2102_table[] = {
 	[TEVII_S482_1] = {USB_DEVICE(0x9022, 0xd483)},
 	[TEVII_S482_2] = {USB_DEVICE(0x9022, 0xd484)},
 	[TERRATEC_CINERGY_S2_BOX] = {USB_DEVICE(USB_VID_TERRATEC, 0x0105)},
+	[TEVII_S662] = {USB_DEVICE(0x9022, USB_PID_TEVII_S662)},
 	{ }
 };
 
@@ -2274,7 +2280,7 @@ static struct dvb_usb_device_properties tt_s2_4600_properties = {
 		} },
 		}
 	},
-	.num_device_descs = 4,
+	.num_device_descs = 5,
 	.devices = {
 		{ "TechnoTrend TT-connect S2-4600",
 			{ &dw2102_table[TECHNOTREND_S2_4600], NULL },
@@ -2290,6 +2296,10 @@ static struct dvb_usb_device_properties tt_s2_4600_properties = {
 		},
 		{ "Terratec Cinergy S2 USB BOX",
 			{ &dw2102_table[TERRATEC_CINERGY_S2_BOX], NULL },
+			{ NULL },
+		},
+		{ "TeVii S662",
+			{ &dw2102_table[TEVII_S662], NULL },
 			{ NULL },
 		},
 	}
@@ -2412,10 +2422,10 @@ module_usb_driver(dw2102_driver);
 MODULE_AUTHOR("Igor M. Liplianin (c) liplianin@me.by");
 MODULE_DESCRIPTION("Driver for DVBWorld DVB-S 2101, 2102, DVB-S2 2104,"
 			" DVB-C 3101 USB2.0,"
-			" TeVii S600, S630, S650, S660, S480, S421, S632"
-			" Prof 1100, 7500 USB2.0,"
+			" TeVii S421, S480, S482, S600, S630, S632, S650,"
+			" TeVii S660, S662, Prof 1100, 7500 USB2.0,"
 			" Geniatech SU3000, T220,"
-			" TechnoTrend S2-4600 devices");
+			" TechnoTrend S2-4600, Terratec Cinergy S2 devices");
 MODULE_VERSION("0.1");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(DW2101_FIRMWARE);

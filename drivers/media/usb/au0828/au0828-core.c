@@ -205,37 +205,62 @@ static int au0828_media_device_init(struct au0828_dev *dev,
 	return 0;
 }
 
+#ifdef CONFIG_MEDIA_CONTROLLER
 static void au0828_media_graph_notify(struct media_entity *new,
 				      void *notify_data)
 {
-#ifdef CONFIG_MEDIA_CONTROLLER
 	struct au0828_dev *dev = (struct au0828_dev *) notify_data;
 	int ret;
+	struct media_entity *entity, *mixer = NULL, *decoder = NULL;
 
-	if (!dev->decoder)
-		return;
+	if (!new) {
+		/*
+		 * Called during au0828 probe time to connect
+		 * entites that were created prior to registering
+		 * the notify handler. Find mixer and decoder.
+		*/
+		media_device_for_each_entity(entity, dev->media_dev) {
+			if (entity->function == MEDIA_ENT_F_AUDIO_MIXER)
+				mixer = entity;
+			else if (entity->function == MEDIA_ENT_F_ATV_DECODER)
+				decoder = entity;
+		}
+		goto create_link;
+	}
 
 	switch (new->function) {
 	case MEDIA_ENT_F_AUDIO_MIXER:
-		ret = media_create_pad_link(dev->decoder,
-					    DEMOD_PAD_AUDIO_OUT,
-					    new, 0,
-					    MEDIA_LNK_FL_ENABLED);
-		if (ret)
-			dev_err(&dev->usbdev->dev,
-				"Mixer Pad Link Create Error: %d\n",
-				ret);
+		mixer = new;
+		if (dev->decoder)
+			decoder = dev->decoder;
+		break;
+	case MEDIA_ENT_F_ATV_DECODER:
+		/* In case, Mixer is added first, find mixer and create link */
+		media_device_for_each_entity(entity, dev->media_dev) {
+			if (entity->function == MEDIA_ENT_F_AUDIO_MIXER)
+				mixer = entity;
+		}
+		decoder = new;
 		break;
 	default:
 		break;
 	}
-#endif
+
+create_link:
+	if (decoder && mixer) {
+		ret = media_create_pad_link(decoder,
+					    DEMOD_PAD_AUDIO_OUT,
+					    mixer, 0,
+					    MEDIA_LNK_FL_ENABLED);
+		if (ret)
+			dev_err(&dev->usbdev->dev,
+				"Mixer Pad Link Create Error: %d\n", ret);
+	}
 }
 
 static int au0828_enable_source(struct media_entity *entity,
 				struct media_pipeline *pipe)
 {
-#ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_entity  *source, *find_source;
 	struct media_entity *sink;
 	struct media_link *link, *found_link = NULL;
@@ -378,13 +403,10 @@ end:
 	pr_debug("au0828_enable_source() end %s %d %d\n",
 		 entity->name, entity->function, ret);
 	return ret;
-#endif
-	return 0;
 }
 
 static void au0828_disable_source(struct media_entity *entity)
 {
-#ifdef CONFIG_MEDIA_CONTROLLER
 	int ret = 0;
 	struct media_device *mdev = entity->graph_obj.mdev;
 	struct au0828_dev *dev;
@@ -426,8 +448,8 @@ static void au0828_disable_source(struct media_entity *entity)
 
 end:
 	mutex_unlock(&mdev->graph_mutex);
-#endif
 }
+#endif
 
 static int au0828_media_device_register(struct au0828_dev *dev,
 					struct usb_device *udev)
@@ -447,6 +469,15 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 				"Media Device Register Error: %d\n", ret);
 			return ret;
 		}
+	} else {
+		/*
+		 * Call au0828_media_graph_notify() to connect
+		 * audio graph to our graph. In this case, audio
+		 * driver registered the device and there is no
+		 * entity_notify to be called when new entities
+		 * are added. Invoke it now.
+		*/
+		au0828_media_graph_notify(NULL, (void *) dev);
 	}
 	/* register entity_notify callback */
 	dev->entity_notify.notify_data = (void *) dev;
