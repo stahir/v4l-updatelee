@@ -964,7 +964,10 @@ static struct dvb_frontend_ops au8522_ops = {
 		.frequency_min		= 54000000,
 		.frequency_max		= 858000000,
 		.frequency_stepsize	= 62500,
-		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB | FE_CAN_SPECTRUMSCAN
+		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB | FE_HAS_EXTENDED_CAPS
+	},
+	.extended_info = {
+		.extended_caps          = FE_CAN_SPECTRUMSCAN
 	},
 
 	.init                 = au8522_init,
@@ -979,7 +982,7 @@ static struct dvb_frontend_ops au8522_ops = {
 	.read_snr             = au8522_read_snr,
 	.read_ucblocks        = au8522_read_ucblocks,
 	.release              = au8522_release,
-	.get_spectrum_scan    = au8522_get_spectrum_scan,	
+	.get_spectrum_scan    = au8522_get_spectrum_scan,
 };
 
 module_param(debug, int, 0644);

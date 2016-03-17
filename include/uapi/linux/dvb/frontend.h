@@ -35,6 +35,13 @@ enum fe_type {
 	FE_ATSC
 };
 
+enum fe_extended_caps {
+	FE_EXTENDED_CAPS_IS_STUPID = 0x00,
+	FE_CAN_SPECTRUMSCAN        = 0x01,
+	FE_CAN_IQ                  = 0x02,
+	FE_CAN_BLINDSEARCH         = 0x04
+};
+
 enum fe_caps {
 	FE_IS_STUPID			= 0,
 	FE_CAN_INVERSION_AUTO		= 0x1,
@@ -66,10 +73,7 @@ enum fe_caps {
 	FE_CAN_2G_MODULATION		= 0x10000000, /* frontend supports "2nd generation modulation" (DVB-S2) */
 	FE_NEEDS_BENDING		= 0x20000000, /* not supported anymore, don't use (frontend requires frequency bending) */
 	FE_CAN_RECOVER			= 0x40000000, /* frontend can recover from a cable unplug automatically */
-	FE_CAN_MUTE_TS			= 0x80000000,  /* frontend can stop spurious TS data output */
-	FE_CAN_SPECTRUMSCAN             = 0x100000000,
-	FE_CAN_IQ                       = 0x200000000,
-	FE_CAN_BLINDSEARCH              = 0x400000000
+	FE_CAN_MUTE_TS			= 0x80000000  /* frontend can stop spurious TS data output */
 };
 
 struct dvb_frontend_info {
@@ -86,6 +90,9 @@ struct dvb_frontend_info {
 	enum fe_caps caps;
 };
 
+struct dvb_frontend_extended_info {
+	enum fe_extended_caps extended_caps;
+};
 
 /**
  *  Check out the DiSEqC bus spec available on http://www.eutelsat.org/ for
@@ -595,30 +602,32 @@ struct dvb_fe_constellation_sample {
 };
 
 struct dvb_fe_constellation_samples {
-        __u32           num;
-		__u8			options;
+	__u32 num;
+	__u8  options;
         struct dvb_fe_constellation_sample *samples;
 };
 
 #define DTV_MAX_CONSTELLATION_SAMPLES 1000
-#define FE_GET_CONSTELLATION_SAMPLES    _IOR('o',84, struct dvb_fe_constellation_samples)
+#define FE_GET_CONSTELLATION_SAMPLES    _IOR('o', 84, struct dvb_fe_constellation_samples)
 
 typedef enum spectrum_scan {
-        SC_DB       = 0x00,
-        SC_DBM      = 0x01,
-        SC_GAIN     = 0x02
+	SC_DB   = 0x00,
+	SC_DBM  = 0x01,
+	SC_GAIN = 0x02
 } spectrum_scan_t;
 
 
 struct dvb_fe_spectrum_scan {
-		__u32			*freq;
-		__u16			num_freq;
-		__s16			*rf_level;
-                __u32                   *type;
+	__u32 *freq;
+	__u16 num_freq;
+	__s16 *rf_level;
+	__u32 *type;
 };
 
 #define DTV_MAX_SPECTRUM_SCAN_STEPS     2000
-#define FE_GET_SPECTRUM_SCAN            _IOW('o',85, struct dvb_fe_spectrum_scan)
+#define FE_GET_SPECTRUM_SCAN            _IOW('o', 85, struct dvb_fe_spectrum_scan)
+
+#define FE_GET_EXTENDED_INFO		_IOR('o', 86, struct dvb_frontend_extended_info)
 
 /**
  * When set, this flag will disable any zigzagging or other "normal" tuning

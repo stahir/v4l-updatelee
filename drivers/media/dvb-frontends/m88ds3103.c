@@ -1369,7 +1369,10 @@ static struct dvb_frontend_ops m88ds3103_ops = {
 			FE_CAN_QPSK |
 			FE_CAN_RECOVER |
 			FE_CAN_2G_MODULATION |
-			FE_CAN_SPECTRUMSCAN
+			FE_HAS_EXTENDED_CAPS
+	},
+	.extended_info = {
+		.extended_caps          = FE_CAN_SPECTRUMSCAN
 	},
 
 	.release = m88ds3103_release,

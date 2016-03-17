@@ -1251,7 +1251,10 @@ static struct dvb_frontend_ops lgdt3304_ops = {
 		.frequency_min      = 54000000,
 		.frequency_max      = 858000000,
 		.frequency_stepsize = 62500,
-		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB | FE_CAN_SPECTRUMSCAN
+		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB | FE_HAS_EXTENDED_CAPS
+	},
+	.extended_info = {
+		.extended_caps          = FE_CAN_SPECTRUMSCAN
 	},
 	.i2c_gate_ctrl        = lgdt3305_i2c_gate_ctrl,
 	.init                 = lgdt3305_init,
@@ -1275,7 +1278,10 @@ static struct dvb_frontend_ops lgdt3305_ops = {
 		.frequency_min      = 54000000,
 		.frequency_max      = 858000000,
 		.frequency_stepsize = 62500,
-		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB | FE_CAN_SPECTRUMSCAN
+		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB | FE_HAS_EXTENDED_CAPS
+	},
+	.extended_info = {
+		.extended_caps          = FE_CAN_SPECTRUMSCAN
 	},
 	.i2c_gate_ctrl        = lgdt3305_i2c_gate_ctrl,
 	.init                 = lgdt3305_init,

@@ -1034,7 +1034,10 @@ static struct dvb_frontend_ops s5h1409_ops = {
 		.frequency_min		= 54000000,
 		.frequency_max		= 858000000,
 		.frequency_stepsize	= 62500,
-		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB | FE_CAN_SPECTRUMSCAN
+		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB | FE_HAS_EXTENDED_CAPS
+	},
+	.extended_info = {
+		.extended_caps          = FE_CAN_SPECTRUMSCAN
 	},
 
 	.init                 = s5h1409_init,
@@ -1048,7 +1051,7 @@ static struct dvb_frontend_ops s5h1409_ops = {
 	.read_snr             = s5h1409_read_snr,
 	.read_ucblocks        = s5h1409_read_ucblocks,
 	.release              = s5h1409_release,
-	.get_spectrum_scan    = s5h1409_get_spectrum_scan,	
+	.get_spectrum_scan    = s5h1409_get_spectrum_scan,
 };
 
 MODULE_DESCRIPTION("Samsung S5H1409 QAM-B/ATSC Demodulator driver");

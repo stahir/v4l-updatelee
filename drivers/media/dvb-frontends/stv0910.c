@@ -1399,8 +1399,11 @@ static struct dvb_frontend_ops stv0910_ops = {
 					  FE_CAN_FEC_AUTO       |
 					  FE_CAN_QPSK           |
 					  FE_CAN_2G_MODULATION  |
-					  FE_CAN_SPECTRUMSCAN   |
-					  FE_CAN_IQ             |
+					  FE_HAS_EXTENDED_CAPS
+	},
+	.extended_info = {
+		.extended_caps          = FE_CAN_SPECTRUMSCAN |
+					  FE_CAN_IQ |
 					  FE_CAN_BLINDSEARCH
 	},
 	.init				= stv0910_init,

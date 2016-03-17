@@ -716,11 +716,10 @@ static int tas2101_set_frontend(struct dvb_frontend *fe)
 	return -EINVAL;
 }
 
-/* unimplemented */
-static int tas2101_get_frontend(struct dvb_frontend *fe)
+static int tas2101_get_frontend(struct dvb_frontend *fe,
+				  struct dtv_frontend_properties *c)
 {
 	struct tas2101_priv *priv = fe->demodulator_priv;
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u8 reg, buf[2];
 
@@ -874,7 +873,10 @@ static struct dvb_frontend_ops tas2101_ops = {
 			FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 			FE_CAN_2G_MODULATION |
 			FE_CAN_QPSK | FE_CAN_RECOVER |
-			FE_CAN_SPECTRUMSCAN
+			FE_HAS_EXTENDED_CAPS
+	},
+	.extended_info = {
+		.extended_caps          = FE_CAN_SPECTRUMSCAN
 	},
 	.release = tas2101_release,
 

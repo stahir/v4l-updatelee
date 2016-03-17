@@ -431,6 +431,7 @@ struct dvb_frame {
 struct dvb_frontend_ops {
 
 	struct dvb_frontend_info info;
+	struct dvb_frontend_extended_info extended_info;
 
 	u8 delsys[MAX_DELSYS];
 
