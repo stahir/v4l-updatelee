@@ -1708,16 +1708,9 @@ static int lgdt3306a_read_ber(struct dvb_frontend *fe, u32 *ber)
 	u32 tmp;
 
 	*ber = 0;
-#if 1
-	/* FGR - FIXME - I don't know what value is expected by dvb_core
-	 * what is the scale of the value?? */
-	tmp =              read_reg(state, 0x00fc); /* NBERVALUE[24-31] */
-	tmp = (tmp << 8) | read_reg(state, 0x00fd); /* NBERVALUE[16-23] */
-	tmp = (tmp << 8) | read_reg(state, 0x00fe); /* NBERVALUE[8-15] */
-	tmp = (tmp << 8) | read_reg(state, 0x00ff); /* NBERVALUE[0-7] */
+	tmp =              read_reg(state, 0x00f8); /* VABER[15:8] */
+	tmp = (tmp << 8) | read_reg(state, 0x00f9); /* VABER[7:0]  */
 	*ber = tmp;
-	dbg_info("ber=%u\n", tmp);
-#endif
 	return 0;
 }
 
