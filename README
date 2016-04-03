@@ -34,8 +34,6 @@
 
 # reboot
 
-	sudo reboot
-
 # Good to go, in the future if you need to upgrade 
 # pull the latest changes and recompile the modules
 
@@ -52,8 +50,6 @@
 	sudo reboot
 
 # To update just the include headers
-
-	sudo make headers_install INSTALL_HDR_PATH=/usr
 
 #
 # Tested with
