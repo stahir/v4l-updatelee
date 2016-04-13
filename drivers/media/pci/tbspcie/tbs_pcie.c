@@ -960,16 +960,16 @@ static int tbs6908_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage volt
 
 	switch (voltage) {
 	case SEC_VOLTAGE_13:
-		printk(KERN_INFO "Adapter: %d, Polarization=[13V]", adapter->count);
+		printk(KERN_INFO "%s: Adapter: %d, Polarization=[13V]", __func__, adapter->count);
 		tbs_pcie_gpio_write(dev, adapter->count, 1, 0);
 		tbs_pcie_gpio_write(dev, adapter->count, 2, 1);
 		break;
 	case SEC_VOLTAGE_18:
-		printk(KERN_INFO "Adapter: %d, Polarization=[18V]", adapter->count);
+		printk(KERN_INFO "%s: Adapter: %d, Polarization=[18V]", __func__, adapter->count);
 		// Already at 18v
 		break;
 	case SEC_VOLTAGE_OFF:
-		printk(KERN_INFO "Adapter: %d, Polarization=[OFF]", adapter->count);
+		printk(KERN_INFO "%s: Adapter: %d, Polarization=[OFF]", __func__, adapter->count);
 // uncommented because its untested
 //		tbs_pcie_gpio_write(dev, adapter->count, 1, 1);
 //		tbs_pcie_gpio_write(dev, adapter->count, 2, 1);
@@ -1065,6 +1065,38 @@ exit:
 	return -ENODEV;
 }
 
+static int tbs6903_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage voltage)
+{
+	struct tbs_adapter *adapter = fe->dvb->priv;
+	struct tbs_pcie_dev *dev = adapter->dev;
+
+	// Not sure why but you have to set it to 18v, then change it later
+	tbs_pcie_gpio_write(dev, adapter->count + 2, 1, 1);
+	tbs_pcie_gpio_write(dev, adapter->count + 2, 2, 0);
+
+	switch (voltage) {
+	case SEC_VOLTAGE_13:
+		printk(KERN_INFO "%s: Adapter: %d, Polarization=[13V]", __func__, adapter->count);
+		tbs_pcie_gpio_write(dev, adapter->count + 2, 1, 0);
+		tbs_pcie_gpio_write(dev, adapter->count + 2, 2, 1);
+		break;
+	case SEC_VOLTAGE_18:
+		printk(KERN_INFO "%s: Adapter: %d, Polarization=[18V]", __func__, adapter->count);
+		// Already at 18v
+		break;
+	case SEC_VOLTAGE_OFF:
+		printk(KERN_INFO "%s: Adapter: %d, Polarization=[OFF]", __func__, adapter->count);
+// uncommented because its untested
+//		tbs_pcie_gpio_write(dev, adapter->count, 1, 1);
+//		tbs_pcie_gpio_write(dev, adapter->count, 2, 1);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static struct stv0910_cfg tbs6903_stv0910_config = {
 	.name     = "STV0910 TBS 6903",
 	.adr      = 0x68,
@@ -1136,7 +1168,7 @@ static int tbs6903_frontend_attach(struct tbs_adapter *adapter, int type)
 	tbs6903_stv0910_config.tuner_set_frequency = ctl->tuner_set_frequency;
 	tbs6903_stv0910_config.tuner_set_bandwidth = ctl->tuner_set_bandwidth;
 
-	adapter->fe->ops.set_voltage = tbs6908_set_voltage;
+	adapter->fe->ops.set_voltage = tbs6903_set_voltage;
 
 	printk(KERN_INFO "Done!\n");
 	return 0;
