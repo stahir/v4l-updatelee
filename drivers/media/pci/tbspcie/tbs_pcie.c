@@ -14,9 +14,9 @@
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-unsigned int tbs_int_type;
+unsigned int tbs_int_type = 1;
 module_param(tbs_int_type, int, 0644);
-MODULE_PARM_DESC(tbs_int_type, "force Interrupt Handler type: 0=INT-A, 1=MSI. default INT-A mode");
+MODULE_PARM_DESC(tbs_int_type, "force Interrupt Handler type: 0=INT-A, 1=MSI. default MSI mode");
 
 unsigned int tbs_mode_single;
 module_param(tbs_mode_single, int, 0644);
@@ -296,6 +296,11 @@ static int tbs_i2c_init(struct tbs_pcie_dev *dev, u32 board)
 		dev->i2c_bus[2].base = TBS_I2C_BASE_2;
 		dev->i2c_bus[3].base = TBS_I2C_BASE_3;
 		break;
+	case 0x6281:
+		dev->i2c_bus[0].base = TBS_I2C_BASE_2;
+		dev->i2c_bus[1].base = TBS_I2C_BASE_1;
+		break;
+	case 0x6290:
 	case 0x6910:
 	case 0x6903:
 	case 0x6902:
@@ -312,15 +317,15 @@ static int tbs_i2c_init(struct tbs_pcie_dev *dev, u32 board)
 		dev->i2c_bus[1].base = TBS_I2C_BASE_1;
 		dev->i2c_bus[2].base = TBS_I2C_BASE_3;
 		dev->i2c_bus[3].base = TBS_I2C_BASE_3;
-#if 0
-                TBS_PCIE_WRITE(dev->i2c_bus[0].base, 0x08, 39);
-                TBS_PCIE_WRITE(dev->i2c_bus[1].base, 0x08, 39);
-                TBS_PCIE_WRITE(dev->i2c_bus[2].base, 0x08, 39);
-                TBS_PCIE_WRITE(dev->i2c_bus[3].base, 0x08, 39);
+#if 1
+		TBS_PCIE_WRITE(dev->i2c_bus[0].base, 0x08, 39);
+		TBS_PCIE_WRITE(dev->i2c_bus[1].base, 0x08, 39);
+		TBS_PCIE_WRITE(dev->i2c_bus[2].base, 0x08, 39);
+		TBS_PCIE_WRITE(dev->i2c_bus[3].base, 0x08, 39);
 #endif
 		break;
 	default:
-		printk("TBS PCIE Unsupported board detected\n");	
+		printk("TBS PCIE Unsupported board detected\n");
 	}
 
 	/* enable i2c interrupts */
@@ -564,6 +569,46 @@ static void adapter_tasklet(unsigned long adap)
 
 	spin_unlock(&adapter->adap_lock);
 
+}
+
+static irqreturn_t tbs_dual_pcie_irq(int irq, void *dev_id)
+{
+	struct tbs_pcie_dev *dev = (struct tbs_pcie_dev *) dev_id;
+	struct tbs_i2c *i2c;
+	u32 stat;
+
+	stat = TBS_PCIE_READ(TBS_INT_BASE, TBS_INT_STATUS);
+
+	TBS_PCIE_WRITE(TBS_INT_BASE, TBS_INT_STATUS, stat);
+
+	if (!(stat & 0x000000ff))
+	{
+		TBS_PCIE_WRITE(TBS_INT_BASE, TBS_INT_ENABLE, 0x00000001);
+		return IRQ_HANDLED;
+	}
+
+	if (stat & 0x00000020)
+		tasklet_schedule(&dev->tbs_pcie_adap[1].tasklet);
+
+	if (stat & 0x00000010)
+		tasklet_schedule(&dev->tbs_pcie_adap[0].tasklet);
+
+	if (stat & 0x00000002) {
+		i2c = &dev->i2c_bus[0];
+		i2c->ready = 1;
+		wake_up(&i2c->wq);
+	}
+
+	if (stat & 0x00000001) {
+		i2c = &dev->i2c_bus[1];
+		i2c->ready = 1;
+		wake_up(&i2c->wq);
+	}
+
+	/* enable interrupt */
+	TBS_PCIE_WRITE(TBS_INT_BASE, TBS_INT_ENABLE, 0x00000001);
+
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t tbs6908_pcie_irq(int irq, void *dev_id)
@@ -1020,6 +1065,86 @@ exit:
 	return -ENODEV;
 }
 
+static struct stv0910_cfg tbs6903_stv0910_config = {
+	.name     = "STV0910 TBS 6903",
+	.adr      = 0x68,
+	.parallel = 1,
+	.rptlvl   = 4,
+	.clk      = 30000000,
+
+	.tuner_init		= NULL,
+	.tuner_set_mode		= NULL,
+	.tuner_set_frequency	= NULL,
+	.tuner_set_bandwidth	= NULL,
+	.tuner_set_params	= NULL,
+};
+
+static int tbs6903_frontend_attach(struct tbs_adapter *adapter, int type)
+{
+	struct tbs_pcie_dev *dev = adapter->dev;
+	struct stv6120_devctl *ctl;
+
+	struct tbs_adapter *adap = &dev->tbs_pcie_adap[1];
+	struct i2c_adapter *i2c  = &adap->i2c->i2c_adap;
+
+	if (adapter->count != 0 && adapter->count != 1) {
+		printk(KERN_INFO "%s: Skipping adapter %d\n", __func__, adapter->count);
+		// Why are we doing this? Why are there 4 adapters ?
+		return 0;
+	}
+
+	if (adapter->count == 0) {
+		tbs_pcie_gpio_write(dev, 3, 0, 0);
+		msleep(50);
+		tbs_pcie_gpio_write(dev, 3, 0, 1);
+		msleep(100);
+	}
+
+	printk(KERN_INFO "%s: Adapter:%d\n", __func__, adapter->count);
+
+	adapter->fe = dvb_attach(stv0910_attach,
+				 i2c,
+				 &tbs6903_stv0910_config,
+				 adapter->count);
+
+	if (adapter->fe == NULL) {
+		goto exit;
+	}
+	printk(KERN_INFO "found STV0910\n");
+
+	adapter->fe->ops.i2c_gate_ctrl(adapter->fe, true);
+	if (adapter->count == 0) {
+		ctl = dvb_attach(stv6120_attach,
+				 adapter->fe,
+				 &tbs6908_stv6120_0_config,
+				 i2c);
+	} else {
+		ctl = dvb_attach(stv6120_attach,
+				 adapter->fe,
+				 &tbs6908_stv6120_1_config,
+				 i2c);
+	}
+	adapter->fe->ops.i2c_gate_ctrl(adapter->fe, false);
+
+	if (ctl == NULL) {
+		goto exit;
+	}
+	printk(KERN_INFO "found STV6120\n");
+
+	tbs6903_stv0910_config.tuner_set_mode      = ctl->tuner_set_mode;
+	tbs6903_stv0910_config.tuner_set_params    = ctl->tuner_set_params;
+	tbs6903_stv0910_config.tuner_set_frequency = ctl->tuner_set_frequency;
+	tbs6903_stv0910_config.tuner_set_bandwidth = ctl->tuner_set_bandwidth;
+
+	adapter->fe->ops.set_voltage = tbs6908_set_voltage;
+
+	printk(KERN_INFO "Done!\n");
+	return 0;
+exit:
+	return -ENODEV;
+}
+
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0)
 static void __devexit tbs_remove(struct pci_dev *pdev)
 #else
@@ -1193,6 +1318,28 @@ static struct tbs_card_config pcie_tbs6908_config = {
 		}
 };
 
+
+#define PCIE_MODEL_TURBOSIGHT_TBS6903	"TurboSight TBS 6903"
+#define PCIE_DEV_TURBOSIGHT_TBS6903	"DVB-S/S2"
+
+static struct tbs_card_config pcie_tbs6903_config = {
+	.model_name		= PCIE_MODEL_TURBOSIGHT_TBS6903,
+	.dev_type		= PCIE_DEV_TURBOSIGHT_TBS6903,
+	.adapters		= 2,
+	.frontend_attach	= tbs6903_frontend_attach,
+	.irq_handler	= tbs_dual_pcie_irq,
+	.adap_config	= {
+			{
+				/* adapter 0 */
+				.ts_in = 3
+			},
+			{
+				/* adapter 1 */
+				.ts_in = 2
+			},
+		}
+};
+
 #define MAKE_ENTRY( __vend, __chip, __subven, __subdev, __configptr) {	\
 	.vendor		= (__vend),					\
 	.device		= (__chip),					\
@@ -1210,6 +1357,7 @@ static const struct pci_device_id tbs_pci_table[] = {
 	MAKE_ENTRY(0x544d, 0x6178, 0x6908, 0x0001, &pcie_tbs6908_config),
 	MAKE_ENTRY(0x544d, 0x6178, 0x6908, 0x1132, &pcie_tbs6908_config),
 	MAKE_ENTRY(0x544d, 0x6178, 0x6905, 0x0001, &pcie_tbs6908_config),
+	MAKE_ENTRY(0x544d, 0x6178, 0x6903, 0x0001, &pcie_tbs6903_config),
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, tbs_pci_table);
