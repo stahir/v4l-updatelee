@@ -876,7 +876,8 @@ static struct dvb_frontend_ops tas2101_ops = {
 			FE_HAS_EXTENDED_CAPS
 	},
 	.extended_info = {
-		.extended_caps          = FE_CAN_SPECTRUMSCAN
+		.extended_caps          = FE_CAN_SPECTRUMSCAN |
+					  FE_CAN_BLINDSEARCH
 	},
 	.release = tas2101_release,
 
