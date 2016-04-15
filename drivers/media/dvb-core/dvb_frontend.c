@@ -2285,6 +2285,13 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 	int err = -EOPNOTSUPP;
 
 	switch (cmd) {
+	case FE_SET_DATA_FORMAT: {
+		fe_data_format_t *format = parg;
+		fe->ops.data_format = *format;
+
+		err = 0;
+		break;
+	}
 	case FE_GET_EXTENDED_INFO: {
 		struct dvb_frontend_extended_info* extended_info = parg;
 		memcpy(extended_info, &fe->ops.extended_info, sizeof(struct dvb_frontend_extended_info));

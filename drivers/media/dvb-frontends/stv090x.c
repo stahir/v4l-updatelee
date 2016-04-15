@@ -3711,12 +3711,11 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe)
 	if (props->frequency == 0)
 		return DVBFE_ALGO_SEARCH_INVALID;
 
-	if (tsout == 0) { /* bb mode enabled */
-		//if(stv090x_set_dfmt(state, props->dfmt) != 0)
-		if(stv090x_set_dfmt(state, FE_DFMT_BB_FRAME) != 0)
+	if (frontend_ops->data_format == FE_DFMT_TS_PACKET) { /* bb mode enabled */
+		if (stv090x_set_dfmt(state, FE_DFMT_TS_PACKET) != 0)
 			return DVBFE_ALGO_SEARCH_ERROR;
 	} else {
-		if(stv090x_set_dfmt(state, FE_DFMT_TS_PACKET) != 0)
+		if (stv090x_set_dfmt(state, FE_DFMT_BB_FRAME) != 0)
 			return DVBFE_ALGO_SEARCH_ERROR;
 	}
 
@@ -5495,6 +5494,7 @@ static struct dvb_frontend_ops stv090x_ops = {
 					  FE_CAN_IQ |
 					  FE_CAN_BLINDSEARCH
 	},
+	.data_format                    = FE_DFMT_TS_PACKET,
 
 	.release			= stv090x_release,
 	.init				= stv090x_init,

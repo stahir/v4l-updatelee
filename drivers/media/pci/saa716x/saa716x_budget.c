@@ -258,6 +258,9 @@ static void demux_worker(unsigned long data)
 {
 	struct saa716x_fgpi_stream_port *fgpi_entry = (struct saa716x_fgpi_stream_port *)data;
 	struct saa716x_dev *saa716x = fgpi_entry->saa716x;
+	struct saa716x_adapter *adap = saa716x->saa716x_adap;
+	struct dvb_frontend *fe = adap->fe;
+	struct dvb_frontend_ops fe_ops = fe->ops;
 	struct dvb_demux *demux;
 	u32 fgpi_index;
 	u32 i;
@@ -294,10 +297,10 @@ static void demux_worker(unsigned long data)
 			fgpi_entry->dma_buf[fgpi_entry->read_index].list_len,
 			PCI_DMA_FROMDEVICE);
 
-		if (tsout == 0) {
-			dvb_dmx_swfilter_data(demux, FE_DFMT_BB_FRAME, data, 348 * 188);
-		} else {
+		if (fe_ops.data_format == FE_DFMT_TS_PACKET) {
 			dvb_dmx_swfilter(demux, data, 348 * 188);
+		} else {
+			dvb_dmx_swfilter_data(demux, FE_DFMT_BB_FRAME, data, 348 * 188);
 		}
 
 		fgpi_entry->read_index = (fgpi_entry->read_index + 1) & 7;

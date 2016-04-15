@@ -629,6 +629,8 @@ struct dvb_fe_spectrum_scan {
 
 #define FE_GET_EXTENDED_INFO		_IOR('o', 86, struct dvb_frontend_extended_info)
 
+#define FE_SET_DATA_FORMAT		_IOR('o', 87, fe_data_format_t)
+
 /**
  * When set, this flag will disable any zigzagging or other "normal" tuning
  * behaviour. Additionally, there will be no automatic monitoring of the lock
