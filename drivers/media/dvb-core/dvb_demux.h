@@ -186,7 +186,7 @@ void dvb_dmx_swfilter_raw(struct dvb_demux *demux, const u8 *buf,
  */
 ssize_t dvb_dmx_swfilter_bbframe(struct dvb_demux *demux, const u8 *frame, size_t len);
 
-void dvb_dmx_swfilter_data(struct dvb_demux *demux, fe_data_format_t dfmt, 
+void dvb_dmx_swfilter_data(struct dvb_demux *demux, enum fe_data_format dfmt, 
 	const u8 *data, size_t len);
 
 #endif /* _DVB_DEMUX_H_ */

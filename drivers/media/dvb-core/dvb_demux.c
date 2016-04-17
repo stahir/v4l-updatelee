@@ -973,7 +973,7 @@ ssize_t dvb_dmx_swfilter_bbframe(struct dvb_demux *demux, const u8 *frame, size_
 EXPORT_SYMBOL(dvb_dmx_swfilter_bbframe);
 
 #define BB_FRAME_LEN(ptr) (10 + ((((ptr)[4] << 8) | (ptr)[5]) >> 3))
-void dvb_dmx_swfilter_data(struct dvb_demux *demux, fe_data_format_t dfmt, 
+void dvb_dmx_swfilter_data(struct dvb_demux *demux, enum fe_data_format dfmt, 
 	const u8 *data, size_t len)
 {
 #ifdef DVB_DEMUX_DEBUG_BB

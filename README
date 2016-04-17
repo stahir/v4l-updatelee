@@ -4,7 +4,7 @@
 #
 # 
 
-# This will set you up with Linux 4.1.0-rc3
+# This will set you up with Linux 4.6.0-rc2
 
 # Download any dependancies that you might need
 
@@ -51,14 +51,16 @@
 
 # To update just the include headers
 
+	sudo make headers_install INSTALL_HDR_PATH=/usr
+
 #
 # Tested with
 #
 # Prof 7301, 7500, 8000
-# TBS 6925, 5925, 5980
+# TBS 6925, 5922, 5925, 5980, 6908, 6903
 # Skystar 2 eXpress HD
 # Genpix Skywalker-1
-# Hauppauge 950Q, Aero-m
+# Hauppauge 950Q, 955Q, Aero-m
 #
 # Others are reported working as well, but havent personally tested them
 #

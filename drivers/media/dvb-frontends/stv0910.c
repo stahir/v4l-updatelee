@@ -499,7 +499,7 @@ static u32 stv0910_get_SR(struct stv0910_state *state)
 	SFR = (STV0910_READ_REG(state, SFR3) << 24) | (STV0910_READ_REG(state, SFR2) << 16) | (STV0910_READ_REG(state, SFR1) << 8) | STV0910_READ_REG(state, SFR0);
 	SFR = (SFR * state->base->mclk) >> 32;
 
-	pr_info("%s: SR: %d\n", __func__, (int)SFR);
+//	pr_info("%s: SR: %d\n", __func__, (int)SFR);
 	return SFR;
 }
 
@@ -617,7 +617,7 @@ static int stv0910_get_signal_parameters(struct stv0910_state *state)
 		APSK_32
 	};
 
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	p->symbol_rate = stv0910_get_SR(state);
 	p->modulation  = FE_STV0910_modulation[STV0910_READ_FIELD(state, DEMOD_MODCOD)];
@@ -645,11 +645,11 @@ static int stv0910_get_signal_parameters(struct stv0910_state *state)
 		break;
 	}
 
-	pr_info("%s: MATYPE: %02x\n", __func__, MAKEWORD16(STV0910_READ_REG(state, MATSTR1), STV0910_READ_REG(state, MATSTR0)));
-	pr_info("%s: UPLSTR: %02x\n", __func__, MAKEWORD16(STV0910_READ_REG(state, UPLSTR1), STV0910_READ_REG(state, UPLSTR0)));
-	pr_info("%s: DFLSTR: %02x\n", __func__, MAKEWORD16(STV0910_READ_REG(state, DFLSTR1), STV0910_READ_REG(state, DFLSTR0)));
-	pr_info("%s: SYNCSTR: %02x\n", __func__, STV0910_READ_REG(state, SYNCSTR));
-	pr_info("%s: SYNCDSTR: %02x\n", __func__, MAKEWORD16(STV0910_READ_REG(state, SYNCDSTR1), STV0910_READ_REG(state, SYNCDSTR0)));
+//	pr_info("%s: MATYPE: %02x\n", __func__, MAKEWORD16(STV0910_READ_REG(state, MATSTR1), STV0910_READ_REG(state, MATSTR0)));
+//	pr_info("%s: UPLSTR: %02x\n", __func__, MAKEWORD16(STV0910_READ_REG(state, UPLSTR1), STV0910_READ_REG(state, UPLSTR0)));
+//	pr_info("%s: DFLSTR: %02x\n", __func__, MAKEWORD16(STV0910_READ_REG(state, DFLSTR1), STV0910_READ_REG(state, DFLSTR0)));
+//	pr_info("%s: SYNCSTR: %02x\n", __func__, STV0910_READ_REG(state, SYNCSTR));
+//	pr_info("%s: SYNCDSTR: %02x\n", __func__, MAKEWORD16(STV0910_READ_REG(state, SYNCDSTR1), STV0910_READ_REG(state, SYNCDSTR0)));
 
 	return 0;
 }
@@ -658,7 +658,7 @@ static int stv0910_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
 
-	pr_info("%s: demod: %d %s\n", __func__, state->nr, enable ? "ENABLE" : "DISABLE");
+//	pr_info("%s: demod: %d %s\n", __func__, state->nr, enable ? "ENABLE" : "DISABLE");
 
 	if (enable)
 		mutex_lock(&state->base->i2c_lock);
@@ -677,7 +677,7 @@ static int stv0910_init(struct dvb_frontend *fe)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
 
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	state->algo = STV0910_NOTUNE;
 
@@ -694,7 +694,7 @@ static int stv0910_set_mclock(struct stv0910_state *state, u32 MasterClock)
 	u32 cp = 7;
 	u32 fvco;
 
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	if (ndiv >= 7 && ndiv <= 71)
 		cp = 7;
@@ -757,7 +757,7 @@ static int stv0910_get_dmdlock(struct stv0910_state *state)
 	u16 timer = 0;
 	u8 lock = 0;
 
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	if (p->symbol_rate <= 1000000) {         /*          SR <=  1Msps */
 		timeout = 3000;
@@ -928,7 +928,7 @@ static int stv0910_init_diseqc(struct stv0910_state *state)
 {
 	u8 Freq = ((state->base->mclk + 11000 * 32) / (22000 * 32));
 
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	/* Disable receiver */
 	STV0910_WRITE_REG(state, DISRXCFG, 0x00);
@@ -943,7 +943,7 @@ static int stv0910_probe(struct stv0910_state *state)
 {
 	u8 id;
 
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	id = stv0910_read_reg(state, RSTV0910_MID);
 	if (id != 0x51)
@@ -993,7 +993,7 @@ static void stv0910_release(struct dvb_frontend *fe)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
 
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	state->base->count--;
 	if (state->base->count == 0) {
@@ -1008,7 +1008,6 @@ static int stv0910_set_parameters(struct dvb_frontend *fe)
 	struct stv0910_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
-	pr_info("%s: demod: %d\n", __func__, state->nr);
 	pr_info("%s: freq: %d, bw: %d\n", __func__, p->frequency, p->bandwidth_hz);
 
 	return stv0910_start(state, p);
@@ -1050,7 +1049,7 @@ static enum dvbfe_search stv0910_search(struct dvb_frontend *fe)
 		return DVBFE_ALGO_SEARCH_FAILED;
 	}
 
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	if (stv0910_set_parameters(fe)) {
 		return DVBFE_ALGO_SEARCH_SUCCESS;
@@ -1065,7 +1064,7 @@ static int stv0910_set_property(struct dvb_frontend *fe,
 {
 	struct stv0910_state *state = fe->demodulator_priv;
 
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	if (tvp->cmd == DTV_TUNE) {
 		state->algo = STV0910_BLIND_SEARCH;
@@ -1083,7 +1082,7 @@ static int stv0910_set_frontend(struct dvb_frontend *fe)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
 
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	state->algo = STV0910_BLIND_SEARCH;
 
@@ -1095,7 +1094,7 @@ static int stv0910_send_master_cmd(struct dvb_frontend *fe, struct dvb_diseqc_ma
 	struct stv0910_state *state = fe->demodulator_priv;
 	int i;
 
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	STV0910_WRITE_REG(state, DISTXCFG, 0x02);
 	STV0910_WRITE_FIELD(state, DIS_PRECHARGE, 1);
@@ -1117,17 +1116,15 @@ static int stv0910_send_master_cmd(struct dvb_frontend *fe, struct dvb_diseqc_ma
 
 static int stv0910_recv_slave_reply(struct dvb_frontend *fe, struct dvb_diseqc_slave_reply *reply)
 {
-	struct stv0910_state *state = fe->demodulator_priv;
-
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	struct stv0910_state *state = fe->demodulator_priv;
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 	return 0;
 }
 
 static int stv0910_send_burst(struct dvb_frontend *fe, enum fe_sec_mini_cmd burst)
 {
-	struct stv0910_state *state = fe->demodulator_priv;
-
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	struct stv0910_state *state = fe->demodulator_priv;
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 #if 0
 	u8 value;
 
@@ -1149,8 +1146,7 @@ static int stv0910_send_burst(struct dvb_frontend *fe, enum fe_sec_mini_cmd burs
 static int stv0910_sleep(struct dvb_frontend *fe)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
-
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	state->algo = STV0910_NOTUNE;
 	STV0910_WRITE_REG(state, DMDISTATE, 0x5C); /* Demod Stop */
@@ -1160,9 +1156,8 @@ static int stv0910_sleep(struct dvb_frontend *fe)
 
 static int stv0910_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	struct stv0910_state *state = fe->demodulator_priv;
-
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	struct stv0910_state *state = fe->demodulator_priv;
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	return 0;
 }
@@ -1181,9 +1176,8 @@ static u32 stv0910_read_tbe(struct dvb_frontend *fe)
 
 static int stv0910_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	struct stv0910_state *state = fe->demodulator_priv;
-
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	struct stv0910_state *state = fe->demodulator_priv;
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	*ber = stv0910_read_tbe(fe);
 	return 0;
@@ -1192,8 +1186,7 @@ static int stv0910_read_ber(struct dvb_frontend *fe, u32 *ber)
 static int stv0910_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
-
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	*ucblocks = 0;
 	switch (STV0910_READ_FIELD(state, HEADER_MODE)) {
@@ -1243,7 +1236,7 @@ static int stv0910_get_stats(struct dvb_frontend *fe)
 	s16 dbm = 0;
 	u32 ber = 0;
 
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	switch (STV0910_READ_FIELD(state, HEADER_MODE)) {
 	case FE_DVB_S2:
@@ -1281,7 +1274,7 @@ static int stv0910_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct stv0910_state *state = fe->demodulator_priv;
 
-	pr_info("%s: demod: %d\n", __func__, state->nr);
+//	pr_info("%s: demod: %d\n", __func__, state->nr);
 
 	*status = 0;
 
@@ -1385,6 +1378,33 @@ static int stv0910_get_consellation_samples(struct dvb_frontend *fe, struct dvb_
 	return 0;
 }
 
+static int stv0910_set_dfmt(struct dvb_frontend *fe,  enum fe_data_format dfmt)
+{
+	struct stv0910_state *state = fe->demodulator_priv;
+
+	fe->ops.data_format = dfmt;
+	switch(dfmt)
+	{
+	case FE_DFMT_TS_PACKET:
+		pr_info("%s: FE_DFMT_TS_PACKET\n", __func__);
+		STV0910_WRITE_FIELD(state, FORCE_CONTINUOUS, 0);
+		STV0910_WRITE_FIELD(state, FRAME_MODE, 0);
+		break;
+	case FE_DFMT_BB_FRAME:
+		pr_info("%s: FE_DFMT_BB_FRAME\n", __func__);
+		STV0910_WRITE_FIELD(state, FORCE_CONTINUOUS, 1);
+		STV0910_WRITE_FIELD(state, FRAME_MODE, 2);
+		break;
+	default:
+		pr_info("%s: Invalid data format\n", __func__);
+		return -1;
+	}
+	STV0910_WRITE_FIELD(state, RST_HWARE, 1);
+	STV0910_WRITE_FIELD(state, RST_HWARE, 0);
+
+	return 0;
+}
+
 static struct dvb_frontend_ops stv0910_ops = {
 	.delsys = { SYS_DSS, SYS_DVBS, SYS_DVBS2 },
 	.info = {
@@ -1430,6 +1450,7 @@ static struct dvb_frontend_ops stv0910_ops = {
 
 	.get_spectrum_scan		= stv0910_get_spectrum_scan,
 	.get_constellation_samples	= stv0910_get_consellation_samples,
+	.set_dfmt			= stv0910_set_dfmt,
 };
 
 static struct stv_base *match_base(struct i2c_adapter  *i2c, u8 adr)

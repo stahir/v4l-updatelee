@@ -61,10 +61,6 @@ unsigned int int_type;
 module_param(int_type, int, 0644);
 MODULE_PARM_DESC(int_type, "force Interrupt Handler type: 0=INT-A, 1=MSI, 2=MSI-X. default INT-A mode");
 
-static int tsout = 1;
-module_param(tsout, int, 0644);
-MODULE_PARM_DESC(tsout, "TBS 6925 output format 1=TS, 0=BB (default:1)");
-
 #define DRIVER_NAME	"SAA716x Budget"
 
 static int saa716x_budget_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
@@ -305,6 +301,56 @@ static void demux_worker(unsigned long data)
 
 		fgpi_entry->read_index = (fgpi_entry->read_index + 1) & 7;
 	} while (write_index != fgpi_entry->read_index);
+}
+
+static irqreturn_t saa716x_tbs6925_pci_irq(int irq, void *dev_id)
+{
+	struct saa716x_dev *saa716x	= (struct saa716x_dev *) dev_id;
+	struct saa716x_adapter *adap = saa716x->saa716x_adap;
+	struct dvb_frontend *fe = adap->fe;
+	struct dvb_frontend_ops fe_ops = fe->ops;
+
+	u32 stat_h, stat_l;
+	u32 fgpiStatus;
+	u32 activeBuffer;
+
+	if (unlikely(saa716x == NULL)) {
+		printk("%s: saa716x=NULL", __func__);
+		return IRQ_NONE;
+	}
+
+	stat_l = SAA716x_EPRD(MSI, MSI_INT_STATUS_L);
+	SAA716x_EPWR(MSI, MSI_INT_STATUS_CLR_L, stat_l);
+	stat_h = SAA716x_EPRD(MSI, MSI_INT_STATUS_H);
+	SAA716x_EPWR(MSI, MSI_INT_STATUS_CLR_H, stat_h);
+
+	if (stat_l) {
+		if (stat_l & MSI_INT_TAGACK_FGPI_3) {
+			fgpiStatus = SAA716x_EPRD(FGPI3, INT_STATUS);
+			activeBuffer = (SAA716x_EPRD(BAM, BAM_FGPI3_DMA_BUF_MODE) >> 3) & 0x7;
+			if (activeBuffer > 0)
+				activeBuffer -= 1;
+			else
+				activeBuffer = 7;
+			if (saa716x->fgpi[3].dma_buf[activeBuffer].mem_virt) {
+				u8 * data = (u8 *)saa716x->fgpi[3].dma_buf[activeBuffer].mem_virt;
+//				dprintk(SAA716x_DEBUG, 1, "%02X%02X%02X%02X",
+//					data[0], data[1], data[2], data[3]);
+				if (fe_ops.data_format == FE_DFMT_TS_PACKET) {
+					dvb_dmx_swfilter(&saa716x->saa716x_adap[0].demux, data, 348 * 188);
+				} else {
+					dvb_dmx_swfilter_data(&saa716x->saa716x_adap[0].demux, FE_DFMT_BB_FRAME, data, 348 * 188);
+				}
+			}
+			if (fgpiStatus) {
+				SAA716x_EPWR(FGPI3, INT_CLR_STATUS, fgpiStatus);
+			}
+		}
+	}
+
+	saa716x_msi_event(saa716x, stat_l, stat_h);
+
+	return IRQ_HANDLED;
 }
 
 static int saa716x_set_frame_ops(struct dvb_frontend *fe, struct dvb_frame frame_ops)
@@ -1516,14 +1562,13 @@ static struct saa716x_config saa716x_tbs6925_config = {
 	.boot_mode		= SAA716x_EXT_BOOT,
 	.adapters		= 1,
 	.frontend_attach	= tbs6925_frontend_attach,
-	.irq_handler		= saa716x_budget_pci_irq,
-	.i2c_rate		= SAA716x_I2C_RATE_100,
+	.irq_handler		= saa716x_tbs6925_pci_irq,
+	.i2c_rate		= SAA716x_I2C_RATE_400,
 	.i2c_mode		= SAA716x_I2C_MODE_POLLING,
 	.adap_config		= {
 		{
 			/* Adapter 0 */
 			.ts_port = 3, /* using FGPI 1 */
-			.worker = demux_worker
 		}
 	}
 };

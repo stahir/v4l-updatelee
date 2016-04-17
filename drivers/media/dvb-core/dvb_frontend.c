@@ -2006,7 +2006,7 @@ static int dvb_frontend_ioctl(struct file *file,
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	int err = -EOPNOTSUPP;
 
-	dev_dbg(fe->dvb->device, "%s: (%d)\n", __func__, _IOC_NR(cmd));
+//	printk("%s: ioctl: %d\n", __func__, _IOC_NR(cmd));
 	if (down_interruptible(&fepriv->sem))
 		return -ERESTARTSYS;
 
@@ -2284,14 +2284,15 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int err = -EOPNOTSUPP;
 
+//	printk("%s: ioctl: %d\n", __func__, _IOC_NR(cmd));
 	switch (cmd) {
-	case FE_SET_DATA_FORMAT: {
-		fe_data_format_t *format = parg;
-		fe->ops.data_format = *format;
+	case FE_SET_DFMT:
+		if (fe->ops.set_dfmt) {
+			fe->ops.set_dfmt(fe, (enum fe_data_format)parg);
+		}
 
 		err = 0;
 		break;
-	}
 	case FE_GET_EXTENDED_INFO: {
 		struct dvb_frontend_extended_info* extended_info = parg;
 		memcpy(extended_info, &fe->ops.extended_info, sizeof(struct dvb_frontend_extended_info));

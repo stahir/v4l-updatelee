@@ -373,10 +373,10 @@ enum fe_delivery_system {
 /*
  * Format of data transferred from DVB adapter (frontend) to host. Add a comment to this line
 */
-typedef enum fe_data_format {
+enum fe_data_format {
 	FE_DFMT_TS_PACKET,
 	FE_DFMT_BB_FRAME
-} fe_data_format_t;
+};
 
 /* ATSC-MH */
 
@@ -629,7 +629,7 @@ struct dvb_fe_spectrum_scan {
 
 #define FE_GET_EXTENDED_INFO		_IOR('o', 86, struct dvb_frontend_extended_info)
 
-#define FE_SET_DATA_FORMAT		_IOR('o', 87, fe_data_format_t)
+#define FE_SET_DFMT			_IO('o', 87) // fe_data_format
 
 /**
  * When set, this flag will disable any zigzagging or other "normal" tuning

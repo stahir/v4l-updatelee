@@ -41,14 +41,6 @@
 static unsigned int verbose;
 module_param(verbose, int, 0644);
 
-static int tsout = 1;
-module_param(tsout, int, 0644);
-MODULE_PARM_DESC(tsout, "Output data 1=TS, 0=BB (default:1)");
-
-static unsigned int ts_nosync;
-module_param(ts_nosync, int, 0644);
-MODULE_PARM_DESC(ts_nosync, "TS FIFO Minimum latence mode");
-
 /* internal params node */
 struct stv090x_dev {
 	/* pointer for internal params, one for each pair of demods */
@@ -3321,20 +3313,23 @@ err:
  * This function configures the packet delineator and the stream merger units
  * of the STV0900 for frame (Base-band frame) or packet (Transport Stream) output.
  */
-static int stv090x_set_dfmt(struct stv090x_state *state, fe_data_format_t dfmt)
+static int stv090x_set_dfmt(struct dvb_frontend *fe,  enum fe_data_format dfmt)
 {
+	struct stv090x_state *state = fe->demodulator_priv;
 	u32 reg;
 
-	// Px_PDELCTRL2: Packet delineator additional configuration
-	switch(dfmt)
+	fe->ops.data_format = dfmt;
+	switch(dfmt) // Px_PDELCTRL2: Packet delineator additional configuration
 	{
 		case FE_DFMT_TS_PACKET:
+			dprintk(FE_INFO, 1, "%s: FE_DFMT_TS_PACKET", __func__);
 			reg = STV090x_READ_DEMOD(state, PDELCTRL2);
 			STV090x_SETFIELD_Px(reg, FRAME_MODE_FIELD, 0);
 			if (STV090x_WRITE_DEMOD(state, PDELCTRL2, reg) < 0)
 				goto err;
 			break;
 		case FE_DFMT_BB_FRAME:
+			dprintk(FE_INFO, 1, "%s: FE_DFMT_BB_FRAME", __func__);
 			reg = STV090x_READ_DEMOD(state, PDELCTRL2);
 			STV090x_SETFIELD_Px(reg, FRAME_MODE_FIELD, 1);
 			if (STV090x_WRITE_DEMOD(state, PDELCTRL2, reg) < 0)
@@ -3344,8 +3339,15 @@ static int stv090x_set_dfmt(struct stv090x_state *state, fe_data_format_t dfmt)
 			dprintk(FE_ERROR, 1, "Invalid data format %d", dfmt);
 			goto err;
 	}
-	
-	//
+
+	reg = STV090x_READ_DEMOD(state, TSCFGH);
+	STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 1); /* merger reset */
+	if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
+		goto err;
+	STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0); /* release merger reset */
+	if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
+		goto err;
+
 	return 0;
 err:
 	dprintk(FE_ERROR, 1, "Failed to set FE data format");
@@ -3711,13 +3713,8 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe)
 	if (props->frequency == 0)
 		return DVBFE_ALGO_SEARCH_INVALID;
 
-	if (frontend_ops->data_format == FE_DFMT_TS_PACKET) { /* bb mode enabled */
-		if (stv090x_set_dfmt(state, FE_DFMT_TS_PACKET) != 0)
-			return DVBFE_ALGO_SEARCH_ERROR;
-	} else {
-		if (stv090x_set_dfmt(state, FE_DFMT_BB_FRAME) != 0)
-			return DVBFE_ALGO_SEARCH_ERROR;
-	}
+	if (stv090x_set_dfmt(fe, frontend_ops->data_format) != 0)
+		return DVBFE_ALGO_SEARCH_ERROR;
 
 	state->delsys = props->delivery_system;
 	state->frequency = props->frequency;
@@ -4958,6 +4955,7 @@ static int stv0900_set_tspath(struct stv090x_state *state)
 	if (stv090x_write_reg(state, STV090x_P2_TSSPEED, speed) < 0)
 		goto err;
 	}
+
 	printk("%s: TS FIFO Minimum Latence mode\n", __func__);
 	reg = stv090x_read_reg(state, STV090x_P1_TSSTATEM);
 	STV090x_SETFIELD_Px(reg, TSOUT_NOSYNC, 1);
@@ -5518,6 +5516,8 @@ static struct dvb_frontend_ops stv090x_ops = {
 	.read_ucblocks			= stv090x_read_ucblocks,
 	.get_constellation_samples	= stv090x_get_consellation_samples,
 	.get_spectrum_scan		= stv090x_get_spectrum_scan,
+
+	.set_dfmt			= stv090x_set_dfmt,
 };
 
 

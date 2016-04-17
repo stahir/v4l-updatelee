@@ -432,7 +432,8 @@ struct dvb_frontend_ops {
 	struct dvb_frontend_info info;
 	struct dvb_frontend_extended_info extended_info;
 
-	fe_data_format_t data_format;
+	enum fe_data_format data_format;
+	int (*set_dfmt)(struct dvb_frontend *fe, enum fe_data_format);
 
 	u8 delsys[MAX_DELSYS];
 
