@@ -90,17 +90,12 @@ static struct media_entity *find_entity(struct media_device *mdev, u32 id)
 
 	id &= ~MEDIA_ENT_ID_FLAG_NEXT;
 
-	mutex_lock(&mdev->graph_mutex);
-
 	media_device_for_each_entity(entity, mdev) {
 		if (((media_entity_id(entity) == id) && !next) ||
 		    ((media_entity_id(entity) > id) && next)) {
-			mutex_unlock(&mdev->graph_mutex);
 			return entity;
 		}
 	}
-
-	mutex_unlock(&mdev->graph_mutex);
 
 	return NULL;
 }
@@ -431,6 +426,7 @@ static long media_device_ioctl(struct file *filp, unsigned int cmd,
 	struct media_device *dev = to_media_device(devnode);
 	long ret;
 
+	mutex_lock(&dev->graph_mutex);
 	switch (cmd) {
 	case MEDIA_IOC_DEVICE_INFO:
 		ret = media_device_get_info(dev,
@@ -443,29 +439,24 @@ static long media_device_ioctl(struct file *filp, unsigned int cmd,
 		break;
 
 	case MEDIA_IOC_ENUM_LINKS:
-		mutex_lock(&dev->graph_mutex);
 		ret = media_device_enum_links(dev,
 				(struct media_links_enum __user *)arg);
-		mutex_unlock(&dev->graph_mutex);
 		break;
 
 	case MEDIA_IOC_SETUP_LINK:
-		mutex_lock(&dev->graph_mutex);
 		ret = media_device_setup_link(dev,
 				(struct media_link_desc __user *)arg);
-		mutex_unlock(&dev->graph_mutex);
 		break;
 
 	case MEDIA_IOC_G_TOPOLOGY:
-		mutex_lock(&dev->graph_mutex);
 		ret = media_device_get_topology(dev,
 				(struct media_v2_topology __user *)arg);
-		mutex_unlock(&dev->graph_mutex);
 		break;
 
 	default:
 		ret = -ENOIOCTLCMD;
 	}
+	mutex_unlock(&dev->graph_mutex);
 
 	return ret;
 }
@@ -790,6 +781,17 @@ static void __media_device_unregister(struct media_device *mdev)
 	struct media_interface *intf, *tmp_intf;
 	struct media_entity_notify *notify, *nextp;
 
+	if (mdev == NULL)
+		return;
+
+	mutex_lock(&mdev->graph_mutex);
+
+	/* Check if mdev was ever registered at all */
+	if (!media_devnode_is_registered(&mdev->devnode)) {
+		mutex_unlock(&mdev->graph_mutex);
+		return;
+	}
+
 	/* Remove all entities from the media device */
 	list_for_each_entry_safe(entity, next, &mdev->entities, graph_obj.list)
 		__media_device_unregister_entity(entity);
@@ -806,11 +808,10 @@ static void __media_device_unregister(struct media_device *mdev)
 		kfree(intf);
 	}
 
-	/* Check if mdev devnode was registered */
-	if (media_devnode_is_registered(&mdev->devnode)) {
-		device_remove_file(&mdev->devnode.dev, &dev_attr_model);
-		media_devnode_unregister(&mdev->devnode);
-	}
+	mutex_unlock(&mdev->graph_mutex);
+
+	device_remove_file(&mdev->devnode.dev, &dev_attr_model);
+	media_devnode_unregister(&mdev->devnode);
 
 	dev_dbg(mdev->dev, "Media device unregistered\n");
 }
