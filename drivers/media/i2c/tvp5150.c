@@ -258,7 +258,7 @@ static int tvp5150_log_status(struct v4l2_subdev *sd)
 			Basic functions
  ****************************************************************************/
 
-static inline void tvp5150_selmux(struct v4l2_subdev *sd)
+static void tvp5150_selmux(struct v4l2_subdev *sd)
 {
 	int opmode = 0;
 	struct tvp5150 *decoder = to_tvp5150(sd);
@@ -818,6 +818,7 @@ static int tvp5150_s_ctrl(struct v4l2_ctrl *ctrl)
 		return 0;
 	case V4L2_CID_HUE:
 		tvp5150_write(sd, TVP5150_HUE_CTL, ctrl->val);
+		break;
 	case V4L2_CID_TEST_PATTERN:
 		decoder->enable = ctrl->val ? false : true;
 		tvp5150_selmux(sd);
@@ -1013,11 +1014,11 @@ static int tvp5150_enum_frame_size(struct v4l2_subdev *sd,
 			Media entity ops
  ****************************************************************************/
 
+#ifdef CONFIG_MEDIA_CONTROLLER
 static int tvp5150_link_setup(struct media_entity *entity,
 			      const struct media_pad *local,
 			      const struct media_pad *remote, u32 flags)
 {
-#ifdef CONFIG_MEDIA_CONTROLLER
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct tvp5150 *decoder = to_tvp5150(sd);
 	int i;
@@ -1034,7 +1035,6 @@ static int tvp5150_link_setup(struct media_entity *entity,
 	decoder->input = i;
 
 	tvp5150_selmux(sd);
-#endif
 
 	return 0;
 }
@@ -1042,6 +1042,7 @@ static int tvp5150_link_setup(struct media_entity *entity,
 static const struct media_entity_operations tvp5150_sd_media_ops = {
 	.link_setup = tvp5150_link_setup,
 };
+#endif
 
 /****************************************************************************
 			I2C Command

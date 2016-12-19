@@ -75,7 +75,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define dprintk(level, fmt, arg...) do {				\
 	if (debug >= level)						\
-		dev_printk(KERN_DEBUG, &dev->udev->dev,			\
+		dev_printk(KERN_DEBUG, &dev->intf->dev,			\
 			   "dvb: " fmt, ## arg);			\
 } while (0)
 
@@ -198,6 +198,7 @@ static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 	int rc;
 	struct em28xx_i2c_bus *i2c_bus = dvb->adapter.priv;
 	struct em28xx *dev = i2c_bus->dev;
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
 	int dvb_max_packet_size, packet_multiplier, dvb_alt;
 
 	if (dev->dvb_xfer_bulk) {
@@ -216,7 +217,7 @@ static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 		dvb_alt = dev->dvb_alt_isoc;
 	}
 
-	usb_set_interface(dev->udev, dev->ifnum, dvb_alt);
+	usb_set_interface(udev, dev->ifnum, dvb_alt);
 	rc = em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	if (rc < 0)
 		return rc;
@@ -738,13 +739,13 @@ static int em28xx_pctv_290e_set_lna(struct dvb_frontend *fe)
 
 	ret = gpio_request_one(dvb->lna_gpio, flags, NULL);
 	if (ret)
-		dev_err(&dev->udev->dev, "gpio request failed %d\n", ret);
+		dev_err(&dev->intf->dev, "gpio request failed %d\n", ret);
 	else
 		gpio_free(dvb->lna_gpio);
 
 	return ret;
 #else
-	dev_warn(&dev->udev->dev, "%s: LNA control is disabled (lna=%u)\n",
+	dev_warn(&dev->intf->dev, "%s: LNA control is disabled (lna=%u)\n",
 		 KBUILD_MODNAME, c->lna);
 	return 0;
 #endif
@@ -938,20 +939,20 @@ static int em28xx_attach_xc3028(u8 addr, struct em28xx *dev)
 	cfg.ctrl  = &ctl;
 
 	if (!dev->dvb->fe[0]) {
-		dev_err(&dev->udev->dev,
+		dev_err(&dev->intf->dev,
 			"dvb frontend not attached. Can't attach xc3028\n");
 		return -EINVAL;
 	}
 
 	fe = dvb_attach(xc2028_attach, dev->dvb->fe[0], &cfg);
 	if (!fe) {
-		dev_err(&dev->udev->dev, "xc3028 attach failed\n");
+		dev_err(&dev->intf->dev, "xc3028 attach failed\n");
 		dvb_frontend_detach(dev->dvb->fe[0]);
 		dev->dvb->fe[0] = NULL;
 		return -EINVAL;
 	}
 
-	dev_info(&dev->udev->dev, "xc3028 attached\n");
+	dev_info(&dev->intf->dev, "xc3028 attached\n");
 
 	return 0;
 }
@@ -968,10 +969,10 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 
 	/* register adapter */
 	result = dvb_register_adapter(&dvb->adapter,
-				      dev_name(&dev->udev->dev), module,
+				      dev_name(&dev->intf->dev), module,
 				      device, adapter_nr);
 	if (result < 0) {
-		dev_warn(&dev->udev->dev,
+		dev_warn(&dev->intf->dev,
 			 "dvb_register_adapter failed (errno = %d)\n",
 			 result);
 		goto fail_adapter;
@@ -990,7 +991,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	/* register frontend */
 	result = dvb_register_frontend(&dvb->adapter, dvb->fe[0]);
 	if (result < 0) {
-		dev_warn(&dev->udev->dev,
+		dev_warn(&dev->intf->dev,
 			 "dvb_register_frontend failed (errno = %d)\n",
 			 result);
 		goto fail_frontend0;
@@ -1000,7 +1001,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	if (dvb->fe[1]) {
 		result = dvb_register_frontend(&dvb->adapter, dvb->fe[1]);
 		if (result < 0) {
-			dev_warn(&dev->udev->dev,
+			dev_warn(&dev->intf->dev,
 				 "2nd dvb_register_frontend failed (errno = %d)\n",
 				 result);
 			goto fail_frontend1;
@@ -1019,7 +1020,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 
 	result = dvb_dmx_init(&dvb->demux);
 	if (result < 0) {
-		dev_warn(&dev->udev->dev,
+		dev_warn(&dev->intf->dev,
 			 "dvb_dmx_init failed (errno = %d)\n",
 			 result);
 		goto fail_dmx;
@@ -1030,7 +1031,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	dvb->dmxdev.capabilities = 0;
 	result = dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
 	if (result < 0) {
-		dev_warn(&dev->udev->dev,
+		dev_warn(&dev->intf->dev,
 			 "dvb_dmxdev_init failed (errno = %d)\n",
 			 result);
 		goto fail_dmxdev;
@@ -1039,7 +1040,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	dvb->fe_hw.source = DMX_FRONTEND_0;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		dev_warn(&dev->udev->dev,
+		dev_warn(&dev->intf->dev,
 			 "add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
 			 result);
 		goto fail_fe_hw;
@@ -1048,7 +1049,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	dvb->fe_mem.source = DMX_MEMORY_FE;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 	if (result < 0) {
-		dev_warn(&dev->udev->dev,
+		dev_warn(&dev->intf->dev,
 			 "add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
 			 result);
 		goto fail_fe_mem;
@@ -1056,7 +1057,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 
 	result = dvb->demux.dmx.connect_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		dev_warn(&dev->udev->dev,
+		dev_warn(&dev->intf->dev,
 			 "connect_frontend failed (errno = %d)\n",
 			 result);
 		goto fail_fe_conn;
@@ -1130,7 +1131,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		return 0;
 	}
 
-	dev_info(&dev->udev->dev, "Binding DVB extension\n");
+	dev_info(&dev->intf->dev, "Binding DVB extension\n");
 
 	dvb = kzalloc(sizeof(struct em28xx_dvb), GFP_KERNEL);
 	if (!dvb)
@@ -1154,7 +1155,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 					   EM28XX_DVB_NUM_ISOC_PACKETS);
 	}
 	if (result) {
-		dev_err(&dev->udev->dev,
+		dev_err(&dev->intf->dev,
 			"failed to pre-allocate USB transfer buffers for DVB.\n");
 		kfree(dvb);
 		dev->dvb = NULL;
@@ -1272,7 +1273,8 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
 	case EM2882_BOARD_PINNACLE_HYBRID_PRO_330E:
 		dvb->fe[0] = dvb_attach(drxd_attach, &em28xx_drxd, NULL,
-					   &dev->i2c_adap[dev->def_i2c_bus], &dev->udev->dev);
+					&dev->i2c_adap[dev->def_i2c_bus],
+					&dev->intf->dev);
 		if (em28xx_attach_xc3028(0x61, dev) < 0) {
 			result = -EINVAL;
 			goto out_free;
@@ -1334,7 +1336,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			result = gpio_request_one(dvb->lna_gpio,
 						  GPIOF_OUT_INIT_LOW, NULL);
 			if (result)
-				dev_err(&dev->udev->dev,
+				dev_err(&dev->intf->dev,
 					"gpio request failed %d\n",
 					result);
 			else
@@ -1951,12 +1953,12 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		}
 		break;
 	default:
-		dev_err(&dev->udev->dev,
+		dev_err(&dev->intf->dev,
 			"The frontend of your DVB/ATSC card isn't supported yet\n");
 		break;
 	}
 	if (NULL == dvb->fe[0]) {
-		dev_err(&dev->udev->dev, "frontend initialization failed\n");
+		dev_err(&dev->intf->dev, "frontend initialization failed\n");
 		result = -EINVAL;
 		goto out_free;
 	}
@@ -1966,12 +1968,12 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		dvb->fe[1]->callback = em28xx_tuner_callback;
 
 	/* register everything */
-	result = em28xx_register_dvb(dvb, THIS_MODULE, dev, &dev->udev->dev);
+	result = em28xx_register_dvb(dvb, THIS_MODULE, dev, &dev->intf->dev);
 
 	if (result < 0)
 		goto out_free;
 
-	dev_info(&dev->udev->dev, "DVB extension successfully initialized\n");
+	dev_info(&dev->intf->dev, "DVB extension successfully initialized\n");
 
 	kref_get(&dev->ref);
 
@@ -2011,7 +2013,7 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 	if (!dev->dvb)
 		return 0;
 
-	dev_info(&dev->udev->dev, "Closing DVB extension\n");
+	dev_info(&dev->intf->dev, "Closing DVB extension\n");
 
 	dvb = dev->dvb;
 
@@ -2069,17 +2071,17 @@ static int em28xx_dvb_suspend(struct em28xx *dev)
 	if (!dev->board.has_dvb)
 		return 0;
 
-	dev_info(&dev->udev->dev, "Suspending DVB extension\n");
+	dev_info(&dev->intf->dev, "Suspending DVB extension\n");
 	if (dev->dvb) {
 		struct em28xx_dvb *dvb = dev->dvb;
 
 		if (dvb->fe[0]) {
 			ret = dvb_frontend_suspend(dvb->fe[0]);
-			dev_info(&dev->udev->dev, "fe0 suspend %d\n", ret);
+			dev_info(&dev->intf->dev, "fe0 suspend %d\n", ret);
 		}
 		if (dvb->fe[1]) {
 			dvb_frontend_suspend(dvb->fe[1]);
-			dev_info(&dev->udev->dev, "fe1 suspend %d\n", ret);
+			dev_info(&dev->intf->dev, "fe1 suspend %d\n", ret);
 		}
 	}
 
@@ -2096,18 +2098,18 @@ static int em28xx_dvb_resume(struct em28xx *dev)
 	if (!dev->board.has_dvb)
 		return 0;
 
-	dev_info(&dev->udev->dev, "Resuming DVB extension\n");
+	dev_info(&dev->intf->dev, "Resuming DVB extension\n");
 	if (dev->dvb) {
 		struct em28xx_dvb *dvb = dev->dvb;
 
 		if (dvb->fe[0]) {
 			ret = dvb_frontend_resume(dvb->fe[0]);
-			dev_info(&dev->udev->dev, "fe0 resume %d\n", ret);
+			dev_info(&dev->intf->dev, "fe0 resume %d\n", ret);
 		}
 
 		if (dvb->fe[1]) {
 			ret = dvb_frontend_resume(dvb->fe[1]);
-			dev_info(&dev->udev->dev, "fe1 resume %d\n", ret);
+			dev_info(&dev->intf->dev, "fe1 resume %d\n", ret);
 		}
 	}
 
