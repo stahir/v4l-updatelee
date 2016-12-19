@@ -1,27 +1,8 @@
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/spinlock_types.h>
 #include <linux/slab.h>
 #include <linux/ioctl.h>
-
-extern struct client_debug_mask *cdm_array;
-extern char *debug_help_string;
-extern int help_string_initialized;
-extern struct dentry *debug_dir;
-extern struct dentry *help_file_dentry;
-extern struct dentry *client_debug_dentry;
-extern const struct file_operations debug_help_fops;
-extern int client_all_index;
-extern int client_verbose_index;
-extern int cdm_element_count;
-#define DEBUG_HELP_STRING_SIZE 4096
-#define HELP_STRING_UNINITIALIZED \
-	"Client Debug Keywords are unknown until the first time\n" \
-	"the client is started after boot.\n"
-#define ORANGEFS_KMOD_DEBUG_HELP_FILE "debug-help"
-#define ORANGEFS_KMOD_DEBUG_FILE "kernel-debug"
-#define ORANGEFS_CLIENT_DEBUG_FILE "client-debug"
-#define ORANGEFS_VERBOSE "verbose"
-#define ORANGEFS_ALL "all"
 
 /* pvfs2-config.h ***********************************************************/
 #define ORANGEFS_VERSION_MAJOR 2
@@ -74,8 +55,8 @@ static inline void ORANGEFS_khandle_to(const struct orangefs_khandle *kh,
 				   void *p, int size)
 {
 
-	memset(p, 0, size);
 	memcpy(p, kh->u, 16);
+	memset(p + 16, 0, size - 16);
 
 }
 
@@ -200,14 +181,6 @@ typedef __s64 ORANGEFS_offset;
 #define ORANGEFS_ATTR_SYS_ALL_NOHINT			\
 	(ORANGEFS_ATTR_SYS_COMMON_ALL		|	\
 	 ORANGEFS_ATTR_SYS_SIZE			|	\
-	 ORANGEFS_ATTR_SYS_LNK_TARGET		|	\
-	 ORANGEFS_ATTR_SYS_DFILE_COUNT		|	\
-	 ORANGEFS_ATTR_SYS_MIRROR_COPIES_COUNT	|	\
-	 ORANGEFS_ATTR_SYS_DIRENT_COUNT		|	\
-	 ORANGEFS_ATTR_SYS_BLKSIZE)
-
-#define ORANGEFS_ATTR_SYS_ALL_NOHINT_NOSIZE		\
-	(ORANGEFS_ATTR_SYS_COMMON_ALL		|	\
 	 ORANGEFS_ATTR_SYS_LNK_TARGET		|	\
 	 ORANGEFS_ATTR_SYS_DFILE_COUNT		|	\
 	 ORANGEFS_ATTR_SYS_MIRROR_COPIES_COUNT	|	\
@@ -427,26 +400,27 @@ struct ORANGEFS_dev_map_desc {
 /* gossip.h *****************************************************************/
 
 #ifdef GOSSIP_DISABLE_DEBUG
-#define gossip_debug(mask, format, f...) do {} while (0)
+#define gossip_debug(mask, fmt, ...)					\
+do {									\
+	if (0)								\
+		printk(KERN_DEBUG fmt, ##__VA_ARGS__);			\
+} while (0)
 #else
-extern __u64 gossip_debug_mask;
-extern struct client_debug_mask client_debug_mask;
+extern __u64 orangefs_gossip_debug_mask;
 
 /* try to avoid function call overhead by checking masks in macro */
-#define gossip_debug(mask, format, f...)			\
-do {								\
-	if (gossip_debug_mask & mask)				\
-		printk(format, ##f);				\
+#define gossip_debug(mask, fmt, ...)					\
+do {									\
+	if (orangefs_gossip_debug_mask & (mask))			\
+		printk(KERN_DEBUG fmt, ##__VA_ARGS__);			\
 } while (0)
 #endif /* GOSSIP_DISABLE_DEBUG */
 
 /* do file and line number printouts w/ the GNU preprocessor */
-#define gossip_ldebug(mask, format, f...)				\
-		gossip_debug(mask, "%s: " format, __func__, ##f)
+#define gossip_ldebug(mask, fmt, ...)					\
+	gossip_debug(mask, "%s: " fmt, __func__, ##__VA_ARGS__)
 
-#define gossip_err printk
-#define gossip_lerr(format, f...)					\
-		gossip_err("%s line %d: " format,			\
-			   __FILE__,					\
-			   __LINE__,					\
-			   ##f)
+#define gossip_err pr_err
+#define gossip_lerr(fmt, ...)						\
+	gossip_err("%s line %d: " fmt,					\
+		   __FILE__, __LINE__, ##__VA_ARGS__)

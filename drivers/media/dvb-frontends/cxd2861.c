@@ -846,14 +846,14 @@ static int cxd2861_get_ifreq(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static int cxd2861_release(struct dvb_frontend *fe)
+static void cxd2861_release(struct dvb_frontend *fe)
 {
 	struct cxd2861_dev *cxd2861 = fe->tuner_priv;
 
 	BUG_ON(!cxd2861);
 	fe->tuner_priv = NULL;
 	kfree(cxd2861);
-	return 0;
+	return;
 }
 
 static struct dvb_tuner_ops cxd2861_ops = {

@@ -92,15 +92,4 @@ extern int dvb_usb_gp8psk_debug;
 #define PRODUCT_STRING_READ               0x0D
 #define FW_BCD_VERSION_READ               0x14
 
-/* firmware revision id's */
-#define GP8PSK_FW_REV1			0x020604
-#define GP8PSK_FW_REV2			0x020704
-#define GP8PSK_FW_VERS(_fw_vers)	((_fw_vers)[2]<<0x10 | (_fw_vers)[1]<<0x08 | (_fw_vers)[0])
-
-extern struct dvb_frontend * gp8psk_fe_attach(struct dvb_usb_device *d);
-extern int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 *b, int blen);
-extern int gp8psk_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
-			     u16 index, u8 *b, int blen);
-extern int gp8psk_bcm4500_reload(struct dvb_usb_device *d);
-
 #endif

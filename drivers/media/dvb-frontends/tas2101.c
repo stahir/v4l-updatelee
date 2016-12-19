@@ -47,9 +47,9 @@ struct i2c_adapter *tas2101_get_i2c_adapter(struct dvb_frontend *fe, int bus)
 	default:
 		return priv->i2c;
 	case 1:
-		return priv->i2c_demod;
+		return priv->muxc->adapter[0];
 	case 2:
-		return priv->i2c_tuner;
+		return priv->muxc->adapter[1];
 	}
 }
 EXPORT_SYMBOL_GPL(tas2101_get_i2c_adapter);
@@ -66,7 +66,7 @@ static int tas2101_wrm(struct tas2101_priv *priv, u8 *buf, int len)
 	dev_dbg(&priv->i2c->dev, "%s() i2c wrm @0x%02x (len=%d)\n",
 		__func__, buf[0], len);
 
-	ret = i2c_transfer(priv->i2c_demod, &msg, 1);
+	ret = i2c_transfer(priv->muxc->adapter[0], &msg, 1);
 	if (ret < 0) {
 		dev_warn(&priv->i2c->dev,
 			"%s: i2c wrm err(%i) @0x%02x (len=%d)\n",
@@ -97,7 +97,7 @@ static int tas2101_rdm(struct tas2101_priv *priv, u8 addr, u8 *buf, int len)
 	dev_dbg(&priv->i2c->dev, "%s() i2c rdm @0x%02x (len=%d)\n",
 		__func__, addr, len);
 
-	ret = i2c_transfer(priv->i2c_demod, msg, 2);
+	ret = i2c_transfer(priv->muxc->adapter[0], msg, 2);
 	if (ret < 0) {
 		dev_warn(&priv->i2c->dev,
 			"%s: i2c rdm err(%i) @0x%02x (len=%d)\n",
@@ -461,8 +461,7 @@ static void tas2101_release(struct dvb_frontend *fe)
 
 	dev_dbg(&priv->i2c->dev, "%s\n", __func__);
 #ifdef TAS2101_USE_I2C_MUX
-	i2c_del_mux_adapter(priv->i2c_demod);
-	i2c_del_mux_adapter(priv->i2c_tuner);
+	i2c_mux_del_adapters(priv->muxc);
 #endif
 	kfree(priv);
 }
@@ -470,10 +469,9 @@ static void tas2101_release(struct dvb_frontend *fe)
 #ifdef TAS2101_USE_I2C_MUX
 /* channel 0: demod */
 /* channel 1: tuner */
-static int tas2101_i2c_select(struct i2c_adapter *adap,
-	void *mux_priv, u32 chan_id)
+static int tas2101_i2c_select(struct i2c_mux_core *muxc, u32 chan_id)
 {
-	struct tas2101_priv *priv = mux_priv;
+	struct tas2101_priv *priv = i2c_mux_priv(muxc);
 	int ret;
 	u8 buf[2];
 	struct i2c_msg msg_wr[] = {
@@ -493,7 +491,7 @@ static int tas2101_i2c_select(struct i2c_adapter *adap,
 		return 0;
 
 	buf[0] = REG_06;
-	ret = __i2c_transfer(adap, msg_rd, 2);
+	ret = __i2c_transfer(priv->muxc->adapter[0], msg_rd, 2);
 	if (ret != 2)
 		goto err;
 
@@ -502,7 +500,7 @@ static int tas2101_i2c_select(struct i2c_adapter *adap,
 	else
 		buf[1] |= I2C_GATE;
 
-	ret = __i2c_transfer(adap, msg_wr, 1);
+	ret = __i2c_transfer(priv->muxc->adapter[0], msg_wr, 1);
 	if (ret != 1)
 		goto err;
 
@@ -536,20 +534,33 @@ struct dvb_frontend *tas2101_attach(const struct tas2101_config *cfg,
 	priv->i2c_ch = 0;
 
 #ifdef TAS2101_USE_I2C_MUX
+	priv->muxc = i2c_mux_alloc(i2c, &i2c->dev, 1, 0, 0, tas2101_i2c_select, NULL);
+	if (!priv->muxc)
+		goto err1;
 	/* create muxed i2c adapter for the demod */
-	priv->i2c_demod = i2c_add_mux_adapter(i2c, &i2c->dev, priv, 0, 0, 0,
-		tas2101_i2c_select, NULL);
-	if (priv->i2c_demod == NULL)
+	priv->muxc->priv = priv;
+	ret = i2c_mux_add_adapter(priv->muxc, 0, 0, 0);
+	if (ret)
 		goto err1;
 
+//	priv->i2c_demod = i2c_add_mux_adapter(i2c, &i2c->dev, priv, 0, 0, 0,
+//		tas2101_i2c_select, NULL);
+//	if (priv->i2c_demod == NULL)
+//		goto err1;
+
 	/* create muxed i2c adapter for the tuner */
-	priv->i2c_tuner = i2c_add_mux_adapter(i2c, &i2c->dev, priv, 0, 1, 0,
-		tas2101_i2c_select, NULL);
-	if (priv->i2c_tuner == NULL)
+	priv->muxc->priv = priv;
+	ret = i2c_mux_add_adapter(priv->muxc, 0, 1, 0);
+	if (ret)
 		goto err2;
+
+//	priv->i2c_tuner = i2c_add_mux_adapter(i2c, &i2c->dev, priv, 0, 1, 0,
+//		tas2101_i2c_select, NULL);
+//	if (priv->i2c_tuner == NULL)
+//		goto err2;
 #else
-	priv->i2c_demod = i2c;
-	priv->i2c_tuner = i2c;
+//	priv->i2c_demod = i2c;
+//	priv->i2c_tuner = i2c;
 #endif
 
 	/* create dvb_frontend */
@@ -574,9 +585,9 @@ struct dvb_frontend *tas2101_attach(const struct tas2101_config *cfg,
 
 err3:
 #ifdef TAS2101_USE_I2C_MUX
-	i2c_del_mux_adapter(priv->i2c_tuner);
+	i2c_mux_del_adapters(priv->muxc);
 err2:
-	i2c_del_mux_adapter(priv->i2c_demod);
+	i2c_mux_del_adapters(priv->muxc);
 #endif
 err1:
 	kfree(priv);

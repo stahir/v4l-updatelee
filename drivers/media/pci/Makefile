@@ -34,4 +34,4 @@ obj-$(CONFIG_SAA7231_CORE) += saa7231/
 obj-$(CONFIG_VIDEO_SOLO6X10) += solo6x10/
 obj-$(CONFIG_VIDEO_COBALT) += cobalt/
 obj-$(CONFIG_TBS_PCIE_DVB) += tbspcie/
-
+obj-$(CONFIG_VIDEO_TW5864) += tw5864/

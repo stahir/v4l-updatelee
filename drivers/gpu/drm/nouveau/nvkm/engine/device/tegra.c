@@ -35,6 +35,11 @@ nvkm_device_tegra_power_up(struct nvkm_device_tegra *tdev)
 	ret = clk_prepare_enable(tdev->clk);
 	if (ret)
 		goto err_clk;
+	if (tdev->clk_ref) {
+		ret = clk_prepare_enable(tdev->clk_ref);
+		if (ret)
+			goto err_clk_ref;
+	}
 	ret = clk_prepare_enable(tdev->clk_pwr);
 	if (ret)
 		goto err_clk_pwr;
@@ -57,6 +62,9 @@ nvkm_device_tegra_power_up(struct nvkm_device_tegra *tdev)
 err_clamp:
 	clk_disable_unprepare(tdev->clk_pwr);
 err_clk_pwr:
+	if (tdev->clk_ref)
+		clk_disable_unprepare(tdev->clk_ref);
+err_clk_ref:
 	clk_disable_unprepare(tdev->clk);
 err_clk:
 	regulator_disable(tdev->vdd);
@@ -71,6 +79,8 @@ nvkm_device_tegra_power_down(struct nvkm_device_tegra *tdev)
 	udelay(10);
 
 	clk_disable_unprepare(tdev->clk_pwr);
+	if (tdev->clk_ref)
+		clk_disable_unprepare(tdev->clk_ref);
 	clk_disable_unprepare(tdev->clk);
 	udelay(10);
 
@@ -181,13 +191,11 @@ static irqreturn_t
 nvkm_device_tegra_intr(int irq, void *arg)
 {
 	struct nvkm_device_tegra *tdev = arg;
-	struct nvkm_mc *mc = tdev->device.mc;
+	struct nvkm_device *device = &tdev->device;
 	bool handled = false;
-	if (likely(mc)) {
-		nvkm_mc_intr_unarm(mc);
-		nvkm_mc_intr(mc, &handled);
-		nvkm_mc_intr_rearm(mc);
-	}
+	nvkm_mc_intr_unarm(device);
+	nvkm_mc_intr(device, &handled);
+	nvkm_mc_intr_rearm(device);
 	return handled ? IRQ_HANDLED : IRQ_NONE;
 }
 
@@ -274,6 +282,13 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 		goto free;
 	}
 
+	if (func->require_ref_clk)
+		tdev->clk_ref = devm_clk_get(&pdev->dev, "ref");
+	if (IS_ERR(tdev->clk_ref)) {
+		ret = PTR_ERR(tdev->clk_ref);
+		goto free;
+	}
+
 	tdev->clk_pwr = devm_clk_get(&pdev->dev, "pwr");
 	if (IS_ERR(tdev->clk_pwr)) {
 		ret = PTR_ERR(tdev->clk_pwr);
@@ -296,6 +311,7 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 		goto remove;
 
 	tdev->gpu_speedo = tegra_sku_info.gpu_speedo_value;
+	tdev->gpu_speedo_id = tegra_sku_info.gpu_speedo_id;
 	ret = nvkm_device_ctor(&nvkm_device_tegra_func, NULL, &pdev->dev,
 			       NVKM_DEVICE_TEGRA, pdev->id, NULL,
 			       cfg, dbg, detect, mmio, subdev_mask,

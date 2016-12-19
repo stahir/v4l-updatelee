@@ -460,7 +460,7 @@ static int stv6120_get_status(struct dvb_frontend *fe, u32 *status)
 	return 0;
 }
 
-static int stv6120_release(struct dvb_frontend *fe)
+static void stv6120_release(struct dvb_frontend *fe)
 {
 	struct stv6120_state *state = fe->tuner_priv;
 

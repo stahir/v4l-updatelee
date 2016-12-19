@@ -510,7 +510,7 @@ int v4l2_subdev_link_validate_default(struct v4l2_subdev *sd,
 	if (source_fmt->format.width != sink_fmt->format.width
 	    || source_fmt->format.height != sink_fmt->format.height
 	    || source_fmt->format.code != sink_fmt->format.code)
-		return -EINVAL;
+		return -EPIPE;
 
 	/* The field order must match, or the sink field order must be NONE
 	 * to support interlaced hardware connected to bridges that support
@@ -518,7 +518,7 @@ int v4l2_subdev_link_validate_default(struct v4l2_subdev *sd,
 	 */
 	if (source_fmt->format.field != sink_fmt->format.field &&
 	    sink_fmt->format.field != V4L2_FIELD_NONE)
-		return -EINVAL;
+		return -EPIPE;
 
 	return 0;
 }
@@ -621,16 +621,6 @@ void v4l2_subdev_init(struct v4l2_subdev *sd, const struct v4l2_subdev_ops *ops)
 }
 EXPORT_SYMBOL(v4l2_subdev_init);
 
-/**
- * v4l2_subdev_notify_event() - Delivers event notification for subdevice
- * @sd: The subdev for which to deliver the event
- * @ev: The event to deliver
- *
- * Will deliver the specified event to all userspace event listeners which are
- * subscribed to the v42l subdev event queue as well as to the bridge driver
- * using the notify callback. The notification type for the notify callback
- * will be V4L2_DEVICE_NOTIFY_EVENT.
- */
 void v4l2_subdev_notify_event(struct v4l2_subdev *sd,
 			      const struct v4l2_event *ev)
 {

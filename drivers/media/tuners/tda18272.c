@@ -1449,14 +1449,14 @@ static int tda18272_get_ifreq(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static int tda18272_release(struct dvb_frontend *fe)
+static void tda18272_release(struct dvb_frontend *fe)
 {
 	struct tda18272_state *tda18272 = fe->tuner_priv;
 
 	BUG_ON(!tda18272);
 	fe->tuner_priv = NULL;
 	kfree(tda18272);
-	return 0;
+	return;
 }
 
 static struct dvb_tuner_ops tda18272_ops = {

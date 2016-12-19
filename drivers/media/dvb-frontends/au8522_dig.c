@@ -894,8 +894,7 @@ static int au8522_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spect
 	return 0;
 }
 
-static struct dvb_frontend_ops au8522_ops;
-
+static const struct dvb_frontend_ops au8522_ops;
 
 static void au8522_release(struct dvb_frontend *fe)
 {
@@ -957,7 +956,7 @@ error:
 }
 EXPORT_SYMBOL(au8522_attach);
 
-static struct dvb_frontend_ops au8522_ops = {
+static const struct dvb_frontend_ops au8522_ops = {
 	.delsys = { SYS_DVBC_ANNEX_B, SYS_ATSC },
 	.info = {
 		.name			= "Auvitek AU8522 QAM/8VSB Frontend",

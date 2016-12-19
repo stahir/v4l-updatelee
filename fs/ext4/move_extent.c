@@ -60,10 +60,10 @@ ext4_double_down_write_data_sem(struct inode *first, struct inode *second)
 {
 	if (first < second) {
 		down_write(&EXT4_I(first)->i_data_sem);
-		down_write_nested(&EXT4_I(second)->i_data_sem, SINGLE_DEPTH_NESTING);
+		down_write_nested(&EXT4_I(second)->i_data_sem, I_DATA_SEM_OTHER);
 	} else {
 		down_write(&EXT4_I(second)->i_data_sem);
-		down_write_nested(&EXT4_I(first)->i_data_sem, SINGLE_DEPTH_NESTING);
+		down_write_nested(&EXT4_I(first)->i_data_sem, I_DATA_SEM_OTHER);
 
 	}
 }
@@ -400,7 +400,7 @@ data_copy:
 
 	/* Even in case of data=writeback it is reasonable to pin
 	 * inode to transaction, to prevent unexpected data loss */
-	*err = ext4_jbd2_file_inode(handle, orig_inode);
+	*err = ext4_jbd2_inode_add_write(handle, orig_inode);
 
 unlock_pages:
 	unlock_page(pagep[0]);
@@ -480,6 +480,13 @@ mext_check_arguments(struct inode *orig_inode,
 	if (IS_SWAPFILE(orig_inode) || IS_SWAPFILE(donor_inode)) {
 		ext4_debug("ext4 move extent: The argument files should "
 			"not be swapfile [ino:orig %lu, donor %lu]\n",
+			orig_inode->i_ino, donor_inode->i_ino);
+		return -EBUSY;
+	}
+
+	if (IS_NOQUOTA(orig_inode) || IS_NOQUOTA(donor_inode)) {
+		ext4_debug("ext4 move extent: The argument files should "
+			"not be quota files [ino:orig %lu, donor %lu]\n",
 			orig_inode->i_ino, donor_inode->i_ino);
 		return -EBUSY;
 	}
@@ -588,6 +595,13 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 	    ext4_should_journal_data(donor_inode)) {
 		ext4_msg(orig_inode->i_sb, KERN_ERR,
 			 "Online defrag not supported with data journaling");
+		return -EOPNOTSUPP;
+	}
+
+	if (ext4_encrypted_inode(orig_inode) ||
+	    ext4_encrypted_inode(donor_inode)) {
+		ext4_msg(orig_inode->i_sb, KERN_ERR,
+			 "Online defrag not supported for encrypted files");
 		return -EOPNOTSUPP;
 	}
 

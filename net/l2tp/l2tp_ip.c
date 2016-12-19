@@ -123,12 +123,11 @@ static int l2tp_ip_recv(struct sk_buff *skb)
 	struct l2tp_tunnel *tunnel = NULL;
 	int length;
 
-	/* Point to L2TP header */
-	optr = ptr = skb->data;
-
 	if (!pskb_may_pull(skb, 4))
 		goto discard;
 
+	/* Point to L2TP header */
+	optr = ptr = skb->data;
 	session_id = ntohl(*((__be32 *) ptr));
 	ptr += 4;
 
@@ -156,6 +155,9 @@ static int l2tp_ip_recv(struct sk_buff *skb)
 		if (!pskb_may_pull(skb, length))
 			goto discard;
 
+		/* Point to L2TP header */
+		optr = ptr = skb->data;
+		ptr += 4;
 		pr_debug("%s: ip recv\n", tunnel->name);
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, ptr, length);
 	}
@@ -336,7 +338,7 @@ static int l2tp_ip_disconnect(struct sock *sk, int flags)
 	if (sock_flag(sk, SOCK_ZAPPED))
 		return 0;
 
-	return udp_disconnect(sk, flags);
+	return __udp_disconnect(sk, flags);
 }
 
 static int l2tp_ip_getname(struct socket *sock, struct sockaddr *uaddr,

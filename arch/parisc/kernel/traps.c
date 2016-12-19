@@ -458,8 +458,8 @@ void parisc_terminate(char *msg, struct pt_regs *regs, int code, unsigned long o
 	}
 
 	printk("\n");
-	printk(KERN_CRIT "%s: Code=%d regs=%p (Addr=" RFMT ")\n",
-			msg, code, regs, offset);
+	pr_crit("%s: Code=%d (%s) regs=%p (Addr=" RFMT ")\n",
+		msg, code, trap_name(code), regs, offset);
 	show_regs(regs);
 
 	spin_unlock(&terminate_lock);
@@ -795,6 +795,9 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 
 	    if (fault_space == 0 && !faulthandler_disabled())
 	    {
+		/* Clean up and return if in exception table. */
+		if (fixup_exception(regs))
+			return;
 		pdc_chassis_send_status(PDC_CHASSIS_DIRECT_PANIC);
 		parisc_terminate("Kernel Fault", regs, code, fault_address);
 	    }

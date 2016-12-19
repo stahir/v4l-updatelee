@@ -321,8 +321,8 @@ static int s5h1409_writereg(struct s5h1409_state *state, u8 reg, u16 data)
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		printk(KERN_ERR "%s: error (reg == 0x%02x, val == 0x%04x, "
-		       "ret == %i)\n", __func__, reg, data, ret);
+		printk(KERN_ERR "%s: error (reg == 0x%02x, val == 0x%04x, ret == %i)\n",
+		       __func__, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
 }
@@ -947,7 +947,7 @@ static void s5h1409_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops s5h1409_ops;
+static const struct dvb_frontend_ops s5h1409_ops;
 
 struct dvb_frontend *s5h1409_attach(const struct s5h1409_config *config,
 				    struct i2c_adapter *i2c)
@@ -999,7 +999,7 @@ EXPORT_SYMBOL(s5h1409_attach);
 static int s5h1409_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spectrum_scan *s)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
-	
+
 	int x;
 	p->bandwidth_hz = 1000000;
 	p->delivery_system = SYS_ATSC;
@@ -1018,7 +1018,7 @@ static int s5h1409_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 			fe->ops.tuner_ops.set_params(fe);
 			if (fe->ops.i2c_gate_ctrl)
 				fe->ops.i2c_gate_ctrl(fe, 0);
-			
+
                         s5h1409_read_snr(fe, (s->rf_level + x));
                         *(s->rf_level + x) *= 10;
 		}
@@ -1027,7 +1027,7 @@ static int s5h1409_get_spectrum_scan(struct dvb_frontend *fe, struct dvb_fe_spec
 	return 0;
 }
 
-static struct dvb_frontend_ops s5h1409_ops = {
+static const struct dvb_frontend_ops s5h1409_ops = {
 	.delsys = { SYS_DVBC_ANNEX_B, SYS_ATSC },
 	.info = {
 		.name			= "Samsung S5H1409 QAM/8VSB Frontend",
