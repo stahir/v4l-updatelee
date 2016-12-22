@@ -3972,19 +3972,19 @@ static int stv090x_get_stats(struct dvb_frontend *fe, enum fe_status stat)
 
 	switch (state->delsys) {
 	case STV090x_DVBS2:
-		c->cnr.stat[0].svalue = stv090x_table_lookup(stv090x_s2cn_tab, ARRAY_SIZE(stv090x_s2cn_tab) - 1, stv090x_read_db_reg(fe)) * 1000;
+		c->cnr.stat[0].svalue = stv090x_table_lookup(stv090x_s2cn_tab, ARRAY_SIZE(stv090x_s2cn_tab) - 1, stv090x_read_db_reg(fe)) * 100;
 		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 		break;
 	case STV090x_DVBS1:
 	case STV090x_DSS:
-		c->cnr.stat[0].svalue = stv090x_table_lookup(stv090x_s1cn_tab, ARRAY_SIZE(stv090x_s1cn_tab) - 1, stv090x_read_db_reg(fe)) * 1000;
+		c->cnr.stat[0].svalue = stv090x_table_lookup(stv090x_s1cn_tab, ARRAY_SIZE(stv090x_s1cn_tab) - 1, stv090x_read_db_reg(fe)) * 100;
 		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 		break;
 	default:
 		break;
 	}
 	c->strength.stat[0].scale = FE_SCALE_DECIBEL;
-	c->strength.stat[0].svalue = stv090x_read_dbm(fe) * 10000;
+	c->strength.stat[0].svalue = stv090x_read_dbm(fe) * 1000;
 	c->block_error.stat[0].scale = FE_SCALE_COUNTER;
 	c->block_error.stat[0].uvalue = stv090x_read_ucb(fe);
 	c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
