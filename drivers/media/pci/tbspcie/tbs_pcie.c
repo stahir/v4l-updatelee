@@ -952,8 +952,8 @@ static int tbs6908_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage volt
 		break;
 	case SEC_VOLTAGE_OFF:
 		printk(KERN_INFO "%s: Adapter: %d, Polarization=[OFF]", __func__, adapter->count);
-		tbs_pcie_gpio_write(dev, 3 - adapter->count, 1, 1);
-		tbs_pcie_gpio_write(dev, 3 - adapter->count, 2, 1);
+//		tbs_pcie_gpio_write(dev, 3 - adapter->count, 1, 1);
+//		tbs_pcie_gpio_write(dev, 3 - adapter->count, 2, 1);
 		break;
 	default:
 		return -EINVAL;
@@ -1065,8 +1065,8 @@ static int tbs6903_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage volt
 		break;
 	case SEC_VOLTAGE_OFF:
 		printk(KERN_INFO "%s: Adapter: %d, Polarization=[OFF]", __func__, adapter->count);
-		tbs_pcie_gpio_write(dev, 3 - adapter->count, 1, 1);
-		tbs_pcie_gpio_write(dev, 3 - adapter->count, 2, 1);
+//		tbs_pcie_gpio_write(dev, 3 - adapter->count, 1, 1);
+//		tbs_pcie_gpio_write(dev, 3 - adapter->count, 2, 1);
 		break;
 	default:
 		return -EINVAL;
