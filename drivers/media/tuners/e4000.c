@@ -270,6 +270,7 @@ err:
 /*
  * V4L2 API
  */
+#if IS_ENABLED(CONFIG_VIDEO_V4L2)
 static const struct v4l2_frequency_band bands[] = {
 	{
 		.type = V4L2_TUNER_RF,
@@ -348,7 +349,6 @@ static int e4000_g_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_VIDEO_V4L2)
 static int e4000_s_frequency(struct v4l2_subdev *sd,
 			      const struct v4l2_frequency *f)
 {
