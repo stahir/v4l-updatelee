@@ -1244,7 +1244,7 @@ static int stv0910_get_stats(struct dvb_frontend *fe)
 			value += MAKEWORD16(STV0910_READ_FIELD(state, NOSPLHT_NORMED1), STV0910_READ_FIELD(state, NOSPLHT_NORMED0));
 		}
 		value /= 10;
-		p->cnr.stat[0].svalue = stv0910_lookup(stv0910_S2_SNR_lookup, ARRAY_SIZE(stv0910_S2_SNR_lookup) - 1, value) * 1000;
+		p->cnr.stat[0].svalue = stv0910_lookup(stv0910_S2_SNR_lookup, ARRAY_SIZE(stv0910_S2_SNR_lookup) - 1, value) * 100;
 		p->cnr.stat[0].scale  = FE_SCALE_DECIBEL;
 		break;
 	case FE_DVB_S:
@@ -1252,7 +1252,7 @@ static int stv0910_get_stats(struct dvb_frontend *fe)
 			value += MAKEWORD16(STV0910_READ_FIELD(state, NOSDATAT_NORMED1), STV0910_READ_FIELD(state, NOSDATAT_NORMED0));
 		}
 		value /= 10;
-		p->cnr.stat[0].svalue = stv0910_lookup(stv0910_S1_SNR_lookup, ARRAY_SIZE(stv0910_S1_SNR_lookup) - 1, value) * 1000;
+		p->cnr.stat[0].svalue = stv0910_lookup(stv0910_S1_SNR_lookup, ARRAY_SIZE(stv0910_S1_SNR_lookup) - 1, value) * 100;
 		p->cnr.stat[0].scale  = FE_SCALE_DECIBEL;
 		break;
 	default:
@@ -1260,7 +1260,7 @@ static int stv0910_get_stats(struct dvb_frontend *fe)
 	}
 	p->strength.stat[0].scale  = FE_SCALE_DECIBEL;
 	stv0910_read_dbm(fe, &dbm);
-	p->strength.stat[0].svalue = dbm * 100;
+	p->strength.stat[0].svalue = dbm * 10;
 	p->block_error.stat[0].scale = FE_SCALE_COUNTER;
 	stv0910_read_ucblocks(fe, &ber);
 	p->block_error.stat[0].uvalue = ber;
