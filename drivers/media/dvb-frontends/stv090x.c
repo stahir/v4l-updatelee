@@ -761,9 +761,6 @@ static int stv090x_write_regs(struct stv090x_state *state, unsigned int reg, u8 
 	buf[1] = reg & 0xff;
 	memcpy(&buf[2], data, count);
 
-	dprintk(FE_DEBUGREG, 1, "%s [0x%04x]: %*ph",
-		__func__, reg, count, data);
-
 	ret = i2c_transfer(state->i2c, &i2c_msg, 1);
 	if (ret != 1) {
 		if (ret != -ERESTARTSYS)

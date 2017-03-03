@@ -480,7 +480,6 @@ static void tbs_pcie_dma_start(struct tbs_adapter *adapter)
 	spin_lock_irq(&adapter->adap_lock);
 
 	adapter->buffer = 0;
-	adapter->sync_offset = 0;
 
 	if (adapter->tsin >= 4)
 	{
@@ -530,7 +529,7 @@ static void adapter_tasklet(unsigned long adap)
 	struct tbs_pcie_dev *dev = adapter->dev;
 	u8* data;
 	u32 active_buffer;
-	int i = 0;
+	//int i = 0;
 
 	if (adapter->tsin >= 4) {
 		adapter->buffer = TBS_PCIE_READ(TBS_DMA2_BASE(adapter->tsin), TBS_DMA_STATUS);
@@ -545,31 +544,13 @@ static void adapter_tasklet(unsigned long adap)
 
 	data = (u8*)dev->mem_addr_virt + (adapter->tsin)*(TBS_PCIE_DMA_TOTAL + 256) + TBS_PCIE_CELL_SIZE*(active_buffer & 0x07);
 
-//	printk(KERN_INFO "sync_offset: %d\n", adapter->sync_offset);
-
-	if ((adapter->sync_offset == 0) || (*(data+adapter->sync_offset) != 0x47)) {
-		for(i = 0; i < 256; i++) {
-			if ((*(data + i) == 0x47) && (*(data + i + 188) == 0x47) && (*(data + i + 2*188) == 0x47)) {
-				adapter->sync_offset = i;
-				break;
-			}
-		}
+	if (adapter->fe->ops.data_format == FE_DFMT_TS_PACKET) {
+		dvb_dmx_swfilter(&adapter->demux, data, adapter->buffer_size);
+	} else {
+		dvb_dmx_swfilter_data(&adapter->demux, FE_DFMT_BB_FRAME, data, adapter->buffer_size);
 	}
 
-//	printk(KERN_INFO "sync_offset: %d\n", adapter->sync_offset);
 
-	data += adapter->sync_offset;
-
-	/* copy from cell0 sync byte offset to cell7 */
-	if ((active_buffer & 0x07) == 0x07) {
-		memcpy((u8*)dev->mem_addr_virt + (adapter->tsin)*(TBS_PCIE_DMA_TOTAL + 256) + TBS_PCIE_DMA_TOTAL, (u8*)dev->mem_addr_virt + (adapter->tsin)*(TBS_PCIE_DMA_TOTAL + 256), adapter->sync_offset);
-	}
-
-//	printk(KERN_INFO "buffer_size: %d\n", adapter->buffer_size);
-
-	if ((dev->mem_addr_virt) && (adapter->active)) {
-		dvb_dmx_swfilter_packets(&adapter->demux, data, adapter->buffer_size / 188);
-	}
 
 	spin_unlock(&adapter->adap_lock);
 
@@ -958,25 +939,21 @@ static int tbs6908_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage volt
 	struct tbs_adapter *adapter = fe->dvb->priv;
 	struct tbs_pcie_dev *dev = adapter->dev;
 
-	// Not sure why but you have to set it to 18v, then change it later
-	tbs_pcie_gpio_write(dev, adapter->count, 1, 1);
-	tbs_pcie_gpio_write(dev, adapter->count, 2, 0);
-
 	switch (voltage) {
 	case SEC_VOLTAGE_13:
 		printk(KERN_INFO "%s: Adapter: %d, Polarization=[13V]", __func__, adapter->count);
-		tbs_pcie_gpio_write(dev, adapter->count, 1, 0);
-		tbs_pcie_gpio_write(dev, adapter->count, 2, 1);
+		tbs_pcie_gpio_write(dev, 3 - adapter->count, 1, 0);
+		tbs_pcie_gpio_write(dev, 3 - adapter->count, 2, 0);
 		break;
 	case SEC_VOLTAGE_18:
 		printk(KERN_INFO "%s: Adapter: %d, Polarization=[18V]", __func__, adapter->count);
-		// Already at 18v
+		tbs_pcie_gpio_write(dev, 3 - adapter->count, 1, 1);
+		tbs_pcie_gpio_write(dev, 3 - adapter->count, 2, 0);
 		break;
 	case SEC_VOLTAGE_OFF:
 		printk(KERN_INFO "%s: Adapter: %d, Polarization=[OFF]", __func__, adapter->count);
-// uncommented because its untested
-//		tbs_pcie_gpio_write(dev, adapter->count, 1, 1);
-//		tbs_pcie_gpio_write(dev, adapter->count, 2, 1);
+//		tbs_pcie_gpio_write(dev, 3 - adapter->count, 1, 1);
+//		tbs_pcie_gpio_write(dev, 3 - adapter->count, 2, 1);
 		break;
 	default:
 		return -EINVAL;
@@ -1074,25 +1051,22 @@ static int tbs6903_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage volt
 	struct tbs_adapter *adapter = fe->dvb->priv;
 	struct tbs_pcie_dev *dev = adapter->dev;
 
-	// Not sure why but you have to set it to 18v, then change it later
-	tbs_pcie_gpio_write(dev, adapter->count + 2, 1, 1);
-	tbs_pcie_gpio_write(dev, adapter->count + 2, 2, 0);
-
 	switch (voltage) {
 	case SEC_VOLTAGE_13:
 		printk(KERN_INFO "%s: Adapter: %d, Polarization=[13V]", __func__, adapter->count);
-		tbs_pcie_gpio_write(dev, adapter->count + 2, 1, 0);
-		tbs_pcie_gpio_write(dev, adapter->count + 2, 2, 1);
+		tbs_pcie_gpio_write(dev, 3 - adapter->count, 1, 0);
+		tbs_pcie_gpio_write(dev, 3 - adapter->count, 2, 0);
 		break;
 	case SEC_VOLTAGE_18:
 		printk(KERN_INFO "%s: Adapter: %d, Polarization=[18V]", __func__, adapter->count);
+		tbs_pcie_gpio_write(dev, 3 - adapter->count, 1, 1);
+		tbs_pcie_gpio_write(dev, 3 - adapter->count, 2, 0);
 		// Already at 18v
 		break;
 	case SEC_VOLTAGE_OFF:
 		printk(KERN_INFO "%s: Adapter: %d, Polarization=[OFF]", __func__, adapter->count);
-// uncommented because its untested
-//		tbs_pcie_gpio_write(dev, adapter->count, 1, 1);
-//		tbs_pcie_gpio_write(dev, adapter->count, 2, 1);
+//		tbs_pcie_gpio_write(dev, 3 - adapter->count, 1, 1);
+//		tbs_pcie_gpio_write(dev, 3 - adapter->count, 2, 1);
 		break;
 	default:
 		return -EINVAL;

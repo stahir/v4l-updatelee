@@ -22,6 +22,7 @@
 #include <linux/dvb/frontend.h>
 #include "dvb_math.h"
 #include "lgdt3306a.h"
+#include <linux/i2c-mux.h>
 
 
 static int debug;
@@ -66,6 +67,7 @@ struct lgdt3306a_state {
 	u32 current_frequency;
 	u32 snr;
 
+	struct i2c_mux_core *muxc;
 	enum lgdt3306a_algo algo;
 };
 
@@ -108,6 +110,7 @@ enum lgdt3306a_lock_check {
 	LG3306_TR_LOCK,
 	LG3306_AGC_LOCK,
 };
+
 
 #ifdef DBG_DUMP
 static void lgdt3306a_DumpAllRegs(struct lgdt3306a_state *state);
@@ -201,14 +204,13 @@ static int lgdt3306a_soft_reset(struct lgdt3306a_state *state)
 {
 	int ret;
 
-	dbg_info("lgdt3306a_soft_reset\n");
+	dbg_info("\n");
 
 	ret = lgdt3306a_set_reg_bit(state, 0x0000, 7, 0);
 	if (lg_chkerr(ret))
 		goto fail;
 
-	msleep(10);
-
+	msleep(20);
 	ret = lgdt3306a_set_reg_bit(state, 0x0000, 7, 1);
 	lg_chkerr(ret);
 
@@ -222,7 +224,7 @@ static int lgdt3306a_mpeg_mode(struct lgdt3306a_state *state,
 	u8 val;
 	int ret;
 
-	dbg_info("lgdt3306a_mpeg_mode: (%d)\n", mode);
+	dbg_info("(%d)\n", mode);
 	/* transport packet format - TPSENB=0x80 */
 	ret = lgdt3306a_set_reg_bit(state, 0x0071, 7,
 				     mode == LGDT3306A_MPEG_PARALLEL ? 1 : 0);
@@ -286,7 +288,7 @@ static int lgdt3306a_mpeg_tristate(struct lgdt3306a_state *state,
 	u8 val;
 	int ret;
 
-	dbg_info("lgdt3306a_mpeg_tristate: (%d)\n", mode);
+	dbg_info("(%d)\n", mode);
 
 	if (mode) {
 		ret = lgdt3306a_read_reg(state, 0x0070, &val);
@@ -341,7 +343,7 @@ static int lgdt3306a_power(struct lgdt3306a_state *state,
 {
 	int ret;
 
-	dbg_info("lgdt3306a_power: (%d)\n", mode);
+	dbg_info("(%d)\n", mode);
 
 	if (mode == 0) {
 		/* into reset */
@@ -379,7 +381,7 @@ static int lgdt3306a_set_vsb(struct lgdt3306a_state *state)
 	u8 val;
 	int ret;
 
-	dbg_info("lgdt3306a_set_vsb\n");
+	dbg_info("\n");
 
 	/* 0. Spectrum inversion detection manual; spectrum inverted */
 	ret = lgdt3306a_read_reg(state, 0x0002, &val);
@@ -611,7 +613,7 @@ static int lgdt3306a_set_modulation(struct lgdt3306a_state *state,
 {
 	int ret;
 
-	dbg_info("lgdt3306a_set_modulation\n");
+	dbg_info("\n");
 
 	switch (p->modulation) {
 	case VSB_8:
@@ -641,7 +643,7 @@ static int lgdt3306a_agc_setup(struct lgdt3306a_state *state,
 			      struct dtv_frontend_properties *p)
 {
 	/* TODO: anything we want to do here??? */
-	dbg_info("lgdt3306a_agc_setup\n");
+	dbg_info("\n");
 
 	switch (p->modulation) {
 	case VSB_8:
@@ -789,7 +791,7 @@ static int lgdt3306a_sleep(struct lgdt3306a_state *state)
 {
 	int ret;
 
-	state->algo = LG3306_NOTUNE;
+	dbg_info("\n");
 	state->current_frequency = -1; /* force re-tune, when we wake */
 
 	ret = lgdt3306a_mpeg_tristate(state, 1); /* disable data bus */
@@ -817,8 +819,7 @@ static int lgdt3306a_init(struct dvb_frontend *fe)
 	int ret;
 
 	state->algo = LG3306_NOTUNE;
-
-	dbg_info("lgdt3306a_init\n");
+	dbg_info("\n");
 
 	/* 1. Normal operation mode */
 	ret = lgdt3306a_set_reg_bit(state, 0x0001, 0, 1); /* SIMFASTENB=0x01 */
@@ -976,7 +977,7 @@ static int lgdt3306a_set_parameters(struct dvb_frontend *fe)
 	struct lgdt3306a_state *state = fe->demodulator_priv;
 	int ret;
 
-	dbg_info("lgdt3306a_set_parameters: (%d, %d)\n", p->frequency, p->modulation);
+	dbg_info("(%d, %d)\n", p->frequency, p->modulation);
 
 	if (state->current_frequency == p->frequency &&
 	   state->current_modulation == p->modulation) {
@@ -1070,7 +1071,7 @@ static int lgdt3306a_get_frontend(struct dvb_frontend *fe,
 {
 	struct lgdt3306a_state *state = fe->demodulator_priv;
 
-	dbg_info("lgdt3306a_get_frontend: (%u, %d)\n",
+	dbg_info("(%u, %d)\n",
 		 state->current_frequency, state->current_modulation);
 
 	p->modulation = state->current_modulation;
@@ -1293,7 +1294,7 @@ lgdt3306a_check_neverlock_status(struct lgdt3306a_state *state)
 		return ret;
 	lockStatus = (enum lgdt3306a_neverlock_status)(val & 0x03);
 
-	dbg_info("NeverLock=%d \n", lockStatus);
+	dbg_info("NeverLock=%d", lockStatus);
 
 	return lockStatus;
 }
@@ -1522,11 +1523,12 @@ static u32 lgdt3306a_calculate_snr_x100(struct lgdt3306a_state *state)
 	pwr = (read_reg(state, 0x00e8) << 8) |
 	      (read_reg(state, 0x00e9));
 
-	if (pwr == 0) /* no signal */
+	if (mse == 0) /* no signal */
 		return 0;
 
 	snr_x100 = log10_x1000((pwr * 10000) / mse) - 3000;
 	dbg_info("mse=%u, pwr=%u, snr_x100=%d\n", mse, pwr, snr_x100);
+
 	return snr_x100;
 }
 
@@ -1708,9 +1710,16 @@ static int lgdt3306a_read_ber(struct dvb_frontend *fe, u32 *ber)
 	u32 tmp;
 
 	*ber = 0;
-	tmp =              read_reg(state, 0x00f8); /* VABER[15:8] */
-	tmp = (tmp << 8) | read_reg(state, 0x00f9); /* VABER[7:0]  */
+#if 1
+	/* FGR - FIXME - I don't know what value is expected by dvb_core
+	 * what is the scale of the value?? */
+	tmp =              read_reg(state, 0x00fc); /* NBERVALUE[24-31] */
+	tmp = (tmp << 8) | read_reg(state, 0x00fd); /* NBERVALUE[16-23] */
+	tmp = (tmp << 8) | read_reg(state, 0x00fe); /* NBERVALUE[8-15] */
+	tmp = (tmp << 8) | read_reg(state, 0x00ff); /* NBERVALUE[0-7] */
 	*ber = tmp;
+	dbg_info("ber=%u\n", tmp);
+#endif
 	return 0;
 }
 
@@ -1756,7 +1765,7 @@ static int lgdt3306a_get_tune_settings(struct dvb_frontend *fe,
 				       *fe_tune_settings)
 {
 	fe_tune_settings->min_delay_ms = 100;
-	dbg_info("lgdt3306a_get_tune_settings\n");
+	dbg_info("\n");
 	return 0;
 }
 
@@ -1809,7 +1818,7 @@ static void lgdt3306a_release(struct dvb_frontend *fe)
 {
 	struct lgdt3306a_state *state = fe->demodulator_priv;
 
-	dbg_info("lgdt3306a_release\n");
+	dbg_info("\n");
 	kfree(state);
 }
 
@@ -1822,7 +1831,7 @@ struct dvb_frontend *lgdt3306a_attach(const struct lgdt3306a_config *config,
 	int ret;
 	u8 val;
 
-	dbg_info("lgdt3306a_attach: (%d-%04x)\n",
+	dbg_info("(%d-%04x)\n",
 	       i2c_adap ? i2c_adapter_id(i2c_adap) : 0,
 	       config ? config->i2c_addr : 0);
 
@@ -2194,7 +2203,7 @@ static void lgdt3306a_DumpRegs(struct lgdt3306a_state *state)
 		return;
 	debug &= ~DBG_REG; /* suppress DBG_REG during reg dump */
 
-	lg_debug("lgdt3306a_DumpRegs\n");
+	lg_debug("\n");
 
 	for (i = 0; i < numDumpRegs; i++) {
 		lgdt3306a_read_reg(state, regtab[i], &regval1[i]);

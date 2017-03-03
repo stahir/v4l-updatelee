@@ -59,7 +59,6 @@ struct tbs_adapter {
 
 	u32			buffer_size;
 	u32			buffer;
-	u8			sync_offset;
 
 	struct dvb_adapter	dvb_adapter;
 	struct dvb_frontend	*fe;
