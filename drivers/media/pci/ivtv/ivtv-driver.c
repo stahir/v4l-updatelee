@@ -59,6 +59,7 @@
 #include <media/tveeprom.h>
 #include <media/i2c/saa7115.h>
 #include "tuner-xc2028.h"
+#include <uapi/linux/sched/types.h>
 
 /* If you have already X v4l cards, then set this to X. This way
    the device numbers stay matched. Example: you have a WinTV card
@@ -408,7 +409,7 @@ void ivtv_read_eeprom(struct ivtv *itv, struct tveeprom *tv)
 
 	itv->i2c_client.addr = 0xA0 >> 1;
 	tveeprom_read(&itv->i2c_client, eedata, sizeof(eedata));
-	tveeprom_hauppauge_analog(&itv->i2c_client, tv, eedata);
+	tveeprom_hauppauge_analog(tv, eedata);
 }
 
 static void ivtv_process_eeprom(struct ivtv *itv)
