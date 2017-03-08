@@ -18,7 +18,7 @@
 #include "gp8psk-fe.h"
 #include "dvb_frontend.h"
 
-static int debug;
+static int debug = 1;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
@@ -137,7 +137,7 @@ static int gp8psk_fe_set_frontend(struct dvb_frontend *fe)
 	u8 cmd[10];
 	u32 freq = c->frequency * 1000;
 
-	dprintk("%s()\n", __func__);
+	dprintk("\n");
 
 	cmd[4] = freq         & 0xff;
 	cmd[5] = (freq >> 8)  & 0xff;
@@ -258,8 +258,6 @@ static int gp8psk_fe_send_diseqc_burst(struct dvb_frontend *fe,
 	struct gp8psk_fe_state *st = fe->demodulator_priv;
 	u8 cmd;
 
-	dprintk("%s\n", __func__);
-
 	/* These commands are certainly wrong */
 	cmd = (burst == SEC_MINI_A) ? 0x00 : 0x01;
 
@@ -275,6 +273,8 @@ static int gp8psk_fe_set_tone(struct dvb_frontend *fe,
 {
 	struct gp8psk_fe_state *st = fe->demodulator_priv;
 
+	dprintk("tone:%s\n", tone == SEC_TONE_ON ? "ON" : "OFF");
+
 	if (st->ops->out(st->priv, SET_22KHZ_TONE,
 			 (tone == SEC_TONE_ON), 0, NULL, 0)) {
 		return -EINVAL;
@@ -286,6 +286,8 @@ static int gp8psk_fe_set_voltage(struct dvb_frontend *fe,
 				 enum fe_sec_voltage voltage)
 {
 	struct gp8psk_fe_state *st = fe->demodulator_priv;
+
+	dprintk("voltage:%s\n", voltage == SEC_VOLTAGE_18 ? "18v" : "13v");
 
 	if (st->ops->out(st->priv, SET_LNB_VOLTAGE,
 			 voltage == SEC_VOLTAGE_18, 0, NULL, 0)) {

@@ -19,7 +19,7 @@
 
 /* debug */
 static char bcm4500_firmware[] = "dvb-usb-gp8psk-02.fw";
-int dvb_usb_gp8psk_debug;
+int dvb_usb_gp8psk_debug = 1;
 module_param_named(debug,dvb_usb_gp8psk_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2,rc=4 (or-able))." DVB_USB_DEBUG_STATUS);
 
@@ -48,7 +48,7 @@ static int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value,
 			USB_TYPE_VENDOR | USB_DIR_IN,
 			value, index, st->data, blen,
 			2000);
-		deb_info("reading number %d (ret: %d)\n",try,ret);
+		deb_info("reading number %d (ret: %d)\n", try, ret);
 		try++;
 	}
 
@@ -60,7 +60,7 @@ static int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value,
 		memcpy(b, st->data, blen);
 	}
 
-	deb_xfer("in: req. %x, val: %x, ind: %x, buffer: ",req,value,index);
+	deb_xfer("in: req: 0x%02x, val: 0x%02x, ind: 0x%02x, buffer: ", req , value, index);
 	debug_dump(b,blen,deb_xfer);
 
 	mutex_unlock(&d->usb_mutex);
@@ -74,7 +74,7 @@ static int gp8psk_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
 	struct gp8psk_state *st = d->priv;
 	int ret;
 
-	deb_xfer("out: req. %x, val: %x, ind: %x, buffer: ",req,value,index);
+	deb_xfer("out: req: 0x%02x, val: 0x%02x, ind: 0x%02x, buffer: ", req, value, index);
 	debug_dump(b,blen,deb_xfer);
 
 	if (blen > sizeof(st->data))
@@ -115,7 +115,7 @@ static void gp8psk_info(struct dvb_usb_device *d)
 	u8 fpga_vers, fw_vers[6];
 
 	if (!gp8psk_get_fw_version(d, fw_vers))
-		info("FW Version = %i.%02i.%i (0x%x)  Build %4i/%02i/%02i",
+		info("FW Version = %i.%02i.%i (0x0x%02x)  Build %4i/%02i/%02i",
 		fw_vers[2], fw_vers[1], fw_vers[0], GP8PSK_FW_VERS(fw_vers),
 		2000 + fw_vers[5], fw_vers[4], fw_vers[3]);
 	else
@@ -307,7 +307,7 @@ static int gp8psk_usb_probe(struct usb_interface *intf,
 	ret = dvb_usb_device_init(intf, &gp8psk_properties,
 				  THIS_MODULE, NULL, adapter_nr);
 	if (ret == 0) {
-		info("found Genpix USB device pID = %x (hex)",
+		info("found Genpix USB device pID = 0x%02x (hex)",
 			le16_to_cpu(udev->descriptor.idProduct));
 	}
 	return ret;

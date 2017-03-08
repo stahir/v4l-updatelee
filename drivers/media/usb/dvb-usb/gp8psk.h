@@ -22,9 +22,9 @@
 
 extern int dvb_usb_gp8psk_debug;
 #define deb_info(args...) dprintk(dvb_usb_gp8psk_debug,0x01,args)
-#define deb_xfer(args...) dprintk(dvb_usb_gp8psk_debug,0x02,args)
-#define deb_rc(args...)   dprintk(dvb_usb_gp8psk_debug,0x04,args)
-#define deb_fe(args...)   dprintk(dvb_usb_gp8psk_debug,0x08,args)
+#define deb_xfer(args...) dprintk(dvb_usb_gp8psk_debug,0x01,args)
+#define deb_rc(args...)   dprintk(dvb_usb_gp8psk_debug,0x01,args)
+#define deb_fe(args...)   dprintk(dvb_usb_gp8psk_debug,0x01,args)
 
 /* Twinhan Vendor requests */
 #define TH_COMMAND_IN                     0xC0
