@@ -466,8 +466,6 @@ static void stv6120_release(struct dvb_frontend *fe)
 
 	fe->tuner_priv = NULL;
 	kfree(state);
-
-	return 0;
 }
 
 static int stv6120_set_params(struct dvb_frontend *fe)
