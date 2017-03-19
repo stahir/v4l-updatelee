@@ -56,6 +56,8 @@
 #include "mb86a16.h"
 #include "ts2020.h"
 #include "ds3000.h"
+#include "tas2101.h"
+#include "av201x.h"
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
@@ -993,6 +995,21 @@ static const struct stv0299_config samsung_stv0299_config = {
 	.set_symbol_rate = samsung_smt_7020_stv0299_set_symbol_rate,
 };
 
+static struct tas2101_config tbs8922_demod_cfg = {
+	
+		.i2c_address   = 0x68,
+		.id            = ID_TAS2100,
+		.init          = {0x67, 0x45, 0x23, 0x01, 0xa8, 0x9b, 0x33}, // 0xb1
+		.init2         = 0,
+	
+};
+
+static struct av201x_config tbs8922_av201x_cfg = {
+		.i2c_address = 0x63,
+		.id 		 = ID_AV2012,
+		.xtal_freq	 = 27000,		/* kHz */
+};
+
 static int dvb_register(struct cx8802_dev *dev)
 {
 	struct cx88_core *core = dev->core;
@@ -1537,6 +1554,20 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend)
 			fe0->dvb.frontend->ops.set_voltage = tevii_dvbs_set_voltage;
+		break;
+	case CX88_BOARD_TBS_8922:
+                dev->ts_gen_cntrl = 0x04;
+		fe0->dvb.frontend = dvb_attach(tas2101_attach, &tbs8922_demod_cfg, &core->i2c_adap);
+
+		if (fe0->dvb.frontend != NULL)
+			if (dvb_attach(av201x_attach, fe0->dvb.frontend, &tbs8922_av201x_cfg,
+				tas2101_get_i2c_adapter(fe0->dvb.frontend, 2)) == NULL) {
+			dvb_frontend_detach(fe0->dvb.frontend);
+			//adapter->fe = NULL;
+			//dev_err(&dev->pci_dev->dev,
+			//	"TBS_PCIE frontend %d tuner attach failed\n",
+			//	adapter->nr);
+			}
 		break;
 	case CX88_BOARD_TERRATEC_CINERGY_HT_PCI_MKII:
 		fe0->dvb.frontend = dvb_attach(zl10353_attach,

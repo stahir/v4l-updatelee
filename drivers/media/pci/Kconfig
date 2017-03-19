@@ -36,6 +36,7 @@ source "drivers/media/pci/bt8xx/Kconfig"
 source "drivers/media/pci/saa7134/Kconfig"
 source "drivers/media/pci/saa7164/Kconfig"
 source "drivers/media/pci/cobalt/Kconfig"
+source "drivers/media/pci/saa716x/Kconfig"
 
 endif
 
@@ -52,6 +53,7 @@ source "drivers/media/pci/ngene/Kconfig"
 source "drivers/media/pci/ddbridge/Kconfig"
 source "drivers/media/pci/smipcie/Kconfig"
 source "drivers/media/pci/netup_unidvb/Kconfig"
+source "drivers/media/pci/tbsecp3/Kconfig"
 endif
 
 endif #MEDIA_PCI_SUPPORT

@@ -35,6 +35,7 @@
 #include "dvb_frontend.h"
 #include "cx24117.h"
 
+
 #define CX24117_DEFAULT_FIRMWARE "dvb-fe-cx24117.fw"
 #define CX24117_SEARCH_RANGE_KHZ 5000
 

@@ -47,6 +47,7 @@ struct cxd2820r_priv {
 	bool ts_clk_inv;
 	bool if_agc_polarity;
 	bool spec_inv;
+	void (*set_lock_led)(struct dvb_frontend *fe, int offon);
 
 	u64 post_bit_error_prev_dvbv3;
 	u64 post_bit_error;

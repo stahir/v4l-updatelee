@@ -86,7 +86,6 @@ static int saa716x_request_irq(struct saa716x_dev *saa716x)
 		if (ret) {
 			pci_disable_msi(pdev);
 			dprintk(SAA716x_ERROR, 1, "MSI registration failed");
-			ret = -EIO;
 		}
 	}
 
@@ -118,10 +117,8 @@ static int saa716x_request_irq(struct saa716x_dev *saa716x)
 				  IRQF_SHARED,
 				  DRIVER_NAME,
 				  saa716x);
-		if (ret < 0) {
+		if (ret < 0)
 			dprintk(SAA716x_ERROR, 1, "SAA716x IRQ registration failed <%d>", ret);
-			ret = -ENODEV;
-		}
 	}
 
 	return ret;

@@ -412,7 +412,6 @@ struct dvb_frame {
  * @get_property:	callback function to allow the frontend to override
  *			outcoming properties. Should not be used on new drivers.
  */
-
 struct dvb_frontend_ops {
 	struct dvb_frontend_info info;
 	struct dvb_frontend_extended_info extended_info;
@@ -483,6 +482,9 @@ struct dvb_frontend_ops {
 	int (*get_constellation_samples)(struct dvb_frontend* fe, struct dvb_fe_constellation_samples* s);
 	int (*get_spectrum_scan)(struct dvb_frontend* fe, struct dvb_fe_spectrum_scan* s);
 	int (*set_frame_ops)(struct dvb_frontend* fe, struct dvb_frame frame_ops);
+
+	void(*spi_read)( struct dvb_frontend *fe,struct ecp3_info *ecp3inf);
+	void(*spi_write)( struct dvb_frontend *fe,struct ecp3_info *ecp3inf);
 };
 
 #ifdef __DVB_CORE__

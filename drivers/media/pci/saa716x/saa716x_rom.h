@@ -247,6 +247,7 @@ struct saa716x_streamdev_info {
 	u8 *ext_data;
 };
 
+extern int saa716x_read_rombytes(struct saa716x_dev *saa716x, u16 reg, u16 len, u8 *val);
 extern int saa716x_dump_eeprom(struct saa716x_dev *saa716x);
 extern int saa716x_eeprom_data(struct saa716x_dev *saa716x);
 

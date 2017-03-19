@@ -132,7 +132,18 @@ static int tda18212_set_params(struct dvb_frontend *fe)
 	if (ret)
 		goto error;
 
+	ret = regmap_write(dev->regmap, 0x5f, 0x00);
+	if (ret)
+		goto error;
+
 	ret = regmap_write(dev->regmap, 0x06, 0x00);
+	if (ret)
+		goto error;
+
+	if (dev->cfg.loop_through)
+		buf[0] |= 0x80;
+
+	ret = regmap_write(dev->regmap, 0x0c, buf[0]);
 	if (ret)
 		goto error;
 

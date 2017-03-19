@@ -57,6 +57,7 @@ struct cxd2820r_platform_data {
 	bool spec_inv;
 	int **gpio_chip_base;
 
+	void (*set_lock_led)(struct dvb_frontend *fe, int offon);
 	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);
 /* private: For legacy media attach wrapper. Do not set value. */
 	bool attach_in_use;

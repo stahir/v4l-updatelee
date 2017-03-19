@@ -62,6 +62,47 @@ int saa716x_i2c_irqevent(struct saa716x_dev *saa716x, u8 bus)
 
 	SAA716x_EPWR(I2C_DEV[bus], INT_CLR_STATUS, stat);
 
+	if (stat & I2C_INTERRUPT_STFNF)
+		dprintk(SAA716x_DEBUG, 0, "<STFNF> ");
+
+	if (stat & I2C_INTERRUPT_MTFNF) {
+		dprintk(SAA716x_DEBUG, 0, "<MTFNF> ");
+	}
+
+	if (stat & I2C_INTERRUPT_RFDA)
+		dprintk(SAA716x_DEBUG, 0, "<RFDA> ");
+
+	if (stat & I2C_INTERRUPTE_RFF)
+		dprintk(SAA716x_DEBUG, 0, "<RFF> ");
+
+	if (stat & I2C_SLAVE_INTERRUPT_STDR)
+		dprintk(SAA716x_DEBUG, 0, "<STDR> ");
+
+	if (stat & I2C_MASTER_INTERRUPT_MTDR) {
+		dprintk(SAA716x_DEBUG, 0, "<MTDR> ");
+	}
+
+	if (stat & I2C_ERROR_IBE)
+		dprintk(SAA716x_DEBUG, 0, "<IBE> ");
+
+	if (stat & I2C_MODE_CHANGE_INTER_MSMC)
+		dprintk(SAA716x_DEBUG, 0, "<MSMC> ");
+
+	if (stat & I2C_SLAVE_RECEIVE_INTER_SRSD)
+		dprintk(SAA716x_DEBUG, 0, "<SRSD> ");
+
+	if (stat & I2C_SLAVE_TRANSMIT_INTER_STSD)
+		dprintk(SAA716x_DEBUG, 0, "<STSD> ");
+
+	if (stat & I2C_ACK_INTER_MTNA)
+		dprintk(SAA716x_DEBUG, 0, "<MTNA> ");
+
+	if (stat & I2C_FAILURE_INTER_MAF)
+		dprintk(SAA716x_DEBUG, 0, "<MAF> ");
+
+	if (stat & I2C_INTERRUPT_MTD)
+		dprintk(SAA716x_DEBUG, 0, "<MTD> ");
+
 	return 0;
 }
 
@@ -288,7 +329,7 @@ static int saa716x_i2c_send(struct saa716x_i2c *i2c, u32 I2C_DEV, u32 data)
 	SAA716x_EPWR(I2C_DEV, TX_FIFO, data);
 
 	/* Check for data write */
-	for (i = 0; i < 100; i++) {
+	for (i = 0; i < 1000; i++) {
 		/* TODO! check for hotplug devices */
 		reg = SAA716x_EPRD(I2C_DEV, I2C_STATUS);
 		if (reg & I2C_TRANSMIT_CLEAR) {
@@ -317,7 +358,7 @@ static int saa716x_i2c_recv(struct saa716x_i2c *i2c, u32 I2C_DEV, u32 *data)
 	u32 reg;
 
 	/* Check FIFO status before RX */
-	for (i = 0; i < 100; i++) {
+	for (i = 0; i < 1000; i++) {
 		reg = SAA716x_EPRD(I2C_DEV, I2C_STATUS);
 		if (!(reg & SAA716x_I2C_RXBUSY)) {
 			break;
@@ -654,6 +695,13 @@ int saa716x_i2c_init(struct saa716x_dev *saa716x)
 
 	return 0;
 exit:
+	/* delete already added i2c adapters */
+	while (i > 0) {
+		i2c--;
+		adapter = &i2c->i2c_adapter;
+		i2c_del_adapter(adapter);
+		i--;
+	}
 	return err;
 }
 EXPORT_SYMBOL_GPL(saa716x_i2c_init);

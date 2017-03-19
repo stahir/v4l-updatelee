@@ -360,7 +360,9 @@ int cx231xx_afe_update_power_control(struct cx231xx *dev,
 	case CX231XX_BOARD_HAUPPAUGE_USB2_FM_PAL:
 	case CX231XX_BOARD_HAUPPAUGE_USB2_FM_NTSC:
 	case CX231XX_BOARD_OTG102:
-	case CX231XX_BOARD_KWORLD_UB445_V3:
+	case CX231XX_BOARD_TBS_5280:
+	case CX231XX_BOARD_TBS_5281:
+	case CX231XX_BOARD_TBS_5990:
 		if (avmode == POLARIS_AVMODE_ANALOGT_TV) {
 			while (afe_power_status != (FLD_PWRDN_TUNING_BIAS |
 						FLD_PWRDN_ENABLE_PLL)) {
@@ -1752,7 +1754,6 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 	case CX231XX_BOARD_CNXT_VIDEO_GRABBER:
 	case CX231XX_BOARD_HAUPPAUGE_EXETER:
 	case CX231XX_BOARD_OTG102:
-	case CX231XX_BOARD_KWORLD_UB445_V3:
 		func_mode = 0x03;
 		break;
 	case CX231XX_BOARD_CNXT_RDE_253S:
@@ -2669,7 +2670,7 @@ EXPORT_SYMBOL_GPL(cx231xx_capture_start);
 /*****************************************************************************
 *                   G P I O   B I T control functions                        *
 ******************************************************************************/
-static int cx231xx_set_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u32 gpio_val)
+int cx231xx_set_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u32 gpio_val)
 {
 	int status = 0;
 
@@ -2678,8 +2679,9 @@ static int cx231xx_set_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u32 gpio_val)
 
 	return status;
 }
+EXPORT_SYMBOL_GPL(cx231xx_set_gpio_bit);
 
-static int cx231xx_get_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u32 *gpio_val)
+int cx231xx_get_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u32 *gpio_val)
 {
 	__le32 tmp;
 	int status = 0;
@@ -2689,6 +2691,7 @@ static int cx231xx_get_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u32 *gpio_val
 
 	return status;
 }
+EXPORT_SYMBOL_GPL(cx231xx_get_gpio_bit);
 
 /*
 * cx231xx_set_gpio_direction
@@ -2724,6 +2727,7 @@ int cx231xx_set_gpio_direction(struct cx231xx *dev,
 
 	return status;
 }
+EXPORT_SYMBOL_GPL(cx231xx_set_gpio_direction);
 
 /*
 * cx231xx_set_gpio_value
@@ -2768,6 +2772,7 @@ int cx231xx_set_gpio_value(struct cx231xx *dev, int pin_number, int pin_value)
 
 	return status;
 }
+EXPORT_SYMBOL_GPL(cx231xx_set_gpio_value);
 
 /*****************************************************************************
 *                      G P I O I2C related functions                         *

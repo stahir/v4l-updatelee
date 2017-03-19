@@ -180,6 +180,10 @@ static int cxd2820r_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		ret = -EINVAL;
 		break;
 	}
+
+	if (priv->set_lock_led)
+		priv->set_lock_led(fe, *status & FE_HAS_LOCK);
+
 	return ret;
 }
 
@@ -283,6 +287,9 @@ static int cxd2820r_sleep(struct dvb_frontend *fe)
 	struct i2c_client *client = priv->client[0];
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
+
+	if (priv->set_lock_led)
+		priv->set_lock_led(fe, 0);
 
 	dev_dbg(&client->dev, "delivery_system=%d\n", c->delivery_system);
 
@@ -415,6 +422,9 @@ static void cxd2820r_release(struct dvb_frontend *fe)
 
 	dev_dbg(&client->dev, "\n");
 
+	if (priv->set_lock_led)
+		priv->set_lock_led(fe, 0);
+
 	i2c_unregister_device(client);
 
 	return;
@@ -536,6 +546,7 @@ struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *config,
 	pdata.ts_clk_inv = config->ts_clock_inv;
 	pdata.if_agc_polarity = config->if_agc_polarity;
 	pdata.spec_inv = config->spec_inv;
+	pdata.set_lock_led = config->set_lock_led;
 	pdata.gpio_chip_base = &gpio_chip_base;
 	pdata.attach_in_use = true;
 
@@ -621,6 +632,7 @@ static int cxd2820r_probe(struct i2c_client *client,
 	priv->ts_clk_inv = pdata->ts_clk_inv;
 	priv->if_agc_polarity = pdata->if_agc_polarity;
 	priv->spec_inv = pdata->spec_inv;
+	priv->set_lock_led = pdata->set_lock_led;
 	gpio_chip_base = *pdata->gpio_chip_base;
 	priv->regmap[0] = regmap_init_i2c(priv->client[0], &regmap_config0);
 	if (IS_ERR(priv->regmap[0])) {

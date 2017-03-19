@@ -11,7 +11,6 @@
 #include "saa716x_i2c.h"
 #include "saa716x_gpio.h"
 #include "saa716x_priv.h"
-#include "saa716x_budget.h"
 
 #define SAA716X_TS_DMA_BUF_SIZE		(16 * SAA716x_PAGE_SIZE)
 
@@ -84,11 +83,12 @@ int saa716x_dvb_init(struct saa716x_dev *saa716x)
 
 	mutex_init(&saa716x->adap_lock);
 
+	saa716x->num_adapters = 0;
 	for (i = 0; i < config->adapters; i++) {
 		dprintk(SAA716x_DEBUG, 1, "dvb_register_adapter");
 		if (dvb_register_adapter(&saa716x_adap->dvb_adapter,
 					 "SAA716x dvb adapter",
-					 THIS_MODULE,
+					 saa716x->module,
 					 &saa716x->pdev->dev,
 					 adapter_nr) < 0) {
 
@@ -109,31 +109,6 @@ int saa716x_dvb_init(struct saa716x_dev *saa716x)
 		saa716x_adap->demux.start_feed		= saa716x_dvb_start_feed;
 		saa716x_adap->demux.stop_feed		= saa716x_dvb_stop_feed;
 		saa716x_adap->demux.write_to_decoder	= NULL;
-		switch (saa716x->pdev->subsystem_device) {
-		case TEVII_S472: {
-			struct saa716x_i2c *i2c		= saa716x->i2c;
-			struct i2c_adapter *adapter	= &i2c[SAA716x_I2C_BUS_B].i2c_adapter;
-			u8 mac[6];
-			u8 b0[] = { 0, 9 };
-			struct i2c_msg msg[] = {
-				{
-					.addr = 0x50,
-					.flags = 0,
-					.buf = b0,
-					.len = 2
-				}, {
-					.addr = 0x50,
-					.flags = I2C_M_RD,
-					.buf = mac,
-					.len = 6
-				}
-			};
-
-			i2c_transfer(adapter, msg, 2);
-			dprintk(SAA716x_INFO, 1, "TeVii S472 MAC= %pM\n", mac);
-			memcpy(saa716x_adap->dvb_adapter.proposed_mac, mac, 6);
-		}
-		}
 
 		dprintk(SAA716x_DEBUG, 1, "dvb_dmx_init");
 		if ((result = dvb_dmx_init(&saa716x_adap->demux)) < 0) {
@@ -209,9 +184,9 @@ int saa716x_dvb_init(struct saa716x_dev *saa716x)
 				  SAA716X_TS_DMA_BUF_SIZE,
 				  config->adap_config[i].worker);
 
+		saa716x->num_adapters++;
 		saa716x_adap++;
 	}
-
 
 	return 0;
 
@@ -237,9 +212,9 @@ void saa716x_dvb_exit(struct saa716x_dev *saa716x)
 {
 	struct saa716x_adapter *saa716x_adap = saa716x->saa716x_adap;
 	struct i2c_client *client;
-	int i;
+	int i, count = saa716x->num_adapters;
 
-	for (i = 0; i < saa716x->config->adapters; i++) {
+	for (i = 0; i < count; i++) {
 
 		saa716x_fgpi_exit(saa716x, saa716x->config->adap_config[i].ts_port);
 
@@ -272,6 +247,7 @@ void saa716x_dvb_exit(struct saa716x_dev *saa716x)
 		dprintk(SAA716x_DEBUG, 1, "dvb_unregister_adapter");
 		dvb_unregister_adapter(&saa716x_adap->dvb_adapter);
 
+		saa716x->num_adapters--;
 		saa716x_adap++;
 	}
 

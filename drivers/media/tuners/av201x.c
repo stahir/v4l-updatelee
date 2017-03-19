@@ -117,7 +117,6 @@ static void av201x_release(struct dvb_frontend *fe)
 
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return;
 }
 
 static int av201x_init(struct dvb_frontend *fe)
@@ -190,7 +189,7 @@ static int av201x_set_params(struct dvb_frontend *fe)
 	n = DIV_ROUND_CLOSEST((c->frequency / 1000) << 17, priv->cfg->xtal_freq / 1000);
 	buf[2] = (u8) (n >> 9);
 	buf[3] = (u8) (n >> 1);
-	buf[4] = (u8) ((n << 7) | 0x50);
+	buf[4] = (u8) (((n << 7) & 0x80) | 0x50);
 	ret = av201x_wrm(priv, buf, 5);
 	if (ret)
 		goto exit;
@@ -225,6 +224,38 @@ exit:
 	return ret;
 }
 
+static  int   AV201x_agc         [] = {     0,  82,   100,  116,  140,  162,  173,  187,  210,  223,  254,  255};
+static  int   AV201x_level_dBm_10[] = {    90, -50,  -263, -361, -463, -563, -661, -761, -861, -891, -904, -910};
+
+static int av201x_get_rf_strength(struct dvb_frontend *fe, u16 *st)
+{
+	struct av201x_priv *priv = fe->tuner_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	int   if_agc, index, table_length, slope, *x, *y;
+
+	if_agc = *st;
+	x = AV201x_agc;
+	y = AV201x_level_dBm_10;
+	table_length = sizeof(AV201x_agc)/sizeof(int);
+
+	
+	/* Finding in which segment the if_agc value is */
+	for (index = 0; index < table_length; index ++)
+		if (x[index] > if_agc ) break;
+
+	/* Computing segment slope */
+	slope =  ((y[index]-y[index-1])*1000)/(x[index]-x[index-1]);
+	/* Linear approximation of rssi value in segment (rssi values will be in 0.1dBm unit: '-523' means -52.3 dBm) */
+	*st = 1000 + ((y[index-1] + ((if_agc - x[index-1])*slope + 500)/1000))/10;
+
+	c->strength.len = 1;
+	c->strength.stat[0].scale = FE_SCALE_DECIBEL;
+	c->strength.stat[0].svalue = ((y[index-1] + ((if_agc - x[index-1])*slope + 500)/1000)) * 100;
+
+	return 0;
+}
+
+
 static const struct dvb_tuner_ops av201x_tuner_ops = {
 	.info = {
 		.name           = "Airoha Technology AV201x",
@@ -239,6 +270,7 @@ static const struct dvb_tuner_ops av201x_tuner_ops = {
 	.init = av201x_init,
 	.sleep = av201x_sleep,
 	.set_params = av201x_set_params,
+	.get_rf_strength = av201x_get_rf_strength,
 };
 
 struct dvb_frontend *av201x_attach(struct dvb_frontend *fe,

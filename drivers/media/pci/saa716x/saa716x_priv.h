@@ -107,13 +107,18 @@ struct saa716x_adapter {
 
 	struct i2c_client	*i2c_client_demod;
 	struct i2c_client	*i2c_client_tuner;
+	
+	struct tbsci_i2c_state *tbsci;
+	void*adap_priv;
 };
 
 struct saa716x_dev {
 	struct saa716x_config		*config;
 	struct pci_dev			*pdev;
+	struct module			*module;
 
-	int				num; /* device count */
+	int				num_adapters; /* adapter count (adapters on this saa716x card) */
+	int				num;          /* device count  (saa716x based cards) */
 	int				verbose;
 
 	u8 				revision;

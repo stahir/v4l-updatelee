@@ -394,6 +394,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	case CX88_BOARD_OMICOM_SS4_PCI:
 	case CX88_BOARD_SATTRADE_ST4200:
 	case CX88_BOARD_TBS_8920:
+	case CX88_BOARD_TBS_8922:
 	case CX88_BOARD_TBS_8910:
 	case CX88_BOARD_PROF_7300:
 	case CX88_BOARD_PROF_7301:

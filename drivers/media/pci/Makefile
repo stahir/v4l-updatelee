@@ -13,7 +13,8 @@ obj-y        +=	ttpci/		\
 		ddbridge/	\
 		saa7146/	\
 		smipcie/	\
-		netup_unidvb/
+		netup_unidvb/	\
+		tbsecp3/
 
 obj-$(CONFIG_VIDEO_IVTV) += ivtv/
 obj-$(CONFIG_VIDEO_ZORAN) += zoran/
@@ -24,14 +25,12 @@ obj-$(CONFIG_VIDEO_CX88) += cx88/
 obj-$(CONFIG_VIDEO_BT848) += bt8xx/
 obj-$(CONFIG_VIDEO_SAA7134) += saa7134/
 obj-$(CONFIG_VIDEO_SAA7164) += saa7164/
+obj-$(CONFIG_SAA716X_CORE) += saa716x/
 obj-$(CONFIG_VIDEO_TW68) += tw68/
 obj-$(CONFIG_VIDEO_TW686X) += tw686x/
 obj-$(CONFIG_VIDEO_DT3155) += dt3155/
 obj-$(CONFIG_VIDEO_MEYE) += meye/
 obj-$(CONFIG_STA2X11_VIP) += sta2x11/
-obj-$(CONFIG_SAA716X_CORE) += saa716x/
-obj-$(CONFIG_SAA7231_CORE) += saa7231/
 obj-$(CONFIG_VIDEO_SOLO6X10) += solo6x10/
 obj-$(CONFIG_VIDEO_COBALT) += cobalt/
-obj-$(CONFIG_TBS_PCIE_DVB) += tbspcie/
 obj-$(CONFIG_VIDEO_TW5864) += tw5864/

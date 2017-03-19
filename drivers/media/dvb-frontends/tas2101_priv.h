@@ -22,10 +22,15 @@
 #define TAS2101_PRIV_H
 
 struct tas2101_priv {
-	/* master i2c adapter */
-	struct i2c_adapter  *i2c;
-	/* muxed i2c adapter for the demod & tuner */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0)
 	struct i2c_mux_core *muxc;
+#endif
+	/* master i2c adapter */
+	struct i2c_adapter *i2c;
+	/* muxed i2c adapter for the demod */
+	struct i2c_adapter *i2c_demod;
+	/* muxed i2c adapter for the tuner */
+	struct i2c_adapter *i2c_tuner;
 
 	int i2c_ch;
 
@@ -166,6 +171,12 @@ static struct tas2101_regtable tas2101_initfe1[] = {
 	{REG_06, 0x00, 0x1f, 0},
 	{0x46, 0x18, 0x1f, 0},
 	{0x40, 0x04, 0x07, 0},
+};
+
+
+static struct tas2101_regtable tas2101_initfe2[] = {
+	{0xfa, 0x01, 0x03, 0},
+	{0xfb, 0x02, 0xff, 0},
 };
 
 static struct tas2101_regtable tas2100_initfe1[] = {

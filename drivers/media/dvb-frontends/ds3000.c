@@ -859,6 +859,10 @@ struct dvb_frontend *ds3000_attach(const struct ds3000_config *config,
 		goto error3;
 	}
 
+	printk(KERN_INFO "DS3000 chip version: %d.%d attached.\n",
+			ds3000_readreg(state, 0x02),
+			ds3000_readreg(state, 0x01));
+
 	memcpy(&state->frontend.ops, &ds3000_ops,
 			sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;

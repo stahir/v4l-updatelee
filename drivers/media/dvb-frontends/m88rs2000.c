@@ -459,6 +459,10 @@ static int m88rs2000_sleep(struct dvb_frontend *fe)
 {
 	struct m88rs2000_state *state = fe->demodulator_priv;
 	int ret;
+
+	if (state->config->set_lock_led)
+		state->config->set_lock_led(fe, 0);
+
 	/* Shutdown the frondend */
 	ret = m88rs2000_tab_set(state, m88rs2000_shutdown);
 	return ret;
@@ -478,6 +482,10 @@ static int m88rs2000_read_status(struct dvb_frontend *fe,
 		if (state->config->set_ts_params)
 			state->config->set_ts_params(fe, CALL_IS_READ);
 	}
+
+	if (state->config->set_lock_led)
+		state->config->set_lock_led(fe, *status & FE_HAS_LOCK);
+
 	return 0;
 }
 
@@ -749,6 +757,10 @@ static int m88rs2000_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 static void m88rs2000_release(struct dvb_frontend *fe)
 {
 	struct m88rs2000_state *state = fe->demodulator_priv;
+
+	if (state->config->set_lock_led)
+		state->config->set_lock_led(fe, 0);
+
 	kfree(state);
 }
 

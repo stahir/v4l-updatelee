@@ -41,6 +41,10 @@
 static unsigned int verbose;
 module_param(verbose, int, 0644);
 
+static unsigned int ts_nosync=1;
+module_param(ts_nosync, int, 0644);
+MODULE_PARM_DESC(ts_nosync, "TS FIFO Minimum latence mode (default:on)");
+
 /* internal params node */
 struct stv090x_dev {
 	/* pointer for internal params, one for each pair of demods */
@@ -84,10 +88,7 @@ static void remove_dev(struct stv090x_internal *internal)
 			while (prev_dev->next_dev != del_dev)
 				prev_dev = prev_dev->next_dev;
 
-			if (prev_dev->next_dev == NULL)
-				prev_dev->next_dev = NULL;
-			else
-				prev_dev->next_dev = del_dev->next_dev;
+			prev_dev->next_dev = del_dev->next_dev;
 		}
 
 		kfree(del_dev);
@@ -618,7 +619,7 @@ static struct stv090x_long_frame_crloop stv090x_s2_crl_cut20[] = {
 	{ STV090x_8PSK_35,  0x3c, 0x0c, 0x1c, 0x3b, 0x0c, 0x3b, 0x2b, 0x2b, 0x1b, 0x2b },
 	{ STV090x_8PSK_23,  0x1d, 0x0c, 0x3c, 0x0c, 0x2c, 0x3b, 0x0c, 0x2b, 0x2b, 0x2b },
 	{ STV090x_8PSK_34,  0x0e, 0x1c, 0x3d, 0x0c, 0x0d, 0x3b, 0x2c, 0x3b, 0x0c, 0x2b },
-        { STV090x_8PSK_56,  0x2e, 0x3e, 0x1e, 0x2e, 0x2d, 0x1e, 0x3c, 0x2d, 0x2c, 0x1d },
+	{ STV090x_8PSK_56,  0x2e, 0x3e, 0x1e, 0x2e, 0x2d, 0x1e, 0x3c, 0x2d, 0x2c, 0x1d },
 	{ STV090x_8PSK_89,  0x3e, 0x3e, 0x1e, 0x2e, 0x3d, 0x1e, 0x0d, 0x2d, 0x3c, 0x1d },
 	{ STV090x_8PSK_910, 0x3e, 0x3e, 0x1e, 0x2e, 0x3d, 0x1e, 0x1d, 0x2d, 0x0d, 0x1d }
 };
@@ -637,7 +638,7 @@ static	struct stv090x_long_frame_crloop stv090x_s2_crl_cut30[] = {
 	{ STV090x_8PSK_35,  0x39, 0x19, 0x39, 0x19, 0x19, 0x19, 0x19, 0x19, 0x09, 0x19 }, 
 	{ STV090x_8PSK_23,  0x2a, 0x39, 0x1a, 0x0a, 0x39, 0x0a, 0x29, 0x39, 0x29, 0x0a },
 	{ STV090x_8PSK_34,  0x0b, 0x3a, 0x0b, 0x0b, 0x3a, 0x1b, 0x1a, 0x0b, 0x1a, 0x3a }, 
-        { STV090x_8PSK_56,  0x0c, 0x1b, 0x3b, 0x2b, 0x1b, 0x3b, 0x3a, 0x3b, 0x3a, 0x1b },
+	{ STV090x_8PSK_56,  0x0c, 0x1b, 0x3b, 0x2b, 0x1b, 0x3b, 0x3a, 0x3b, 0x3a, 0x1b },
 	{ STV090x_8PSK_89,  0x2c, 0x2c, 0x2c, 0x1c, 0x2b, 0x0c, 0x0b, 0x3b, 0x0b, 0x1b }, 
 	{ STV090x_8PSK_910, 0x2c, 0x3c, 0x2c, 0x1c, 0x3b, 0x1c, 0x0b, 0x3b, 0x0b, 0x1b }
 };
@@ -693,7 +694,7 @@ static struct stv090x_short_frame_crloop stv090x_s2_short_crl_cut20[] = {
 	/* MODCOD	  2M    5M    10M   20M   30M */
 	{ STV090x_QPSK,   0x2f, 0x2e, 0x0e, 0x0e, 0x3d },
 	{ STV090x_8PSK,   0x3e, 0x0e, 0x2d, 0x0d, 0x3c },
-        { STV090x_16APSK, 0x1e, 0x1e, 0x1e, 0x3d, 0x2d },
+	{ STV090x_16APSK, 0x1e, 0x1e, 0x1e, 0x3d, 0x2d },
 	{ STV090x_32APSK, 0x1e, 0x1e, 0x1e, 0x3d, 0x2d }
 };
 
@@ -702,7 +703,7 @@ static struct stv090x_short_frame_crloop stv090x_s2_short_crl_cut30[] = {
 	/* MODCOD  	  2M	5M    10M   20M	  30M */
 	{ STV090x_QPSK,   0x2C, 0x2B, 0x0B, 0x0B, 0x3A },
 	{ STV090x_8PSK,   0x3B, 0x0B, 0x2A, 0x0A, 0x39 },
-        { STV090x_16APSK, 0x1B, 0x1B, 0x1B, 0x3A, 0x2A },
+	{ STV090x_16APSK, 0x1B, 0x1B, 0x1B, 0x3A, 0x2A },
 	{ STV090x_32APSK, 0x1B, 0x1B, 0x1B, 0x3A, 0x2A }
 };
 
@@ -1931,7 +1932,7 @@ static int stv090x_get_dmdlock(struct stv090x_state *state, s32 timeout)
 		case 0: /* searching */
 		case 1: /* first PLH detected */
 		default:
-			dprintk(FE_DEBUG, 1, "searching...");
+			dprintk(FE_DEBUG, 1, "Demodulator searching ..");
 			lock = 0;
 			break;
 		case 2: /* DVB-S2 mode */
@@ -2044,7 +2045,7 @@ static int stv090x_blind_search(struct stv090x_state *state)
 
 				lock = 0;
 			}
-			k_ref -= 50;
+			k_ref -= 20;
 			dprintk(FE_DEBUG, 1, "lock = %d", lock);
 		} while ((k_ref >= k_min) && (!lock) && (!coarse_fail));
 	}
@@ -2786,6 +2787,9 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 	}
 
 	return STV090x_OUTOFRANGE;
+
+err_gateoff:
+	stv090x_i2c_gate_ctrl(state, 0);
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
 	return -1;
@@ -3192,7 +3196,7 @@ static int stv090x_optimize_track(struct stv090x_state *state)
 		if (STV090x_WRITE_DEMOD(state, CARFREQ, 0x49) < 0)
 			goto err;
 	}
-	
+
 	if ((state->delsys == STV090x_DVBS1) || (state->delsys == STV090x_DSS)) {
 		stv090x_set_vit_thtracq(state);
 		if (state->internal->dev_ver >= 0x20) {
@@ -4939,34 +4943,37 @@ static int stv0900_set_tspath(struct stv090x_state *state)
 				speed = 0xFF;
 			break;
 		}
-	reg = stv090x_read_reg(state, STV090x_P2_TSCFGM);
-	STV090x_SETFIELD_Px(reg, TSFIFO_MANSPEED_FIELD, 3);
-	if (stv090x_write_reg(state, STV090x_P2_TSCFGM, reg) < 0)
-		goto err;
-	if (stv090x_write_reg(state, STV090x_P2_TSSPEED, speed) < 0)
-		goto err;
+		reg = stv090x_read_reg(state, STV090x_P2_TSCFGM);
+		STV090x_SETFIELD_Px(reg, TSFIFO_MANSPEED_FIELD, 3);
+		if (stv090x_write_reg(state, STV090x_P2_TSCFGM, reg) < 0)
+			goto err;
+		if (stv090x_write_reg(state, STV090x_P2_TSSPEED, speed) < 0)
+			goto err;
 	}
 
-	printk("%s: TS FIFO Minimum Latence mode\n", __func__);
-	reg = stv090x_read_reg(state, STV090x_P1_TSSTATEM);
-	STV090x_SETFIELD_Px(reg, TSOUT_NOSYNC, 1);
-	if (stv090x_write_reg(state, STV090x_P1_TSSTATEM, reg) < 0)
-		goto err;
+	if (ts_nosync)
+	{
+		dprintk(FE_DEBUG, 1, "TS FIFO Minimum Latence mode\n");
+		reg = stv090x_read_reg(state, STV090x_P1_TSSTATEM);
+		STV090x_SETFIELD_Px(reg, TSOUT_NOSYNC, 1);
+		if (stv090x_write_reg(state, STV090x_P1_TSSTATEM, reg) < 0)
+			goto err;
 
-	reg = stv090x_read_reg(state, STV090x_P2_TSSTATEM);
-	STV090x_SETFIELD_Px(reg, TSOUT_NOSYNC, 1);
-	if (stv090x_write_reg(state, STV090x_P2_TSSTATEM, reg) < 0)
-		goto err;
+		reg = stv090x_read_reg(state, STV090x_P2_TSSTATEM);
+		STV090x_SETFIELD_Px(reg, TSOUT_NOSYNC, 1);
+		if (stv090x_write_reg(state, STV090x_P2_TSSTATEM, reg) < 0)
+			goto err;
 
-	reg = stv090x_read_reg(state, STV090x_P1_TSSYNC);
-	STV090x_SETFIELD_Px(reg, TSFIFO_SYNCMODE, 2);
-	if (stv090x_write_reg(state, STV090x_P1_TSSYNC, reg) < 0)
-		goto err;
+		reg = stv090x_read_reg(state, STV090x_P1_TSSYNC);
+		STV090x_SETFIELD_Px(reg, TSFIFO_SYNCMODE, 2);
+		if (stv090x_write_reg(state, STV090x_P1_TSSYNC, reg) < 0)
+			goto err;
 
-	reg = stv090x_read_reg(state, STV090x_P2_TSSYNC);
-	STV090x_SETFIELD_Px(reg, TSFIFO_SYNCMODE, 2);
-	if (stv090x_write_reg(state, STV090x_P2_TSSYNC, reg) < 0)
-		goto err;
+		reg = stv090x_read_reg(state, STV090x_P2_TSSYNC);
+		STV090x_SETFIELD_Px(reg, TSFIFO_SYNCMODE, 2);
+		if (stv090x_write_reg(state, STV090x_P2_TSSYNC, reg) < 0)
+			goto err;
+	}
 
 	reg = stv090x_read_reg(state, STV090x_P2_TSCFGH);
 	STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0x01);
@@ -5088,6 +5095,20 @@ static int stv0903_set_tspath(struct stv090x_state *state)
 		if (stv090x_write_reg(state, STV090x_P1_TSCFGM, reg) < 0)
 			goto err;
 		if (stv090x_write_reg(state, STV090x_P1_TSSPEED, speed) < 0)
+			goto err;
+	}
+
+	if (ts_nosync)
+	{
+		dprintk(FE_DEBUG, 1, "TS FIFO Minimum Latence mode\n");
+		reg = stv090x_read_reg(state, STV090x_P1_TSSTATEM);
+		STV090x_SETFIELD_Px(reg, TSOUT_NOSYNC, 1);
+		if (stv090x_write_reg(state, STV090x_P1_TSSTATEM, reg) < 0)
+			goto err;
+
+		reg = stv090x_read_reg(state, STV090x_P1_TSSYNC);
+		STV090x_SETFIELD_Px(reg, TSFIFO_SYNCMODE, 2);
+		if (stv090x_write_reg(state, STV090x_P1_TSSYNC, reg) < 0)
 			goto err;
 	}
 
@@ -5534,7 +5555,7 @@ struct dvb_frontend *stv090x_attach(struct stv090x_config *config,
 	state->demod				= demod;
 	state->demod_mode 			= config->demod_mode; /* Single or Dual mode */
 	state->device				= config->device;
-	state->rolloff				= STV090x_RO_25; /* default */
+	state->rolloff				= STV090x_RO_35; /* default */
 
 	temp_int = find_dev(state->i2c,
 				state->config->address);

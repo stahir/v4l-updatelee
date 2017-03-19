@@ -104,8 +104,9 @@ struct cx231xx_board cx231xx_boards[] = {
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
 		.tuner_i2c_master = I2C_1_MUX_3,
-		.demod_i2c_master = I2C_2,
+		.demod_i2c_master = { I2C_2 },
 		.has_dvb = 1,
+		.adap_cnt = 1,
 		.demod_addr = 0x02,
 		.norm = V4L2_STD_PAL,
 
@@ -144,8 +145,9 @@ struct cx231xx_board cx231xx_boards[] = {
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
 		.tuner_i2c_master = I2C_1_MUX_3,
-		.demod_i2c_master = I2C_2,
+		.demod_i2c_master = { I2C_2 },
 		.has_dvb = 1,
+		.adap_cnt = 1,
 		.demod_addr = 0x32,
 		.norm = V4L2_STD_NTSC,
 
@@ -184,8 +186,9 @@ struct cx231xx_board cx231xx_boards[] = {
 		.agc_analog_digital_select_gpio = 0x1c,
 		.gpio_pin_status_mask = 0x4001000,
 		.tuner_i2c_master = I2C_1_MUX_3,
-		.demod_i2c_master = I2C_2,
+		.demod_i2c_master = { I2C_2 },
 		.has_dvb = 1,
+		.adap_cnt = 1,
 		.demod_addr = 0x02,
 		.norm = V4L2_STD_PAL,
 
@@ -225,8 +228,9 @@ struct cx231xx_board cx231xx_boards[] = {
 		.agc_analog_digital_select_gpio = 0x1c,
 		.gpio_pin_status_mask = 0x4001000,
 		.tuner_i2c_master = I2C_1_MUX_3,
-		.demod_i2c_master = I2C_2,
+		.demod_i2c_master = { I2C_2 },
 		.has_dvb = 1,
+		.adap_cnt = 1,
 		.demod_addr = 0x02,
 		.norm = V4L2_STD_PAL,
 
@@ -296,8 +300,9 @@ struct cx231xx_board cx231xx_boards[] = {
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
 		.tuner_i2c_master = I2C_1_MUX_3,
-		.demod_i2c_master = I2C_2,
+		.demod_i2c_master = { I2C_2 },
 		.has_dvb = 1,
+		.adap_cnt = 1,
 		.demod_addr = 0x02,
 		.norm = V4L2_STD_PAL,
 
@@ -324,8 +329,9 @@ struct cx231xx_board cx231xx_boards[] = {
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
 		.tuner_i2c_master = I2C_1_MUX_3,
-		.demod_i2c_master = I2C_2,
+		.demod_i2c_master = { I2C_2 },
 		.has_dvb = 1,
+		.adap_cnt = 1,
 		.demod_addr = 0x32,
 		.norm = V4L2_STD_NTSC,
 
@@ -352,8 +358,9 @@ struct cx231xx_board cx231xx_boards[] = {
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
 		.tuner_i2c_master = I2C_1_MUX_1,
-		.demod_i2c_master = I2C_1_MUX_1,
+		.demod_i2c_master = { I2C_1_MUX_1 },
 		.has_dvb = 1,
+		.adap_cnt = 1,
 		.demod_addr = 0x0e,
 		.norm = V4L2_STD_NTSC,
 
@@ -416,9 +423,10 @@ struct cx231xx_board cx231xx_boards[] = {
 		.tuner_sda_gpio = -1,
 		.gpio_pin_status_mask = 0x4001000,
 		.tuner_i2c_master = I2C_2,
-		.demod_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = { I2C_1_MUX_3 },
 		.ir_i2c_master = I2C_2,
 		.has_dvb = 1,
+		.adap_cnt = 1,
 		.demod_addr = 0x10,
 		.norm = V4L2_STD_PAL_M,
 		.input = {{
@@ -454,49 +462,12 @@ struct cx231xx_board cx231xx_boards[] = {
 		.tuner_sda_gpio = -1,
 		.gpio_pin_status_mask = 0x4001000,
 		.tuner_i2c_master = I2C_2,
-		.demod_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = { I2C_1_MUX_3 },
 		.ir_i2c_master = I2C_2,
 		.has_dvb = 1,
+		.adap_cnt = 1,
 		.demod_addr = 0x10,
 		.norm = V4L2_STD_NTSC_M,
-		.input = {{
-			.type = CX231XX_VMUX_TELEVISION,
-			.vmux = CX231XX_VIN_3_1,
-			.amux = CX231XX_AMUX_VIDEO,
-			.gpio = NULL,
-		}, {
-			.type = CX231XX_VMUX_COMPOSITE1,
-			.vmux = CX231XX_VIN_2_1,
-			.amux = CX231XX_AMUX_LINE_IN,
-			.gpio = NULL,
-		}, {
-			.type = CX231XX_VMUX_SVIDEO,
-			.vmux = CX231XX_VIN_1_1 |
-				(CX231XX_VIN_1_2 << 8) |
-				CX25840_SVIDEO_ON,
-			.amux = CX231XX_AMUX_LINE_IN,
-			.gpio = NULL,
-		} },
-	},
-	[CX231XX_BOARD_KWORLD_UB445_V3] = {
-		.name				= "KWorld USB ATSC TV Stick UB445 V3",
-		.tuner_type = TUNER_ABSENT,
-		.tuner_addr = 0x60,
-		.tuner_gpio = RDE250_XCV_TUNER,
-		.tuner_sif_gpio = 0x05,
-		.tuner_scl_gpio = 0x1a,
-		.tuner_sda_gpio = 0x1b,
-		.decoder = CX231XX_NODECODER,
-		.output_mode = OUT_MODE_VIP11,
-		.demod_xfer_mode = 0,
-		.ctl_pin_status_mask = 0xFFFFFFC4,
-		.agc_analog_digital_select_gpio = 0x0c,
-		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 2,
-		.demod_i2c_master = 1,
-		.has_dvb = 1,
-		.demod_addr = 0x0e,
-		.norm = V4L2_STD_NTSC,
 		.input = {{
 			.type = CX231XX_VMUX_TELEVISION,
 			.vmux = CX231XX_VIN_3_1,
@@ -530,10 +501,11 @@ struct cx231xx_board cx231xx_boards[] = {
 		.tuner_sda_gpio = -1,
 		.gpio_pin_status_mask = 0x4001000,
 		.tuner_i2c_master = I2C_2,
-		.demod_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = { I2C_1_MUX_3 },
 		.ir_i2c_master = I2C_2,
 		.rc_map_name = RC_MAP_PIXELVIEW_002T,
 		.has_dvb = 1,
+		.adap_cnt = 1,
 		.demod_addr = 0x10,
 		.norm = V4L2_STD_PAL_M,
 		.input = {{
@@ -751,7 +723,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
 		.tuner_i2c_master = I2C_1_MUX_3,
-		.demod_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = { I2C_1_MUX_3 },
 		.has_dvb = 1,
 		.demod_addr = 0x0e,
 		.norm = V4L2_STD_PAL,
@@ -790,7 +762,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
 		.tuner_i2c_master = I2C_1_MUX_3,
-		.demod_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = { I2C_1_MUX_3 },
 		.has_dvb = 1,
 		.demod_addr = 0x0e,
 		.norm = V4L2_STD_PAL,
@@ -829,8 +801,9 @@ struct cx231xx_board cx231xx_boards[] = {
 		.agc_analog_digital_select_gpio = 0x0c,
 		.gpio_pin_status_mask = 0x4001000,
 		.tuner_i2c_master = I2C_1_MUX_3,
-		.demod_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = { I2C_1_MUX_3 },
 		.has_dvb = 1,
+		.adap_cnt = 1,
 		.demod_addr = 0x0e,
 		.norm = V4L2_STD_NTSC,
 
@@ -883,7 +856,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.name = "Evromedia USB Full Hybrid Full HD",
 		.tuner_type = TUNER_ABSENT,
 		.demod_addr = 0x64, /* 0xc8 >> 1 */
-		.demod_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = { I2C_1_MUX_3 },
 		.has_dvb = 1,
 		.ir_i2c_master = I2C_0,
 		.norm = V4L2_STD_PAL,
@@ -898,12 +871,131 @@ struct cx231xx_board cx231xx_boards[] = {
 			.type = CX231XX_VMUX_COMPOSITE1,
 			.vmux = CX231XX_VIN_2_1,
 			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
 		}, {
 			.type = CX231XX_VMUX_SVIDEO,
 			.vmux = CX231XX_VIN_1_1 |
 				(CX231XX_VIN_1_2 << 8) |
 				CX25840_SVIDEO_ON,
 			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		} },
+	},
+	[CX231XX_BOARD_TBS_5280] = {
+		.name = "TurboSight TBS 5280",
+		.tuner_type = TUNER_ABSENT,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x00,
+		.tuner_sif_gpio = -1,
+		.tuner_scl_gpio = -1,
+		.tuner_sda_gpio = -1,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = I2C_2,
+		.demod_i2c_master = { I2C_1_MUX_3, I2C_1_MUX_3},
+		.has_dvb = 1,
+		.adap_cnt = 2,
+		.demod_addr = 0x6c,
+		.norm = V4L2_STD_PAL_M,
+		.no_audio = 1,
+		
+		.input = {{
+			.type = CX231XX_VMUX_TELEVISION,
+			.vmux = CX231XX_VIN_3_1,
+			.amux = CX231XX_AMUX_VIDEO,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		} },
+	},
+	[CX231XX_BOARD_TBS_5281] = {
+		.name = "TurboSight TBS 5281",
+		.tuner_type = TUNER_ABSENT,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x00,
+		.tuner_sif_gpio = -1,
+		.tuner_scl_gpio = -1,
+		.tuner_sda_gpio = -1,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = I2C_2,
+		.demod_i2c_master = { I2C_1_MUX_3, I2C_2},
+		.has_dvb = 1,
+		.adap_cnt = 2,
+		.demod_addr = 0x6c,
+		.norm = V4L2_STD_PAL_M,
+		.no_audio = 1,
+		
+		.input = {{
+			.type = CX231XX_VMUX_TELEVISION,
+			.vmux = CX231XX_VIN_3_1,
+			.amux = CX231XX_AMUX_VIDEO,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		} },
+	},
+	[CX231XX_BOARD_TBS_5990] = {
+		.name = "TurboSight TBS 5990",
+		.tuner_type = TUNER_ABSENT,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x00,
+		.tuner_sif_gpio = -1,
+		.tuner_scl_gpio = -1,
+		.tuner_sda_gpio = -1,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = I2C_2,
+		.demod_i2c_master = { I2C_1_MUX_3, I2C_2},
+		.has_dvb = 1,
+		.adap_cnt = 2,
+		.demod_addr = 0x64,
+		.norm = V4L2_STD_PAL_M,
+		.no_audio = 1,
+		
+		.input = {{
+			.type = CX231XX_VMUX_TELEVISION,
+			.vmux = CX231XX_VIN_3_1,
+			.amux = CX231XX_AMUX_VIDEO,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
 		} },
 	},
 };
@@ -965,8 +1057,6 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_KWORLD_UB430_USB_HYBRID},
 	{USB_DEVICE(0x1b80, 0xe421),
 	 .driver_info = CX231XX_BOARD_KWORLD_UB445_USB_HYBRID},
-    {USB_DEVICE(0x1b80, 0xe43f),
-     .driver_info = CX231XX_BOARD_KWORLD_UB445_V3},
 	{USB_DEVICE(0x1f4d, 0x0237),
 	 .driver_info = CX231XX_BOARD_ICONBIT_U100},
 	{USB_DEVICE(0x0fd9, 0x0037),
@@ -977,6 +1067,12 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_TERRATEC_GRABBY},
 	{USB_DEVICE(0x1b80, 0xd3b2),
 	.driver_info = CX231XX_BOARD_EVROMEDIA_FULL_HYBRID_FULLHD},
+	{USB_DEVICE(0x734c, 0x5280),
+	 .driver_info = CX231XX_BOARD_TBS_5280},
+	{USB_DEVICE(0x734c, 0x5281),
+	 .driver_info = CX231XX_BOARD_TBS_5281},
+	{USB_DEVICE(0x734c, 0x5990),
+	 .driver_info = CX231XX_BOARD_TBS_5990},
 	{},
 };
 
@@ -1426,7 +1522,7 @@ static void request_module_async(struct work_struct *work)
 		request_module("cx231xx-alsa");
 
 	if (dev->board.has_dvb)
-		request_module("cx231xx-dvb");
+		request_module("cx231xx-dvb-ci");
 
 }
 
@@ -1619,7 +1715,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	dev->gpio_dir = 0;
 	dev->gpio_val = 0;
 	dev->xc_fw_load_done = 0;
-	dev->has_alsa_audio = 1;
+	dev->has_alsa_audio = !dev->board.no_audio;
 	dev->power_mode = -1;
 	atomic_set(&dev->devlist_count, 0);
 
@@ -1739,6 +1835,44 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 			    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
 			dev_dbg(d, "Alternate setting %i, max size= %i\n",
 				i, dev->ts1_mode.alt_max_pkt_size[i]);
+		}
+	}
+
+	if (dev->current_pcb_config.ts2_source != 0xff) {
+		/* compute alternate max packet sizes for TS2 */
+		idx = dev->current_pcb_config.hs_config_info[0].interface_info.ts2_index + 1;
+		if (idx >= dev->max_iad_interface_count) {
+			dev_err(d, "TS2 PCB interface #%d doesn't exist\n",
+				idx);
+			retval = -ENODEV;
+			goto err_video_alt;
+		}
+		uif = udev->actconfig->interface[idx];
+
+		dev->ts2_mode.end_point_addr =
+		    uif->altsetting[0].endpoint[isoc_pipe].
+				desc.bEndpointAddress;
+
+		dev->ts2_mode.num_alt = uif->num_altsetting;
+		dev_info(d,
+			 "TS EndPoint Addr 0x%x, Alternate settings: %i\n",
+			 dev->ts2_mode.end_point_addr,
+			 dev->ts2_mode.num_alt);
+
+		dev->ts2_mode.alt_max_pkt_size = devm_kmalloc_array(&udev->dev, 32, dev->ts2_mode.num_alt, GFP_KERNEL);
+		if (dev->ts2_mode.alt_max_pkt_size == NULL) {
+			retval = -ENOMEM;
+			goto err_video_alt;
+		}
+
+		for (i = 0; i < dev->ts2_mode.num_alt; i++) {
+			u16 tmp = le16_to_cpu(uif->altsetting[i].
+						endpoint[isoc_pipe].desc.
+						wMaxPacketSize);
+			dev->ts2_mode.alt_max_pkt_size[i] =
+			    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+			dev_dbg(d, "Alternate setting %i, max size= %i\n",
+				i, dev->ts2_mode.alt_max_pkt_size[i]);
 		}
 	}
 

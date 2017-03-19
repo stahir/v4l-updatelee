@@ -63,6 +63,7 @@ static int saa716x_hybrid_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	saa716x->verbose	= verbose;
 	saa716x->int_type	= int_type;
 	saa716x->pdev		= pdev;
+	saa716x->module		= THIS_MODULE;
 	saa716x->config		= (struct saa716x_config *) pci_id->driver_data;
 
 	err = saa716x_pci_init(saa716x);
@@ -93,7 +94,7 @@ static int saa716x_hybrid_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	err = saa716x_jetpack_init(saa716x);
 	if (err) {
 		dprintk(SAA716x_ERROR, 1, "SAA716x Jetpack core Initialization failed");
-		goto fail1;
+		goto fail2;
 	}
 
 	err = saa716x_i2c_init(saa716x);
@@ -365,7 +366,7 @@ static int saa716x_vp6090_frontend_attach(struct saa716x_adapter *adapter, int c
 	msleep(100);
 #if 0
 	dprintk(SAA716x_ERROR, 1, "Probing for MB86A16 (DVB-S/DSS)");
-	adapter->fe = dvb_attach(mb86a16_attach, &vp6090_mb86a16_config, &i2c->i2c_adapter);
+	adapter->fe = mb86a16_attach(&vp6090_mb86a16_config, &i2c->i2c_adapter);
 	if (adapter->fe) {
 		dprintk(SAA716x_ERROR, 1, "found MB86A16 DVB-S/DSS frontend @0x%02x",
 			vp6090_mb86a16_config.demod_address);
@@ -374,7 +375,8 @@ static int saa716x_vp6090_frontend_attach(struct saa716x_adapter *adapter, int c
 		goto exit;
 	}
 #endif
-	adapter->fe = dvb_attach(tda10046_attach, &tda1004x_vp6090_config, &i2c->i2c_adapter);
+	adapter->fe = dvb_attach(tda10046_attach, &tda1004x_vp6090_config,
+				 &i2c->i2c_adapter);
 	if (adapter->fe == NULL) {
 		dprintk(SAA716x_ERROR, 1, "Frontend attach failed");
 		return -ENODEV;
@@ -474,8 +476,9 @@ static int saa716x_atlantis_frontend_attach(struct saa716x_adapter *adapter,
 		saa716x_gpio_write(saa716x, reset_gpio, 1);
 		msleep(10);
 
-		adapter->fe = dvb_attach(tda10046_attach, &tda1004x_atlantis_config,
-					      &i2c->i2c_adapter);
+		adapter->fe = dvb_attach(tda10046_attach,
+					 &tda1004x_atlantis_config,
+					 &i2c->i2c_adapter);
 		if (adapter->fe == NULL)
 			goto exit;
 
@@ -585,8 +588,9 @@ static int saa716x_nemo_frontend_attach(struct saa716x_adapter *adapter, int cou
 		saa716x_gpio_write(saa716x, 14, 1);
 		msleep(10);
 
-		adapter->fe = dvb_attach(tda10046_attach, &tda1004x_nemo_config,
-					      &demod_i2c->i2c_adapter);
+		adapter->fe = dvb_attach(tda10046_attach,
+					 &tda1004x_nemo_config,
+					 &demod_i2c->i2c_adapter);
 		if (adapter->fe) {
 			dprintk(SAA716x_ERROR, 1, "found TDA10046 DVB-T frontend @0x%02x",
 				tda1004x_nemo_config.demod_address);
@@ -708,18 +712,7 @@ static struct pci_driver saa716x_hybrid_pci_driver = {
 	.remove			= saa716x_hybrid_pci_remove,
 };
 
-static int __init saa716x_hybrid_init(void)
-{
-	return pci_register_driver(&saa716x_hybrid_pci_driver);
-}
-
-static void __exit saa716x_hybrid_exit(void)
-{
-	return pci_unregister_driver(&saa716x_hybrid_pci_driver);
-}
-
-module_init(saa716x_hybrid_init);
-module_exit(saa716x_hybrid_exit);
+module_pci_driver(saa716x_hybrid_pci_driver);
 
 MODULE_DESCRIPTION("SAA716x Hybrid driver");
 MODULE_AUTHOR("Manu Abraham");

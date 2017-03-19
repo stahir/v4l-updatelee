@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/i2c.h>
+#include "stv6110x.h"
 
 struct stv0910_cfg {
 	u32 clk;
