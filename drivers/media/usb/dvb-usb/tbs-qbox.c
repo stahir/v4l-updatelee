@@ -20,15 +20,6 @@
 #include "stv0288.h"
 #include "stb6000.h"
 
-
-#ifndef USB_PID_TBSQBOX
-#define USB_PID_TBSQBOX 0x2601
-#endif
-
-#ifndef USB_PID_TBSQBOX_1
-#define USB_PID_TBSQBOX_1 0x5910
-#endif
-
 #define TBSQBOX_READ_MSG 0
 #define TBSQBOX_WRITE_MSG 1
 
@@ -56,11 +47,15 @@ static int tbsqboxs1_op_rw(struct usb_device *dev, u8 request, u16 value,
 			u16 index, u8 * data, u16 len, int flags)
 {
 	int ret;
-	u8 u8buf[len];
+	void *u8buf;
 
 	unsigned int pipe = (flags == TBSQBOX_READ_MSG) ?
 				usb_rcvctrlpipe(dev, 0) : usb_sndctrlpipe(dev, 0);
 	u8 request_type = (flags == TBSQBOX_READ_MSG) ? USB_DIR_IN : USB_DIR_OUT;
+
+	u8buf = kmalloc(len, GFP_KERNEL);
+	if (!u8buf)
+		return -ENOMEM;
 
 	if (flags == TBSQBOX_WRITE_MSG)
 		memcpy(u8buf, data, len);
@@ -69,6 +64,7 @@ static int tbsqboxs1_op_rw(struct usb_device *dev, u8 request, u16 value,
 
 	if (flags == TBSQBOX_READ_MSG)
 		memcpy(data, u8buf, len);
+	kfree(u8buf);
 	return ret;
 }
 
@@ -179,7 +175,6 @@ static void tbsqboxs1_led_ctrl(struct dvb_frontend *fe, int offon)
 	if (offon)
 		msg.buf = led_on;
 	i2c_transfer(&udev_adap->dev->i2c_adap, &msg, 1);
-	info("tbsqboxs1_led_ctrl %d",offon);
 }
 
 
@@ -198,8 +193,6 @@ static int tbsqboxs1_earda_tuner_attach(struct dvb_usb_adapter *adap)
 	if (!dvb_attach(stb6000_attach, adap->fe_adap->fe, 0x61,
 		&adap->dev->i2c_adap))
 		return -EIO;
-
-	info("Attached stb6100!\n");
 
 	return 0;
 }
@@ -224,7 +217,7 @@ static int tbsqboxs1_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 				eepromline[i%16] = ibuf[0];
 				eeprom[i] = ibuf[0];
 			}
-
+			
 			if ((i % 16) == 15) {
 				deb_xfer("%02x: ", i - 15);
 				debug_dump(eepromline, 16, deb_xfer);
@@ -242,7 +235,7 @@ static int tbsqboxs1_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage vo
 		{.addr = TBSQBOX_VOLTAGE_CTRL, .flags = 0,
 			.buf = command_13v, .len = 1},
 	};
-
+	
 	struct dvb_usb_adapter *udev_adap =
 		(struct dvb_usb_adapter *)(fe->dvb->priv);
 	if (voltage == SEC_VOLTAGE_18)
@@ -256,20 +249,21 @@ static struct dvb_usb_device_properties tbsqboxs1_properties;
 
 static int tbsqboxs1_frontend_attach(struct dvb_usb_adapter *d)
 {
+	struct dvb_usb_device *u = d->dev;
 	u8 buf[20];
 
 	if (tbsqboxs1_properties.adapter->fe->tuner_attach == &tbsqboxs1_earda_tuner_attach) {
 		d->fe_adap->fe = dvb_attach(stv0288_attach, &earda_config,
-					&d->dev->i2c_adap);
+					&u->i2c_adap);
 		if (d->fe_adap->fe != NULL) {
 			d->fe_adap->fe->ops.set_voltage = tbsqboxs1_set_voltage;
-			info("Attached stv0288!\n");
 
 			buf[0] = 7;
 			buf[1] = 1;
-			tbsqboxs1_op_rw(d->dev->udev, 0x8a, 0, 0,
+			tbsqboxs1_op_rw(u->udev, 0x8a, 0, 0,
 					 buf, 2, TBSQBOX_WRITE_MSG);
 
+			strlcpy(d->fe_adap->fe->ops.info.name,u->props.devices[0].name,52);
 			return 0;
 		}
 	}
@@ -360,8 +354,6 @@ static int tbsqboxs1_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 static struct usb_device_id tbsqboxs1_table[] = {
 	{USB_DEVICE(0x734c, 0x2601)},
 	{USB_DEVICE(0x734c, 0x5910)},
-	{USB_DEVICE(USB_VID_CYPRESS, USB_PID_TBSQBOX)},
-	{USB_DEVICE(USB_VID_CYPRESS, USB_PID_TBSQBOX_1)},
 	{ }
 };
 
@@ -375,7 +367,6 @@ static int tbsqboxs1_load_firmware(struct usb_device *dev,
 	u8 reset;
 	const struct firmware *fw;
 	const char *filename = "dvb-usb-tbsqbox-id2601.fw";
-	const char *filename1 = "dvb-usb-tbsqbox-id5910.fw";
 	switch (dev->descriptor.idProduct) {
 	case 0x2601:
 		ret = request_firmware(&fw, filename, &dev->dev);
@@ -387,11 +378,11 @@ static int tbsqboxs1_load_firmware(struct usb_device *dev,
 		}
 		break;
 	case 0x5910:
-		ret = request_firmware(&fw, filename1, &dev->dev);
+		ret = request_firmware(&fw, tbsqboxs1_properties.firmware, &dev->dev);
 		if (ret != 0) {
 			err("did not find the firmware file. (%s) "
 			"Please see linux/Documentation/dvb/ for more details "
-			"on firmware-problems.", filename1);
+			"on firmware-problems.", tbsqboxs1_properties.firmware);
 			return ret;
 		}
 		break;
@@ -477,11 +468,11 @@ static struct dvb_usb_device_properties tbsqboxs1_properties = {
 
 	.num_device_descs = 2,
 	.devices = {
-		{"TBS QBOX DVBS USB2.0",
+		{"TurboSight TBS QBOX DVB-S",
 			{&tbsqboxs1_table[0], NULL},
 			{NULL},
 		},
-		{"TBS QBOX DVBS USB2.0",
+		{"TurboSight TBS QBOX DVB-S",
 			{&tbsqboxs1_table[1], NULL},
 			{NULL},
 		}

@@ -45,11 +45,14 @@ static int tbs5925_op_rw(struct usb_device *dev, u8 request, u16 value,
 			u16 index, u8 * data, u16 len, int flags)
 {
 	int ret;
-	u8 u8buf[len];
+	void *u8buf;
 
 	unsigned int pipe = (flags == TBS5925_READ_MSG) ?
-				usb_rcvctrlpipe(dev, 0) : usb_sndctrlpipe(dev, 0);
+			usb_rcvctrlpipe(dev, 0) : usb_sndctrlpipe(dev, 0);
 	u8 request_type = (flags == TBS5925_READ_MSG) ? USB_DIR_IN : USB_DIR_OUT;
+	u8buf = kmalloc(len, GFP_KERNEL);
+	if (!u8buf)
+		return -ENOMEM;
 
 	if (flags == TBS5925_WRITE_MSG)
 		memcpy(u8buf, data, len);
@@ -58,6 +61,7 @@ static int tbs5925_op_rw(struct usb_device *dev, u8 request, u16 value,
 
 	if (flags == TBS5925_READ_MSG)
 		memcpy(data, u8buf, len);
+	kfree(u8buf);
 	return ret;
 }
 
@@ -125,24 +129,10 @@ struct dvb_usb_device *d = i2c_get_adapdata(adap);
 			//info("TBS5925_RC_QUERY %x %x %x %x\n",buf6[0],buf6[1],buf6[2],buf6[3]);
 			break;
 		case (TBS5925_VOLTAGE_CTRL):
-			if (msg[0].buf[1] == 0x00) { // Voltage off
-				buf6[0] = 1;
-				buf6[1] = 0x00;
-				tbs5925_op_rw(d->udev, 0x8a, 0, 0,
-						buf6, 2, TBS5925_WRITE_MSG);
-				info("Voltage: OFF");
-			} else {
-				buf6[0] = 1;
-				buf6[1] = 0x01;
-				tbs5925_op_rw(d->udev, 0x8a, 0, 0,
-						buf6, 2, TBS5925_WRITE_MSG);
-
-				buf6[0] = 3;
-				buf6[1] = msg[0].buf[0];
-				tbs5925_op_rw(d->udev, 0x8a, 0, 0,
-						buf6, 2, TBS5925_WRITE_MSG);
-				info("Voltage: ON");
-			}
+			buf6[0] = 3;
+			buf6[1] = msg[0].buf[0];
+			tbs5925_op_rw(d->udev, 0x8a, 0, 0,
+					buf6, 2, TBS5925_WRITE_MSG);
 			break;
 		case (TBS5925_LED_CTRL):
 			buf6[0] = 5;
@@ -219,17 +209,9 @@ static struct i2c_algorithm tbs5925_i2c_algo = {
 
 static int tbs5925_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	if (!dvb_attach(stb6100_attach, adap->fe_adap[0].fe, &stb6100_config,
+	if (!dvb_attach(stb6100_attach, adap->fe_adap->fe, &stb6100_config,
 		&adap->dev->i2c_adap))
 		return -EIO;
-
-	info("Attached stb6100!\n");
-
-	/* call the init function once to initialize
-	   tuner's clock output divider and demod's
-	   master clock */
-	if (adap->fe_adap[0].fe->ops.init)
-		adap->fe_adap[0].fe->ops.init(adap->fe_adap[0].fe);
 
 	return 0;
 }
@@ -267,22 +249,18 @@ static int tbs5925_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 static int tbs5925_set_voltage(struct dvb_frontend *fe, 
 						enum fe_sec_voltage voltage)
 {
-	static u8 command_13v[] = {0x00, 0x01};
-	static u8 command_18v[] = {0x01, 0x01};
-	static u8 command_off[] = {0x00, 0x00};
+	static u8 command_13v[1] = {0x00};
+	static u8 command_18v[1] = {0x01};
 	struct i2c_msg msg[] = {
 		{.addr = TBS5925_VOLTAGE_CTRL, .flags = 0,
-			.buf = command_off, .len = 2},
+			.buf = command_13v, .len = 1},
 	};
 	
 	struct dvb_usb_adapter *udev_adap =
 		(struct dvb_usb_adapter *)(fe->dvb->priv);
-
-	if (voltage == SEC_VOLTAGE_13)
-		msg[0].buf = command_13v;
 	if (voltage == SEC_VOLTAGE_18)
 		msg[0].buf = command_18v;
-
+	//info("tbs5925_set_voltage %d",voltage);
 	i2c_transfer(&udev_adap->dev->i2c_adap, msg, 1);
 	return 0;
 }
@@ -291,29 +269,31 @@ static struct dvb_usb_device_properties tbs5925_properties;
 
 static int tbs5925_frontend_attach(struct dvb_usb_adapter *d)
 {
+	struct dvb_usb_device *u = d->dev;
 	u8 buf[20];
 
 	if (tbs5925_properties.adapter->fe->tuner_attach == &tbs5925_tuner_attach) {
-		d->fe_adap[0].fe = dvb_attach(stv090x_attach, &stv0900_config,
-					&d->dev->i2c_adap, STV090x_DEMODULATOR_0);
-		if (d->fe_adap[0].fe != NULL) {
-			d->fe_adap[0].fe->ops.set_voltage = tbs5925_set_voltage;
-			info("Attached stv0900!\n");
+		d->fe_adap->fe = dvb_attach(stv090x_attach, &stv0900_config,
+					&u->i2c_adap, STV090x_DEMODULATOR_0);
+		if (d->fe_adap->fe != NULL) {
+			d->fe_adap->fe->ops.set_voltage = tbs5925_set_voltage;
 
 			buf[0] = 6;
 			buf[1] = 1;
-			tbs5925_op_rw(d->dev->udev, 0x8a, 0, 0,
+			tbs5925_op_rw(u->udev, 0x8a, 0, 0,
 					buf, 2, TBS5925_WRITE_MSG);
 
 			buf[0] = 1;
 			buf[1] = 1;
-			tbs5925_op_rw(d->dev->udev, 0x8a, 0, 0,
+			tbs5925_op_rw(u->udev, 0x8a, 0, 0,
 					buf, 2, TBS5925_WRITE_MSG);
 
 			buf[0] = 7;
 			buf[1] = 1;
-			tbs5925_op_rw(d->dev->udev, 0x8a, 0, 0,
+			tbs5925_op_rw(u->udev, 0x8a, 0, 0,
 					buf, 2, TBS5925_WRITE_MSG);
+
+			strlcpy(d->fe_adap->fe->ops.info.name,u->props.devices[0].name,52);
 
 			return 0;
 		}
@@ -504,7 +484,7 @@ static struct dvb_usb_device_properties tbs5925_properties = {
 
 	.num_device_descs = 1,
 	.devices = {
-		{"TBS 5925 DVB-S2 USB2.0",
+		{"TurboSight TBS 5925 DVB-S/S2",
 			{&tbs5925_table[0], NULL},
 			{NULL},
 		}

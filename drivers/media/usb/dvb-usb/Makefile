@@ -88,6 +88,9 @@ obj-$(CONFIG_DVB_USB_TBSQBOX2) += dvb-usb-tbsqbox2.o
 dvb-usb-tbsqbox22-objs = tbs-qbox22.o
 obj-$(CONFIG_DVB_USB_TBSQBOX22) += dvb-usb-tbsqbox22.o
 
+dvb-usb-tbs5922se-objs = tbs5922se.o
+obj-$(CONFIG_DVB_USB_TBS5922SE) += dvb-usb-tbs5922se.o
+
 dvb-usb-tbsqboxs2-objs = tbs-qboxs2.o
 obj-$(CONFIG_DVB_USB_TBSQBOXS2) += dvb-usb-tbsqboxs2.o
 
@@ -99,6 +102,21 @@ obj-$(CONFIG_DVB_USB_TBS5925) += dvb-usb-tbs5925.o
 
 dvb-usb-tbs5880-objs = tbs5880.o
 obj-$(CONFIG_DVB_USB_TBS5880) += dvb-usb-tbs5880.o
+
+dvb-usb-tbs5220-objs = tbs5220.o
+obj-$(CONFIG_DVB_USB_TBS5220) += dvb-usb-tbs5220.o
+
+dvb-usb-tbs5881-objs = tbs5881.o
+obj-$(CONFIG_DVB_USB_TBS5881) += dvb-usb-tbs5881.o
+
+dvb-usb-tbs5520-objs := tbs5520.o
+obj-$(CONFIG_DVB_USB_TBS5520) += dvb-usb-tbs5520.o
+
+dvb-usb-tbs5520se-objs = tbs5520se.o
+obj-$(CONFIG_DVB_USB_TBS5520se) += dvb-usb-tbs5520se.o
+
+dvb-usb-tbs5927-objs = tbs5927.o
+obj-$(CONFIG_DVB_USB_TBS5927) += dvb-usb-tbs5927.o
 
 ccflags-y += -I$(srctree)/drivers/media/dvb-core
 ccflags-y += -I$(srctree)/drivers/media/dvb-frontends/

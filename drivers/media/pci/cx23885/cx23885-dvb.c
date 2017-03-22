@@ -1528,8 +1528,10 @@ static int dvb_register(struct cx23885_tsport *port)
 					&tbs_cx24116_config,
 					&i2c_bus->i2c_adap);
 		if (fe0->dvb.frontend != NULL)
+		{
 			fe0->dvb.frontend->ops.set_voltage = f300_set_voltage;
-
+			strlcpy(fe0->dvb.frontend->ops.info.name,cx23885_boards[dev->board].name,52);
+		}
 		break;
 	case CX23885_BOARD_TBS_6980:
 	case CX23885_BOARD_TBS_6981:
@@ -1549,6 +1551,8 @@ static int dvb_register(struct cx23885_tsport *port)
 					&i2c_bus->i2c_adap);
 			break;
 		}
+		if (fe0->dvb.frontend != NULL)
+			strlcpy(fe0->dvb.frontend->ops.info.name,cx23885_boards[dev->board].name,52);
 		break;
 	case CX23885_BOARD_TEVII_S470:
 		i2c_bus = &dev->i2c_bus[1];

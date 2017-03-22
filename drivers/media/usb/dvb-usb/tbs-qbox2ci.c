@@ -50,20 +50,24 @@ static int tbsqbox2ci_op_rw(struct usb_device *dev, u8 request, u16 value,
 				u16 index, u8 * data, u16 len, int flags)
 {
 	int ret;
-	u8 u8buf[len];
+	void *u8buf;
 
 	unsigned int pipe = (flags == TBSQBOX_READ_MSG) ?
-			usb_rcvctrlpipe(dev, 0) : usb_sndctrlpipe(dev, 0);
-	u8 request_type = (flags == TBSQBOX_READ_MSG) ? USB_DIR_IN : 
-								USB_DIR_OUT;
+				usb_rcvctrlpipe(dev, 0) : usb_sndctrlpipe(dev, 0);
+	u8 request_type = (flags == TBSQBOX_READ_MSG) ? USB_DIR_IN : USB_DIR_OUT;
+
+	u8buf = kmalloc(len, GFP_KERNEL);
+	if (!u8buf)
+		return -ENOMEM;
 
 	if (flags == TBSQBOX_WRITE_MSG)
 		memcpy(u8buf, data, len);
-	ret = usb_control_msg(dev, pipe, request, request_type | 
-			USB_TYPE_VENDOR, value, index , u8buf, len, 2000);
+	ret = usb_control_msg(dev, pipe, request, request_type | USB_TYPE_VENDOR,
+				value, index , u8buf, len, 2000);
 
 	if (flags == TBSQBOX_READ_MSG)
 		memcpy(data, u8buf, len);
+	kfree(u8buf);
 	return ret;
 }
 
@@ -517,11 +521,9 @@ static struct i2c_algorithm tbsqbox2ci_i2c_algo = {
 
 static int tbsqbox2ci_earda_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	if (!dvb_attach(stb6100_attach, adap->fe_adap[0].fe, &qbox2_stb6100_config,
+	if (!dvb_attach(stb6100_attach, adap->fe_adap->fe, &qbox2_stb6100_config,
 		&adap->dev->i2c_adap))
 		return -EIO;
-
-	info("Attached stb6100!\n");
 
 	return 0;
 }
@@ -586,28 +588,29 @@ static int tbsqbox2ci_frontend_attach(struct dvb_usb_adapter *d)
 	mutex_init(&state->ca_mutex);
 
 	if (tbsqbox2ci_properties.adapter->fe->tuner_attach == &tbsqbox2ci_earda_tuner_attach) {
-		d->fe_adap[0].fe = dvb_attach(stv090x_attach, &earda_config,
-				&d->dev->i2c_adap, STV090x_DEMODULATOR_0);
-		if (d->fe_adap[0].fe != NULL) {
-			d->fe_adap[0].fe->ops.set_voltage = tbsqbox2ci_set_voltage;
-			info("Attached stv0903!\n");
+		d->fe_adap->fe = dvb_attach(stv090x_attach, &earda_config,
+				&u->i2c_adap, STV090x_DEMODULATOR_0);
+		if (d->fe_adap->fe != NULL) {
+			d->fe_adap->fe->ops.set_voltage = tbsqbox2ci_set_voltage;
 
 			buf[0] = 7;
 			buf[1] = 1;
-			tbsqbox2ci_op_rw(d->dev->udev, 0x8a, 0, 0,
+			tbsqbox2ci_op_rw(u->udev, 0x8a, 0, 0,
 					buf, 2, TBSQBOX_WRITE_MSG);
 
 			buf[0] = 1;
 			buf[1] = 1;
-			tbsqbox2ci_op_rw(d->dev->udev, 0x8a, 0, 0,
+			tbsqbox2ci_op_rw(u->udev, 0x8a, 0, 0,
 					buf, 2, TBSQBOX_WRITE_MSG);
 			
 			buf[0] = 6;
 			buf[1] = 1;
-			tbsqbox2ci_op_rw(d->dev->udev, 0x8a, 0, 0,
+			tbsqbox2ci_op_rw(u->udev, 0x8a, 0, 0,
 					buf, 2, TBSQBOX_WRITE_MSG);
 
 			tbsqbox2ci_init(d);
+
+			strlcpy(d->fe_adap->fe->ops.info.name,u->props.devices[0].name,52);
 			return 0;
 		}
 	}
@@ -800,11 +803,12 @@ static struct dvb_usb_device_properties tbsqbox2ci_properties = {
 					}
 				}
 			},
-		}},
-	}},
+		} },
+	} },
+
 	.num_device_descs = 1,
 	.devices = {
-		{"TBS Qbox DVB-S2 CI USB2.0",
+		{"TurboSight TBS QBOX2-CI DVB-S/S2",
 			{&tbsqbox2ci_table[0], NULL},
 			{NULL},
 		}

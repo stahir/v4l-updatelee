@@ -1,5 +1,5 @@
 /* DVB USB framework compliant Linux driver for the
-*	TBS QBOX
+*	TBS 5922SE
 *
 * Copyright (C) 2008 Bob Liu (Bob@Turbosight.com)
 * Igor M. Liplianin (liplianin@me.by)
@@ -20,63 +20,62 @@
 */
 
 #include <linux/version.h>
-#include "tbs-qbox22.h"
+#include "tbs5922se.h"
 #include "tas2101.h"
 #include "av201x.h"
 
-#ifndef USB_PID_TBSQBOX_1
-#define USB_PID_TBSQBOX_1 0x5922
+#ifndef USB_PID_TBS5922SE_1
+#define USB_PID_TBS5922SE_1 0x5923
 #endif
 
-#define TBSQBOX_READ_MSG 0
-#define TBSQBOX_WRITE_MSG 1
+#define TBS5922SE_READ_MSG 0
+#define TBS5922SE_WRITE_MSG 1
 
 /* on my own*/
-#define TBSQBOX_VOLTAGE_CTRL (0x1800)
-#define TBSQBOX_RC_QUERY (0x1a00)
+#define TBS5922SE_VOLTAGE_CTRL (0x1800)
+#define TBS5922SE_RC_QUERY (0x1a00)
 
-struct tbsqbox22_state {
+struct tbs5922se_state {
 	u32 last_key_pressed;
 };
-struct tbsqbox22_rc_keys {
+struct tbs5922se_rc_keys {
 	u32 keycode;
 	u32 event;
 };
 
 /* debug */
-static int dvb_usb_tbsqbox22_debug;
-module_param_named(debug, dvb_usb_tbsqbox22_debug, int, 0644);
+static int dvb_usb_tbs5922se_debug;
+module_param_named(debug, dvb_usb_tbs5922se_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info 2=xfer (or-able))." DVB_USB_DEBUG_STATUS);
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-static int tbsqbox22_op_rw(struct usb_device *dev, u8 request, u16 value,
+static int tbs5922se_op_rw(struct usb_device *dev, u8 request, u16 value,
 			u16 index, u8 * data, u16 len, int flags)
 {
 	int ret;
 	void *u8buf;
 
-	unsigned int pipe = (flags == TBSQBOX_READ_MSG) ?
-				usb_rcvctrlpipe(dev, 0) : usb_sndctrlpipe(dev, 0);
-	u8 request_type = (flags == TBSQBOX_READ_MSG) ? USB_DIR_IN : USB_DIR_OUT;
-
+	unsigned int pipe = (flags == TBS5922SE_READ_MSG) ?
+			usb_rcvctrlpipe(dev, 0) : usb_sndctrlpipe(dev, 0);
+	u8 request_type = (flags == TBS5922SE_READ_MSG) ? USB_DIR_IN : USB_DIR_OUT;
 	u8buf = kmalloc(len, GFP_KERNEL);
 	if (!u8buf)
 		return -ENOMEM;
 
-	if (flags == TBSQBOX_WRITE_MSG)
+	if (flags == TBS5922SE_WRITE_MSG)
 		memcpy(u8buf, data, len);
 	ret = usb_control_msg(dev, pipe, request, request_type | USB_TYPE_VENDOR,
 				value, index , u8buf, len, 2000);
 
-	if (flags == TBSQBOX_READ_MSG)
+	if (flags == TBS5922SE_READ_MSG)
 		memcpy(data, u8buf, len);
 	kfree(u8buf);
 	return ret;
 }
 
 /* I2C */
-static int tbsqbox22_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
+static int tbs5922se_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
@@ -95,11 +94,11 @@ static int tbsqbox22_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[]
 		buf[1] = msg[0].addr << 1;
 		buf[2] = msg[0].buf[0];
 
-		tbsqbox22_op_rw(d->udev, 0x90, 0, 0,
-				buf, 3, TBSQBOX_WRITE_MSG);
+		tbs5922se_op_rw(d->udev, 0x90, 0, 0,
+				buf, 3, TBS5922SE_WRITE_MSG);
 		msleep(5);
-		tbsqbox22_op_rw(d->udev, 0x91, 0, 0,
-				buf, msg[1].len, TBSQBOX_READ_MSG);
+		tbs5922se_op_rw(d->udev, 0x91, 0, 0,
+				buf, msg[1].len, TBS5922SE_READ_MSG);
 		memcpy(msg[1].buf, buf, msg[1].len);
 		break;
 	case 1:
@@ -111,19 +110,19 @@ static int tbsqbox22_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[]
 			buf[1] = msg[0].addr << 1; //demod addr
 			for(i=0; i < msg[0].len; i++)
 				buf[2+i] = msg[0].buf[i]; //register
-			tbsqbox22_op_rw(d->udev, 0x80, 0, 0,
-						buf, msg[0].len+2, TBSQBOX_WRITE_MSG);
+			tbs5922se_op_rw(d->udev, 0x80, 0, 0,
+						buf, msg[0].len+2, TBS5922SE_WRITE_MSG);
 			//msleep(3);
 			break;
-		case (TBSQBOX_RC_QUERY):
-			tbsqbox22_op_rw(d->udev, 0xb8, 0, 0,
-					buf, 4, TBSQBOX_READ_MSG);
+		case (TBS5922SE_RC_QUERY):
+			tbs5922se_op_rw(d->udev, 0xb8, 0, 0,
+					buf, 4, TBS5922SE_READ_MSG);
 			msg[0].buf[0] = buf[2];
 			msg[0].buf[1] = buf[3];
 			msleep(3);
-			//info("TBSQBOX_RC_QUERY %x %x %x %x\n",buf6[0],buf6[1],buf6[2],buf6[3]);
+			//info("TBS5922SE_RC_QUERY %x %x %x %x\n",buf6[0],buf6[1],buf6[2],buf6[3]);
 			break;
-		case (TBSQBOX_VOLTAGE_CTRL):
+		case (TBS5922SE_VOLTAGE_CTRL):
 			break;
 		default:
 			break;
@@ -138,19 +137,19 @@ static int tbsqbox22_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[]
 	return num;
 }
 
-static u32 tbsqbox22_i2c_func(struct i2c_adapter *adapter)
+static u32 tbs5922se_i2c_func(struct i2c_adapter *adapter)
 {
 	return I2C_FUNC_I2C;
 }
 
 
-static struct i2c_algorithm tbsqbox22_i2c_algo = {
-	.master_xfer = tbsqbox22_i2c_transfer,
-	.functionality = tbsqbox22_i2c_func,
+static struct i2c_algorithm tbs5922se_i2c_algo = {
+	.master_xfer = tbs5922se_i2c_transfer,
+	.functionality = tbs5922se_i2c_func,
 };
 
 
-static int tbsqbox22_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
+static int tbs5922se_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 {
 	int i,ret;
 	u8 buf[3];
@@ -160,10 +159,10 @@ static int tbsqbox22_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 		buf[0] = 1; //lenth
 		buf[1] = 0xa0; //eeprom addr
 		buf[2] = i; //register
-		ret = tbsqbox22_op_rw(d->udev, 0x90, 0, 0,
-					buf, 3, TBSQBOX_WRITE_MSG);
-		ret = tbsqbox22_op_rw(d->udev, 0x91, 0, 0,
-					buf, 1, TBSQBOX_READ_MSG);
+		ret = tbs5922se_op_rw(d->udev, 0x90, 0, 0,
+					buf, 3, TBS5922SE_WRITE_MSG);
+		ret = tbs5922se_op_rw(d->udev, 0x91, 0, 0,
+					buf, 1, TBS5922SE_READ_MSG);
 			if (ret < 0) {
 				err("read eeprom failed");
 				return -1;
@@ -181,16 +180,16 @@ static int tbsqbox22_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 	return 0;
 };
 
-static struct dvb_usb_device_properties tbsqbox22_properties;
+static struct dvb_usb_device_properties tbs5922se_properties;
 
 
 static struct tas2101_config tbs5922_cfg = {
 	.i2c_address   = 0x68,
-	.id            = ID_TAS2100,
+	.id            = ID_TAS2101,
 	.reset_demod   = NULL,
 	.lnb_power     = NULL,
-	.init          = {0xb8, 0x67, 0x45, 0x23, 0x01, 0x9a, 0x33},
-	.init2         = 0,
+	.init          = {0x67, 0x45, 0xba, 0x23, 0x01, 0x98, 0x33},
+	.init2         = 1,
 };
 
 static struct av201x_config tbs5922_av201x_cfg = {
@@ -199,7 +198,7 @@ static struct av201x_config tbs5922_av201x_cfg = {
 	.xtal_freq   = 27000,		/* kHz */
 };
 
-static int tbsqbox22_frontend_attach(struct dvb_usb_adapter *d)
+static int tbs5922se_frontend_attach(struct dvb_usb_adapter *d)
 {
 	struct dvb_usb_device *u = d->dev;
 	u8 buf[20];
@@ -218,15 +217,15 @@ static int tbsqbox22_frontend_attach(struct dvb_usb_adapter *d)
 
 	buf[0] = 7;
 	buf[1] = 1;
-	tbsqbox22_op_rw(u->udev, 0x8a, 0, 0, buf, 2, TBSQBOX_WRITE_MSG);
+	tbs5922se_op_rw(u->udev, 0x8a, 0, 0, buf, 2, TBS5922SE_WRITE_MSG);
 
 	buf[0] = 1;
 	buf[1] = 1;
-	tbsqbox22_op_rw(u->udev, 0x8a, 0, 0, buf, 2, TBSQBOX_WRITE_MSG);
+	tbs5922se_op_rw(u->udev, 0x8a, 0, 0, buf, 2, TBS5922SE_WRITE_MSG);
 
 	buf[0] = 6;     
 	buf[1] = 1;
-	tbsqbox22_op_rw(u->udev, 0x8a, 0, 0, buf, 2, TBSQBOX_WRITE_MSG);
+	tbs5922se_op_rw(u->udev, 0x8a, 0, 0, buf, 2, TBS5922SE_WRITE_MSG);
 	
 	strlcpy(d->fe_adap->fe->ops.info.name,u->props.devices[0].name,52);
 
@@ -237,7 +236,7 @@ err:
 
 
 
-static struct rc_map_table tbsqbox22_rc_keys[] = {
+static struct rc_map_table tbs5922se_rc_keys[] = {
 	{ 0xff84, KEY_POWER2},		/* power */
 	{ 0xff94, KEY_MUTE},		/* mute */
 	{ 0xff87, KEY_1},
@@ -284,21 +283,21 @@ static struct rc_map_table tbsqbox22_rc_keys[] = {
 
 
 
-static int tbsqbox22_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+static int tbs5922se_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	struct rc_map_table *keymap = d->props.rc.legacy.rc_map_table;
 	int keymap_size = d->props.rc.legacy.rc_map_size;
 	
-	struct tbsqbox22_state *st = d->priv;
+	struct tbs5922se_state *st = d->priv;
 	u8 key[2];
 	struct i2c_msg msg[] = {
-		{.addr = TBSQBOX_RC_QUERY, .flags = I2C_M_RD, .buf = key,
+		{.addr = TBS5922SE_RC_QUERY, .flags = I2C_M_RD, .buf = key,
 		.len = 2},
 	};
 	int i;
 
 	*state = REMOTE_NO_KEY_PRESSED;
-	if (tbsqbox22_i2c_transfer(&d->i2c_adap, msg, 1) == 1) {
+	if (tbs5922se_i2c_transfer(&d->i2c_adap, msg, 1) == 1) {
 		//info("key: %x %x\n",msg[0].buf[0],msg[0].buf[1]); 
 		for (i = 0; i < keymap_size; i++) {
 			if (rc5_data(&keymap[i]) == msg[0].buf[1]) {
@@ -315,24 +314,24 @@ static int tbsqbox22_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	return 0;
 }
 
-static struct usb_device_id tbsqbox22_table[] = {
-	{USB_DEVICE(0x734c, 0x5922)},
-	{USB_DEVICE(USB_VID_CYPRESS, USB_PID_TBSQBOX_1)},
+static struct usb_device_id tbs5922se_table[] = {
+	{USB_DEVICE(0x734c, 0x5923)},
+	{USB_DEVICE(USB_VID_CYPRESS, USB_PID_TBS5922SE_1)},
 	{ }
 };
 
-MODULE_DEVICE_TABLE(usb, tbsqbox22_table);
+MODULE_DEVICE_TABLE(usb, tbs5922se_table);
 
-static int tbsqbox22_load_firmware(struct usb_device *dev,
+static int tbs5922se_load_firmware(struct usb_device *dev,
 			const struct firmware *frmwr)
 {
 	u8 *b, *p;
 	int ret = 0, i;
 	u8 reset;
 	const struct firmware *fw;
-	const char *filename = "dvb-usb-tbsqbox-id5922.fw";
+	const char *filename = "dvb-usb-tbsqbox-id5923.fw";
 	switch (dev->descriptor.idProduct) {
-	case 0x5922:
+	case 0x5923:
 		ret = request_firmware(&fw, filename, &dev->dev);
 		if (ret != 0) {
 			err("did not find the firmware file. (%s) "
@@ -345,19 +344,19 @@ static int tbsqbox22_load_firmware(struct usb_device *dev,
 		fw = frmwr;
 		break;
 	}
-	info("start downloading TBSQBOX firmware");
+	info("start downloading TBS5922SE firmware");
 	p = kmalloc(fw->size, GFP_KERNEL);
 	reset = 1;
 	/*stop the CPU*/
-	tbsqbox22_op_rw(dev, 0xa0, 0x7f92, 0, &reset, 1, TBSQBOX_WRITE_MSG);
-	tbsqbox22_op_rw(dev, 0xa0, 0xe600, 0, &reset, 1, TBSQBOX_WRITE_MSG);
+	tbs5922se_op_rw(dev, 0xa0, 0x7f92, 0, &reset, 1, TBS5922SE_WRITE_MSG);
+	tbs5922se_op_rw(dev, 0xa0, 0xe600, 0, &reset, 1, TBS5922SE_WRITE_MSG);
 
 	if (p != NULL) {
 		memcpy(p, fw->data, fw->size);
 		for (i = 0; i < fw->size; i += 0x40) {
 			b = (u8 *) p + i;
-			if (tbsqbox22_op_rw(dev, 0xa0, i, 0, b , 0x40,
-					TBSQBOX_WRITE_MSG) != 0x40) {
+			if (tbs5922se_op_rw(dev, 0xa0, i, 0, b , 0x40,
+					TBS5922SE_WRITE_MSG) != 0x40) {
 				err("error while transferring firmware");
 				ret = -EINVAL;
 				break;
@@ -365,13 +364,13 @@ static int tbsqbox22_load_firmware(struct usb_device *dev,
 		}
 		/* restart the CPU */
 		reset = 0;
-		if (ret || tbsqbox22_op_rw(dev, 0xa0, 0x7f92, 0, &reset, 1,
-					TBSQBOX_WRITE_MSG) != 1) {
+		if (ret || tbs5922se_op_rw(dev, 0xa0, 0x7f92, 0, &reset, 1,
+					TBS5922SE_WRITE_MSG) != 1) {
 			err("could not restart the USB controller CPU.");
 			ret = -EINVAL;
 		}
-		if (ret || tbsqbox22_op_rw(dev, 0xa0, 0xe600, 0, &reset, 1,
-					TBSQBOX_WRITE_MSG) != 1) {
+		if (ret || tbs5922se_op_rw(dev, 0xa0, 0xe600, 0, &reset, 1,
+					TBS5922SE_WRITE_MSG) != 1) {
 			err("could not restart the USB controller CPU.");
 			ret = -EINVAL;
 		}
@@ -382,30 +381,30 @@ static int tbsqbox22_load_firmware(struct usb_device *dev,
 	return ret;
 }
 
-static struct dvb_usb_device_properties tbsqbox22_properties = {
+static struct dvb_usb_device_properties tbs5922se_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
-	.firmware = "dvb-usb-tbsqbox-id5922.fw",
-	.size_of_priv = sizeof(struct tbsqbox22_state),
+	.firmware = "dvb-usb-tbsqbox-id5923.fw",
+	.size_of_priv = sizeof(struct tbs5922se_state),
 	.no_reconnect = 1,
 
-	.i2c_algo = &tbsqbox22_i2c_algo,
+	.i2c_algo = &tbs5922se_i2c_algo,
 	.rc.legacy = {
-		.rc_map_table = tbsqbox22_rc_keys,
-		.rc_map_size = ARRAY_SIZE(tbsqbox22_rc_keys),
+		.rc_map_table = tbs5922se_rc_keys,
+		.rc_map_size = ARRAY_SIZE(tbs5922se_rc_keys),
 		.rc_interval = 150,
-		.rc_query = tbsqbox22_rc_query,
+		.rc_query = tbs5922se_rc_query,
 	},
 
 	.generic_bulk_ctrl_endpoint = 0x81,
 	/* parameter for the MPEG2-data transfer */
 	.num_adapters = 1,
-	.download_firmware = tbsqbox22_load_firmware,
-	.read_mac_address = tbsqbox22_read_mac_address,
+	.download_firmware = tbs5922se_load_firmware,
+	.read_mac_address = tbs5922se_read_mac_address,
 	.adapter = {{
 		.num_frontends = 1,
 		.fe = {{
-			.frontend_attach = tbsqbox22_frontend_attach,
+			.frontend_attach = tbs5922se_frontend_attach,
 			.streaming_ctrl = NULL,
 			.stream = {
 				.type = USB_BULK,
@@ -421,48 +420,48 @@ static struct dvb_usb_device_properties tbsqbox22_properties = {
 	}},
 	.num_device_descs = 1,
 	.devices = {
-		{"TurboSight QBOX3 DVB-S/S2",
-			{&tbsqbox22_table[0], NULL},
+		{"TurboSight TBS 5922SE DVB-S/S2",
+			{&tbs5922se_table[0], NULL},
 			{NULL},
 		}
 	}
 };
 
-static int tbsqbox22_probe(struct usb_interface *intf,
+static int tbs5922se_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	if (0 == dvb_usb_device_init(intf, &tbsqbox22_properties,
+	if (0 == dvb_usb_device_init(intf, &tbs5922se_properties,
 			THIS_MODULE, NULL, adapter_nr)) {
 		return 0;
 	}
 	return -ENODEV;
 }
 
-static struct usb_driver tbsqbox22_driver = {
-	.name = "tbsqbox22",
-	.probe = tbsqbox22_probe,
+static struct usb_driver tbs5922se_driver = {
+	.name = "tbs5922se",
+	.probe = tbs5922se_probe,
 	.disconnect = dvb_usb_device_exit,
-	.id_table = tbsqbox22_table,
+	.id_table = tbs5922se_table,
 };
 
-static int __init tbsqbox22_module_init(void)
+static int __init tbs5922se_module_init(void)
 {
-	int ret =  usb_register(&tbsqbox22_driver);
+	int ret =  usb_register(&tbs5922se_driver);
 	if (ret)
 		err("usb_register failed. Error number %d", ret);
 
 	return ret;
 }
 
-static void __exit tbsqbox22_module_exit(void)
+static void __exit tbs5922se_module_exit(void)
 {
-	usb_deregister(&tbsqbox22_driver);
+	usb_deregister(&tbs5922se_driver);
 }
 
-module_init(tbsqbox22_module_init);
-module_exit(tbsqbox22_module_exit);
+module_init(tbs5922se_module_init);
+module_exit(tbs5922se_module_exit);
 
 MODULE_AUTHOR("Bob Liu <Bob@turbosight.com>");
-MODULE_DESCRIPTION("Driver for TBS QBOX22");
-MODULE_VERSION("0.2");
+MODULE_DESCRIPTION("Driver for TBS 5922SE");
+MODULE_VERSION("0.1");
 MODULE_LICENSE("GPL");

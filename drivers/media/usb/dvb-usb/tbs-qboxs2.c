@@ -23,11 +23,6 @@
 #include "tbs-qboxs2.h"
 #include "cx24116.h"
 
-
-#ifndef USB_PID_TBSQBOX_1
-#define USB_PID_TBSQBOX_1 0x5928
-#endif
-
 #define TBSQBOX_READ_MSG 0
 #define TBSQBOX_WRITE_MSG 1
 
@@ -55,19 +50,24 @@ static int tbsqboxs2_op_rw(struct usb_device *dev, u8 request, u16 value,
 			u16 index, u8 * data, u16 len, int flags)
 {
 	int ret;
-	u8 u8buf[len];
+	void *u8buf;
 
 	unsigned int pipe = (flags == TBSQBOX_READ_MSG) ?
 				usb_rcvctrlpipe(dev, 0) : usb_sndctrlpipe(dev, 0);
 	u8 request_type = (flags == TBSQBOX_READ_MSG) ? USB_DIR_IN : USB_DIR_OUT;
 
+	u8buf = kmalloc(len, GFP_KERNEL);
+	if (!u8buf)
+		return -ENOMEM;
+
 	if (flags == TBSQBOX_WRITE_MSG)
 		memcpy(u8buf, data, len);
 	ret = usb_control_msg(dev, pipe, request, request_type | USB_TYPE_VENDOR,
-				value, index, u8buf, len, 2000);
+				value, index , u8buf, len, 2000);
 
 	if (flags == TBSQBOX_READ_MSG)
 		memcpy(data, u8buf, len);
+	kfree(u8buf);
 	return ret;
 }
 
@@ -203,7 +203,6 @@ static void tbsqboxs2_led_ctrl(struct dvb_frontend *fe, int offon)
 	if (offon)
 		msg.buf = led_on;
 	i2c_transfer(&udev_adap->dev->i2c_adap, &msg, 1);
-	info("tbsqboxs2_led_ctrl %d",offon);
 }
 
 static const struct cx24116_config qbox2_cx24116_config = {
@@ -265,25 +264,24 @@ static struct dvb_usb_device_properties tbsqboxs2_properties;
 
 static int tbsqboxs2_frontend_attach(struct dvb_usb_adapter *d)
 {
+	struct dvb_usb_device *u = d->dev;
 	u8 buf[20];
 	
 	if ((d->fe_adap->fe = dvb_attach(cx24116_attach, &qbox2_cx24116_config,
-					&d->dev->i2c_adap)) != NULL) {
-			d->fe_adap->fe->ops.set_voltage = tbsqboxs2_set_voltage;
-			printk("QBOXS2: CX24116 attached.\n");
+					&u->i2c_adap)) != NULL) {
+		d->fe_adap->fe->ops.set_voltage = tbsqboxs2_set_voltage;
 
-			buf[0] = 7;
-			buf[1] = 1;
-			tbsqboxs2_op_rw(d->dev->udev, 0x8a, 0, 0,
-					buf, 2, TBSQBOX_WRITE_MSG);
+		buf[0] = 7;
+		buf[1] = 1;
+		tbsqboxs2_op_rw(u->udev, 0x8a, 0, 0,
+				buf, 2, TBSQBOX_WRITE_MSG);
 
-			return 0;
+		strlcpy(d->fe_adap->fe->ops.info.name,u->props.devices[0].name,52);
+		return 0;
 	}
 
 	return -EIO;
 }
-
-
 
 static struct rc_map_table tbsqboxs2_rc_keys[] = {
 	{ 0xff84, KEY_POWER2},		/* power */
@@ -365,7 +363,6 @@ static int tbsqboxs2_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 static struct usb_device_id tbsqboxs2_table[] = {
 	{USB_DEVICE(0x734c, 0x5928)},
-	{USB_DEVICE(USB_VID_CYPRESS, USB_PID_TBSQBOX_1)},
 	{ }
 };
 
@@ -378,14 +375,13 @@ static int tbsqboxs2_load_firmware(struct usb_device *dev,
 	int ret = 0, i;
 	u8 reset;
 	const struct firmware *fw;
-	const char *filename = "dvb-usb-tbsqbox-id5928.fw";
 	switch (dev->descriptor.idProduct) {
 	case 0x5928:
-		ret = request_firmware(&fw, filename, &dev->dev);
+		ret = request_firmware(&fw, tbsqboxs2_properties.firmware, &dev->dev);
 		if (ret != 0) {
 			err("did not find the firmware file. (%s) "
 			"Please see linux/Documentation/dvb/ for more details "
-			"on firmware-problems.", filename);
+			"on firmware-problems.", tbsqboxs2_properties.firmware);
 			return ret;
 		}
 		break;
@@ -470,7 +466,7 @@ static struct dvb_usb_device_properties tbsqboxs2_properties = {
 
 	.num_device_descs = 1,
 	.devices = {
-		{"TBS QBOXS2 DVBS2 USB2.0",
+		{"TurboSight TBS QBOX-S2 DVB-S/S2",
 			{&tbsqboxs2_table[0], NULL},
 			{NULL},
 		}

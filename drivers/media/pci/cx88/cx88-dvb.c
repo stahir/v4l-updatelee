@@ -1561,13 +1561,9 @@ static int dvb_register(struct cx8802_dev *dev)
 
 		if (fe0->dvb.frontend != NULL)
 			if (dvb_attach(av201x_attach, fe0->dvb.frontend, &tbs8922_av201x_cfg,
-				tas2101_get_i2c_adapter(fe0->dvb.frontend, 2)) == NULL) {
-			dvb_frontend_detach(fe0->dvb.frontend);
-			//adapter->fe = NULL;
-			//dev_err(&dev->pci_dev->dev,
-			//	"TBS_PCIE frontend %d tuner attach failed\n",
-			//	adapter->nr);
-			}
+				tas2101_get_i2c_adapter(fe0->dvb.frontend, 2)) == NULL)
+				goto frontend_detach;
+		strlcpy(fe0->dvb.frontend->ops.info.name,core->board.name,52);
 		break;
 	case CX88_BOARD_TERRATEC_CINERGY_HT_PCI_MKII:
 		fe0->dvb.frontend = dvb_attach(zl10353_attach,

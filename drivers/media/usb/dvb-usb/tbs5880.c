@@ -27,6 +27,8 @@ struct tbs5880_state {
 	struct mutex ca_mutex;
 
 	u32 last_key_pressed;
+
+	struct i2c_client *i2c_client_tuner;
 };
 
 /*struct tbs5880_rc_keys {
@@ -46,20 +48,23 @@ static int tbs5880_op_rw(struct usb_device *dev, u8 request, u16 value,
 				u16 index, u8 * data, u16 len, int flags)
 {
 	int ret;
-	u8 u8buf[len];
+	void *u8buf;
 
 	unsigned int pipe = (flags == TBS5880_READ_MSG) ?
 			usb_rcvctrlpipe(dev, 0) : usb_sndctrlpipe(dev, 0);
-	u8 request_type = (flags == TBS5880_READ_MSG) ? USB_DIR_IN : 
-								USB_DIR_OUT;
+	u8 request_type = (flags == TBS5880_READ_MSG) ? USB_DIR_IN : USB_DIR_OUT;
+	u8buf = kmalloc(len, GFP_KERNEL);
+	if (!u8buf)
+		return -ENOMEM;
 
 	if (flags == TBS5880_WRITE_MSG)
 		memcpy(u8buf, data, len);
-	ret = usb_control_msg(dev, pipe, request, request_type | 
-			USB_TYPE_VENDOR, value, index , u8buf, len, 2000);
+	ret = usb_control_msg(dev, pipe, request, request_type | USB_TYPE_VENDOR,
+				value, index , u8buf, len, 2000);
 
 	if (flags == TBS5880_READ_MSG)
 		memcpy(data, u8buf, len);
+	kfree(u8buf);
 	return ret;
 }
 
@@ -310,6 +315,7 @@ static int tbs5880_poll_slot_status(struct dvb_ca_en50221 *ca,
 static void tbs5880_uninit(struct dvb_usb_device *d)
 {
 	struct tbs5880_state *state;
+	struct i2c_client *client;
 
 	if (NULL == d)
 		return;
@@ -320,6 +326,13 @@ static void tbs5880_uninit(struct dvb_usb_device *d)
 
 	if (NULL == state->ca.data)
 		return;
+
+	/* remove I2C tuner */
+	client = state->i2c_client_tuner;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
 
 	/* Error ignored. */
 	tbs5880_set_video_port(&state->ca, /* slot */ 0, /* enable */ 0);
@@ -506,18 +519,18 @@ static void tbs5880_led_ctrl(struct dvb_frontend *fe, int offon)
 	if (offon)
 		msg.buf = led_on;
 	i2c_transfer(&udev_adap->dev->i2c_adap, &msg, 1);
-	info("tbs5880_led_ctrl %d",offon);
 }
 
 static struct dvb_usb_device_properties tbs5880_properties;
 
 static struct cxd2820r_config cxd2820r_config = {
 	.i2c_address = 0x6c, /* (0xd8 >> 1) */
-	.ts_mode = 0x08,
+	.ts_mode = CXD2820R_TS_SERIAL,
 	.set_lock_led = tbs5880_led_ctrl,
 };
 
 static struct tda18212_config tda18212_config = {
+	//.i2c_address = 0x60 /* (0xc0 >> 1) */,
 	.if_dvbt_6 = 3550,
 	.if_dvbt_7 = 3700,
 	.if_dvbt_8 = 4150,
@@ -529,7 +542,11 @@ static struct tda18212_config tda18212_config = {
 
 static int tbs5880_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	struct i2c_client *i2c_client;
+	struct dvb_usb_device *d = adap->dev;
+	struct tbs5880_state *state = (struct tbs5880_state *)d->priv;
+
+	struct i2c_adapter *adapter = &d->i2c_adap;
+	struct i2c_client *client;
 	struct i2c_board_info board_info = {
 		.type = "tda18212",
 		.addr = 0x60,
@@ -539,19 +556,22 @@ static int tbs5880_tuner_attach(struct dvb_usb_adapter *adap)
 	/* attach tuner */
 	tda18212_config.fe = adap->fe_adap->fe;
 	request_module("tda18212");
-	i2c_client = i2c_new_device(&adap->dev->i2c_adap, &board_info);
-	if (i2c_client == NULL || i2c_client->dev.driver == NULL) {
+	client = i2c_new_device(adapter, &board_info);
+	if (client == NULL || client->dev.driver == NULL) {
 		dvb_frontend_detach(adap->fe_adap->fe);
-		return -ENODEV;
+		goto err;
 	}
-
-	if (!try_module_get(i2c_client->dev.driver->owner)) {
-		i2c_unregister_device(i2c_client);
+	if (!try_module_get(client->dev.driver->owner)) {
+		i2c_unregister_device(client);
 		dvb_frontend_detach(adap->fe_adap->fe);
-		return -ENODEV;
+		goto err;
 	}
+	state->i2c_client_tuner = client;
 
 	return 0;
+
+err:
+	return -ENODEV;
 }
 
 static int tbs5880_frontend_attach(struct dvb_usb_adapter *d)
@@ -567,14 +587,13 @@ static int tbs5880_frontend_attach(struct dvb_usb_adapter *d)
 			&d->dev->i2c_adap,NULL);
 
 		if (d->fe_adap->fe != NULL) {
-			info("Attached TBS5880FE!\n");
-
 			buf[0] = 7;
 			buf[1] = 1;
-			tbs5880_op_rw(d->dev->udev, 0x8a, 0, 0,
+			tbs5880_op_rw(u->udev, 0x8a, 0, 0,
 					buf, 2, TBS5880_WRITE_MSG);
 
 			tbs5880_init(d);
+			strlcpy(d->fe_adap->fe->ops.info.name,u->props.devices[0].name,52);
 			return 0;
 		}
 	}
@@ -772,7 +791,7 @@ static struct dvb_usb_device_properties tbs5880_properties = {
 
 	.num_device_descs = 1,
 	.devices = {
-		{"TBS 5880 CI USB2.0",
+		{"TurboSight TBS 5880 DVB-T/T2/C + CI",
 			{&tbs5880_table[0], NULL},
 			{NULL},
 		}
