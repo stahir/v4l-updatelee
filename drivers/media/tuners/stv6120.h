@@ -49,7 +49,7 @@ struct stv6120_devctl {
 };
 
 
-#if IS_REACHABLE(CONFIG_DVB_STV6120)
+#if IS_REACHABLE(CONFIG_MEDIA_TUNER_STV6120)
 extern struct stv6120_devctl *stv6120_attach(struct dvb_frontend *fe, const struct stv6120_config *config, struct i2c_adapter *i2c);
 #else
 static inline struct stv6120_devctl *stv6120_attach(struct dvb_frontend *fe, const struct stv6120_config *config, struct i2c_adapter *i2c)

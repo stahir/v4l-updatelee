@@ -20,14 +20,6 @@ config DVB_STB6100
 	  A Silicon tuner from ST used in conjunction with the STB0899
 	  demodulator. Say Y when you want to support this tuner.
 
-config DVB_STV6120
-	tristate "STV6120 based tuners"
-	depends on DVB_CORE && I2C
-	default m if !MEDIA_SUBDRV_AUTOSELECT
-	help
-	  A Silicon tuner from ST used in conjunction with the STV0910
-	  demodulator. Say Y when you want to support this tuner.
-
 config DVB_STV090x
 	tristate "STV0900/STV0903(A/B) based"
 	depends on DVB_CORE && I2C

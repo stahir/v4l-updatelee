@@ -323,16 +323,6 @@ static int max_set_voltage(struct i2c_adapter *i2c,
 	return 0;
 }
 
-static int max_send_master_cmd(struct dvb_frontend *fe, struct dvb_diseqc_master_cmd *cmd)
-{
-	//printk("send master cmd\n");
-	return 0;
-}
-static int max_send_burst(struct dvb_frontend *fe, enum fe_sec_mini_cmd burst)
-{
-	//printk("send burst: %d\n", burst);
-	return 0;
-}
 static void RF_switch(struct i2c_adapter *i2c,u8 rf_in,u8 flag)//flag : 0: dvbs/s2 signal 1:Terrestrial and cable signal 
 {
 	struct tbsecp3_i2c *i2c_adap = i2c_get_adapdata(i2c);
@@ -366,20 +356,6 @@ static struct stv0910_cfg tbs6903_stv0910_cfg = {
 	.adr      = 0x68,
 	.parallel = 1,
 	.rptlvl   = 3,
-	.clk      = 30000000,
-
-	.tuner_init		= NULL,
-	.tuner_set_mode		= NULL,
-	.tuner_set_frequency	= NULL,
-	.tuner_set_bandwidth	= NULL,
-	.tuner_set_params	= NULL,
-};
-
-static struct stv0910_cfg tbs6908_stv0910_cfg = {
-	.name     = "STV0910 TBS 6908",
-	.adr      = 0x68,
-	.parallel = 1,
-	.rptlvl   = 4,
 	.clk      = 30000000,
 
 	.tuner_init		= NULL,
@@ -425,7 +401,7 @@ static int tbsecp3_frontend_attach(struct tbsecp3_adapter *adapter)
 
 	struct si2168_config si2168_config;
 	struct si2183_config si2183_config;
-	struct si2157_config si2157_6908config;
+	struct si2157_config si2157_config;
 	struct mn88436_config mn88436_config;
 	struct mxl603_config mxl603_config;
 	struct mtv23x_config mtv23x_config;
@@ -437,6 +413,9 @@ static int tbsecp3_frontend_attach(struct tbsecp3_adapter *adapter)
 	struct i2c_client *client_demod, *client_tuner;
 
 	struct stv6120_devctl *ctl;
+
+	int regdata;
+	u8 mpbuf[4];
 
 	adapter->fe = NULL;
 	adapter->fe2 = NULL;
@@ -462,8 +441,6 @@ static int tbsecp3_frontend_attach(struct tbsecp3_adapter *adapter)
 			goto frontend_atach_fail;
 		
 		// init asi
-		int regdata;
-		u8 mpbuf[4];
 		mpbuf[0] = adapter->nr; //0--3 select value
 		tbs_write( TBSECP3_GPIO_BASE, 0x34 , *(u32 *)&mpbuf[0]); // select chip : 13*8 =104=0x68 select address
 		//u32 mpbuf = adapter->nr;
